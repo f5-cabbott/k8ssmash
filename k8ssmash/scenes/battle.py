@@ -168,7 +168,7 @@ class Battle(Scene):
         for f, inp in zip(self.fighters, inputs):
             f.update(inp, self.stage)
             for ev in f.events:
-                self.app.audio.play(ev, 0.7 if ev in ("jump", "djump") else 1.0)
+                self.app.audio.play(ev, 0.7 if ev in ("jump", "djump") else 1.0, pan=self.pan_of(f), fighter=f.stats.name)
                 if ev == "special" and f.move is not None and not self.demo:
                     METRICS.inc("specials_used_total", fighter=f.stats.name, move=f.move.name)
             f.events.clear()
@@ -181,7 +181,7 @@ class Battle(Scene):
         self.effects = [(k, x, y, t - 1) for k, x, y, t in self.effects if t > 1]
         for f, item in self.spawner.update(self.stage, self.fighters):
             self.effects.append(("pickup", f.x, f.y - f.stats.height / 2, 24))
-            self.app.audio.play("pickup")
+            self.app.audio.play("pickup", pan=self.pan_of(f))
             if not self.demo:
                 METRICS.inc("items_picked_total", item=item.defn.key)
 
@@ -195,13 +195,18 @@ class Battle(Scene):
                         METRICS.inc("fighter_kos_total", fighter=f.last_hit_by.stats.name)
                 f.last_hit_by = None
                 f.knock_out()
-                self.app.audio.play("ko")
+                self.app.audio.play("ko", pan=self.pan_of(f), fighter=f.stats.name)
                 self.announce(f"{f.stats.name}: {self.rng.choice(KO_REASONS)}", self.colors[f.slot])
                 if f.eliminated and not self.demo:
                     self.slowmo = SLOWMO_FRAMES
         if self.slowmo == 0:
             self._check_end()
             self._report_result()
+
+    @staticmethod
+    def pan_of(f: Fighter) -> float:
+        """Stereo position from where the fighter is on screen, kept gentle so it never hard-pans."""
+        return max(-0.8, min(0.8, (f.x - CANVAS_W / 2) / CANVAS_W * 1.8))
 
     def announce(self, text: str, color=(255, 255, 255)) -> None:
         self.banners = (self.banners + [[text, color, BANNER_FRAMES]])[-2:]
@@ -219,15 +224,17 @@ class Battle(Scene):
             victim.say("COUNTER!")
             self.hitstop = 8
             self.effects.append(("counter", victim.x, victim.y - 24, 18))
-            self.app.audio.play("counter")
+            self.app.audio.play("counter", pan=self.pan_of(victim))
             return True
         result = victim.apply_hit(damage, base, growth, angle, direction)
         if result == "ignored":
             return False
         if result == "shield":
-            self.app.audio.play("shield")
+            self.app.audio.play("shield", pan=self.pan_of(victim))
         if result == "hit":
-            self.app.audio.play("hit_heavy" if damage >= 7 else "hit_light")
+            # the attacker's own impact sound, placed where the victim is
+            self.app.audio.play("hit_heavy" if damage >= 7 else "hit_light", pan=self.pan_of(victim),
+                                fighter=attacker.stats.name)
             attacker.dealt_damage += damage
             victim.last_hit_by = attacker
             self.hud_pulse[victim.slot] = 12
@@ -251,7 +258,7 @@ class Battle(Scene):
     def _explode(self, p: Projectile) -> None:
         d = p.defn
         self.effects.append(("boom", p.x, p.y, 20))
-        self.app.audio.play("explosion")
+        self.app.audio.play("explosion", pan=max(-0.8, min(0.8, (p.x - CANVAS_W / 2) / CANVAS_W * 1.8)))
         for vic in self.fighters:
             if not vic.alive or (vic is p.owner and d.harmless_to_owner):
                 continue

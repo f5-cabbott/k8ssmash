@@ -49,6 +49,9 @@ def config_path() -> Path:
     return base / "k8ssmash" / "config.json"
 
 
+MIX_VERSION = 2  # bump when default volumes change; older saved volumes are then ignored
+
+
 def data_dir() -> Path:
     """Where persistent game data (scores) lives: next to the config file."""
     return config_path().parent
@@ -59,8 +62,9 @@ class Config:
     width: int = 1920
     height: int = 1080
     fullscreen: bool = False
-    sfx_volume: float = 0.8
-    music_volume: float = 0.5
+    sfx_volume: float = 0.9
+    music_volume: float = 0.4  # music sits well under the effects
+    mix_version: int = MIX_VERSION
     muted: bool = False
     swap_pads: bool = False  # P1/P2 pad order; fix it from the controller test screen
     colorblind: bool = False  # colorblind-safe player colors
@@ -83,7 +87,10 @@ class Config:
             data = json.loads(path.read_text())
         except (OSError, ValueError):
             return cfg
-        for name in ("width", "height", "fullscreen", "dev_keys", "pad_name_filter", "items", "sfx_volume", "music_volume", "muted", "swap_pads", "colorblind", "event_name", "metrics_port", "metrics_host"):
+        names = ["width", "height", "fullscreen", "pad_name_filter", "items", "muted", "swap_pads", "colorblind", "event_name", "metrics_port", "metrics_host"]
+        if data.get("mix_version", 1) >= MIX_VERSION:
+            names += ["sfx_volume", "music_volume"]
+        for name in names:
             if name in data:
                 setattr(cfg, name, data[name])
         for slot, keys in enumerate(data.get("keys", [])[:2]):
@@ -95,6 +102,8 @@ class Config:
         path = config_path()
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(json.dumps(asdict(self), indent=2))
+            data = asdict(self)
+            data.pop("dev_keys")  # a per-run choice (--booth), never persisted
+            path.write_text(json.dumps(data, indent=2))
         except OSError:
             pass

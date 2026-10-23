@@ -30,6 +30,7 @@ class Training(Battle):
         self.last_hit_frame = -999
         self.best_combo = 0
         self.ais = {1: SimpleAI(self.fighters[1], self.fighters[0], self.stage)}
+        app.audio.music("training")
 
     # --- dummy behaviour -----------------------------------------------------------------
     def _inputs(self) -> list[PlayerInput]:

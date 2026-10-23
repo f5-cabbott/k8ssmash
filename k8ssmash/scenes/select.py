@@ -33,7 +33,7 @@ class CharacterSelect(Scene):
         self.font = ui.Font(22)
         self.small = ui.Font(18)
         self.frame = 0
-        app.audio.music("title")
+        app.audio.music("select")
         self.rng = random.Random()
 
     # --- logic ---------------------------------------------------------------------------

@@ -28,7 +28,7 @@ class HighScores(Scene):
         self.big = ui.Font(40)
         self.font = ui.Font(26)
         self.small = ui.Font(20)
-        app.audio.music("title")
+        app.audio.music("leaderboard")
 
     def update(self) -> None:
         self.frame += 1

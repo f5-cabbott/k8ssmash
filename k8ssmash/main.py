@@ -127,6 +127,7 @@ class App:
     def step(self) -> None:
         self.input.poll()
         self.idle_frames = 0 if any(p.pressed for p in self.input.players) else self.idle_frames + 1
+        self.audio.update()
         self._check_test_combo()
         self._check_exit_combo()
         self.scene.update()
