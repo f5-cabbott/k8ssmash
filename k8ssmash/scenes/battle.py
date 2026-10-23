@@ -5,6 +5,7 @@ import random
 
 import pygame
 
+from k8ssmash import ui
 from k8ssmash.ai import SimpleAI
 from k8ssmash.audio_manager import MUSIC_FOR_THEME
 from k8ssmash.backdrops import draw_backdrop, draw_platform
@@ -85,13 +86,13 @@ class Battle(Scene):
         self.hud_pulse = [0] * len(self.fighters)
         self.rng = random.Random()
         app.audio.music(MUSIC_FOR_THEME.get(self.stage.theme, "datacenter"))
-        self.font = pygame.font.Font(None, 22)
-        self.big = pygame.font.Font(None, 44)
-        self.huge = pygame.font.Font(None, 80)
-        self.callout_font = pygame.font.Font(None, 15)
-        self.finale_font = pygame.font.Font(None, 30)
-        self.pct_font = pygame.font.Font(None, 58)
-        self.pct_pulse = pygame.font.Font(None, 72)
+        self.font = ui.Font(22)
+        self.big = ui.Font(44)
+        self.huge = ui.Font(80)
+        self.callout_font = ui.Font(15)
+        self.finale_font = ui.Font(30)
+        self.pct_font = ui.Font(58)
+        self.pct_pulse = ui.Font(72)
         self.colors = player_colors(app.cfg)
 
     # --- logic ---------------------------------------------------------------------------
@@ -435,10 +436,7 @@ class Battle(Scene):
             color = self.colors[f.slot]
             x = 22 if f.slot == 0 else CANVAS_W - 22 - 250
             panel = pygame.Rect(x, 286, 250, 66)
-            shade = pygame.Surface(panel.size, pygame.SRCALPHA)
-            shade.fill((8, 10, 24, 170))
-            canvas.blit(shade, panel)
-            pygame.draw.rect(canvas, color, panel, 2)
+            ui.window(canvas, panel, accent=color)
             # portrait: head and shoulders from the idle frame
             sprites = sprite_set(f.stats.name)
             box = pygame.Rect(panel.x + 4, panel.y + 4, 56, 58)

@@ -7,6 +7,7 @@ import time
 
 import pygame
 
+from k8ssmash import ui
 from k8ssmash.audio_manager import Audio
 from k8ssmash.config import FPS, Config
 from k8ssmash.input import InputManager
@@ -45,7 +46,7 @@ class App:
         self.fps = 0.0
         METRICS.add_collector(self._collect_metrics)
         self.metrics_server = start_server(cfg.metrics_port, cfg.metrics_host) if cfg.metrics_port else None
-        self._fps_font = pygame.font.Font(None, 18)
+        self._fps_font = ui.Font(18)
 
     @property
     def scene(self) -> Scene:

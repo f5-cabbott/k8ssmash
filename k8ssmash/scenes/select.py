@@ -4,6 +4,7 @@ import random
 
 import pygame
 
+from k8ssmash import ui
 from k8ssmash.config import CANVAS_W, FPS
 from k8ssmash.roster import roster
 from k8ssmash.scenes.base import Scene
@@ -28,9 +29,9 @@ class CharacterSelect(Scene):
         self.locked = [False, False]
         self.ready_frames = 0
         self.stage_idx = random.randrange(len(STAGES))
-        self.big = pygame.font.Font(None, 36)
-        self.font = pygame.font.Font(None, 22)
-        self.small = pygame.font.Font(None, 18)
+        self.big = ui.Font(36)
+        self.font = ui.Font(22)
+        self.small = ui.Font(18)
         self.frame = 0
         app.audio.music("title")
         self.rng = random.Random()
@@ -121,8 +122,8 @@ class CharacterSelect(Scene):
         for i, st in enumerate(self.roster):
             cx = x0 + (i % cols) * (card_w + gap)
             cy = 46 + (i // cols) * (card_h + gap)
-            pygame.draw.rect(canvas, (30, 36, 64), (cx, cy, card_w, card_h))
-            pygame.draw.rect(canvas, _dim(st.color), (cx, cy + card_h - 22, card_w, 22))
+            ui.window(canvas, pygame.Rect(cx, cy, card_w, card_h))
+            pygame.draw.rect(canvas, _dim(st.color), (cx + 3, cy + card_h - 24, card_w - 6, 21))
             sprites = sprite_set(st.name)
             if sprites is not None:
                 img = sprites.get("idle", (self.frame // 12) % 4, 1)

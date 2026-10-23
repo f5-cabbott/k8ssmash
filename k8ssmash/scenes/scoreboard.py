@@ -5,6 +5,7 @@ from typing import Callable
 
 import pygame
 
+from k8ssmash import ui
 from k8ssmash.config import CANVAS_W, FPS
 from k8ssmash.palette import player_colors
 from k8ssmash.scenes.base import Scene
@@ -24,9 +25,9 @@ class HighScores(Scene):
         self.highlight = highlight or set()
         self.frame = 0
         self.limit = int(seconds * FPS)
-        self.big = pygame.font.Font(None, 40)
-        self.font = pygame.font.Font(None, 26)
-        self.small = pygame.font.Font(None, 20)
+        self.big = ui.Font(40)
+        self.font = ui.Font(26)
+        self.small = ui.Font(20)
         app.audio.music("title")
 
     def update(self) -> None:
@@ -71,9 +72,9 @@ class NameEntry(Scene):
         self.chars = list(DEFAULT_NAME)
         self.pos = 0
         self.frame = 0
-        self.big = pygame.font.Font(None, 40)
-        self.huge = pygame.font.Font(None, 110)
-        self.font = pygame.font.Font(None, 26)
+        self.big = ui.Font(40)
+        self.huge = ui.Font(110)
+        self.font = ui.Font(26)
         app.audio.play("pickup")
 
     def _finish(self) -> None:

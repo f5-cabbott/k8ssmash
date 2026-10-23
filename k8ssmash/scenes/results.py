@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pygame
 
+from k8ssmash import ui
 from k8ssmash.config import CANVAS_W, FPS
 from k8ssmash.scenes.base import Scene
 from k8ssmash.palette import player_colors
@@ -22,9 +23,9 @@ class Results(Scene):
         self.new_runs: set[str] = set()
         self.ranks: dict[str, int | None] = {}
         app.audio.music("results", loop=False)
-        self.huge = pygame.font.Font(None, 72)
-        self.big = pygame.font.Font(None, 34)
-        self.font = pygame.font.Font(None, 24)
+        self.huge = ui.Font(72)
+        self.big = ui.Font(34)
+        self.font = ui.Font(24)
 
     def update(self) -> None:
         from k8ssmash.scenes.battle import Battle

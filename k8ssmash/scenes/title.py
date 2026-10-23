@@ -4,6 +4,7 @@ import math
 
 import pygame
 
+from k8ssmash import ui
 from k8ssmash.config import CANVAS_H, CANVAS_W, FPS
 from k8ssmash.scenes.base import Scene
 
@@ -30,10 +31,10 @@ class Title(Scene):
         self._select_since: int | None = None
         self._select_clean = True
         app.audio.music("title")
-        self.huge = pygame.font.Font(None, 96)
-        self.big = pygame.font.Font(None, 36)
-        self.font = pygame.font.Font(None, 22)
-        self.small = pygame.font.Font(None, 28)
+        self.huge = ui.Font(96)
+        self.big = ui.Font(36)
+        self.font = ui.Font(22)
+        self.small = ui.Font(28)
 
     def update(self) -> None:
         from k8ssmash.scenes.attract import Attract

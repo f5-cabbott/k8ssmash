@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import pygame
 
+from k8ssmash import ui
 from k8ssmash.config import CANVAS_W
 from k8ssmash.scenes.base import Scene
 
@@ -14,8 +15,8 @@ ON = (120, 230, 140)
 class ControllerTest(Scene):
     def __init__(self, app):
         super().__init__(app)
-        self.font = pygame.font.Font(None, 17)
-        self.big = pygame.font.Font(None, 34)
+        self.font = ui.Font(17)
+        self.big = ui.Font(34)
         self._rebind_hold = 0
 
     def update(self) -> None:

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import pygame
 
+from k8ssmash import ui
 from k8ssmash.config import CANVAS_W, FPS
 from k8ssmash.scenes.base import Scene
 
@@ -19,8 +20,8 @@ class Rebind(Scene):
         self.new: dict[str, list[int]] = {}
         self.message = ""
         self.frame = 0
-        self.big = pygame.font.Font(None, 40)
-        self.font = pygame.font.Font(None, 26)
+        self.big = ui.Font(40)
+        self.font = ui.Font(26)
 
     @property
     def finished(self) -> bool:
