@@ -165,3 +165,71 @@ def test_all_stages_have_valid_spawns():
         assert len(st.spawns) >= 2 and st.name
         for sx, sy in st.spawns:
             assert any(p.rect.left <= sx <= p.rect.right and p.rect.top == sy for p in st.platforms)
+
+
+# --- ducking -----------------------------------------------------------------------------------
+def test_hold_down_ducks_with_a_shorter_hurtbox_and_no_movement(stage):
+    f = make(stage)
+    tick(f, stage, frames=3)
+    full = f.hurtbox.height
+    tick(f, stage, {"DOWN", "RIGHT"}, frames=10)
+    assert f.state == "duck" and f.ducking
+    assert f.hurtbox.height < full * 0.7 and f.hurtbox.bottom == int(f.y)
+    assert abs(f.vx) < 0.01  # ducking roots you in place
+    assert f.facing == 1
+    tick(f, stage, {"LEFT", "DOWN"}, frames=2)
+    assert f.facing == -1  # but you can turn around
+
+
+def test_release_down_stands_up(stage):
+    f = make(stage)
+    tick(f, stage, {"DOWN"}, frames=5)
+    assert f.ducking
+    tick(f, stage, frames=2)
+    assert not f.ducking and f.state == "idle"
+
+
+def test_holding_down_on_a_thin_platform_ducks_but_tapping_drops(stage):
+    f = make(stage)
+    thin = stage.platforms[1]
+    f.x, f.y = thin.rect.centerx, thin.top
+    tick(f, stage, frames=3)
+    tick(f, stage, {"DOWN"}, frames=1)  # the press frame: drops through
+    tick(f, stage, {"DOWN"}, frames=20)
+    assert f.y > thin.top
+
+    g = make(stage)
+    g.x, g.y = thin.rect.centerx, thin.top
+    g.on_ground = True
+    g.standing_on = thin
+    inp = PlayerInput()
+    inp.update({"DOWN"})
+    inp.pressed = set()  # already holding down before landing: no fresh press
+    g.update(inp, stage)
+    for _ in range(20):
+        g.update(inp, stage)
+    assert g.y == thin.top and g.ducking
+
+
+def test_duck_dodges_chest_height_projectiles(stage):
+    from k8ssmash.moves import ProjectileDef
+    f = make(stage)
+    tick(f, stage, {"DOWN"}, frames=3)
+    d = ProjectileDef(speed=4, width=10, height=8, damage=5, base_kb=2, kb_growth=0.03, angle=30)
+    rect = pygame.Rect(0, 0, d.width, d.height)
+    rect.center = (int(f.x), int(f.y + d.spawn_dy))
+    assert not rect.colliderect(f.hurtbox)
+    g = make(stage)
+    tick(g, stage, frames=3)
+    assert rect.colliderect(g.hurtbox)  # standing up it connects
+
+
+def test_can_jump_out_of_a_duck_and_attack_low(stage):
+    f = make(stage)
+    tick(f, stage, {"DOWN"}, frames=3)
+    tick(f, stage, {"DOWN", "JUMP"})
+    assert f.vy < 0
+    g = make(stage)
+    tick(g, stage, {"DOWN"}, frames=3)
+    tick(g, stage, {"DOWN", "ATTACK"})
+    assert g.move is not None and g.move.name == "down" and g.ducking

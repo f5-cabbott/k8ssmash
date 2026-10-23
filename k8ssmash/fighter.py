@@ -15,6 +15,7 @@ SHIELD_MAX = 60.0
 KO_DELAY = 50
 RESPAWN_INVULN = 120
 CALLOUT_FRAMES = 50
+DUCK_HEIGHT = 0.55
 
 # Buff names -> what they do. Durations are in frames and live in Fighter.buffs.
 BUFF_HASTE = "haste"  # +35% move speed
@@ -172,7 +173,14 @@ class Fighter:
     def hurtbox(self) -> pygame.Rect:
         s = self.stats
         w, h = int(s.width * self.scale), int(s.height * self.scale)
+        if self.ducking:
+            h = int(h * DUCK_HEIGHT)
         return pygame.Rect(int(self.x - w / 2), int(self.y - h), w, h)
+
+    @property
+    def ducking(self) -> bool:
+        """Crouching (or in a low attack): a shorter hurtbox that high attacks and shots pass over."""
+        return self.state == "duck" or (self.move is not None and self.move.anim == "down")
 
     @property
     def alive(self) -> bool:
@@ -301,7 +309,7 @@ class Fighter:
         if self.on_ground:
             self.aerial_jumps = 1
             self.used_recovery = False
-        elif self.state in ("idle", "run", "shield"):
+        elif self.state in ("idle", "run", "shield", "duck"):
             self.state = "fall" if self.vy > 0 else "jump"
 
         if self.shield_hp < SHIELD_MAX and not self.shielding:
@@ -345,8 +353,16 @@ class Fighter:
                 self.vx *= 0.5
                 self.state = "djump"
                 self.events.append("djump")
-        if "DOWN" in inp and self.on_ground:
-            self.drop_timer = 10
+        if "DOWN" in inp.pressed and self.on_ground and self.standing_on is not None \
+                and self.standing_on.dropthrough:
+            self.drop_timer = 10  # a tap drops through a thin platform; holding just ducks
+
+        if self.on_ground and "DOWN" in inp and self.drop_timer == 0:
+            if ax:
+                self.facing = ax
+            self.vx = _approach(self.vx, 0.0, GROUND_FRICTION)
+            self.state = "duck"
+            return
 
         if ax:
             self.facing = ax

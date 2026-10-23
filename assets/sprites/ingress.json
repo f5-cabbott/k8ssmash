@@ -41,62 +41,68 @@
    "fps": 1,
    "loop": false
   },
-  "hurt": {
+  "duck": {
    "row": 6,
+   "frames": 1,
+   "fps": 1,
+   "loop": false
+  },
+  "hurt": {
+   "row": 7,
    "frames": 2,
    "fps": 8,
    "loop": true
   },
   "jab": {
-   "row": 7,
-   "frames": 3,
-   "fps": 0,
-   "loop": false
-  },
-  "side": {
    "row": 8,
    "frames": 3,
    "fps": 0,
    "loop": false
   },
-  "up": {
+  "side": {
    "row": 9,
    "frames": 3,
    "fps": 0,
    "loop": false
   },
-  "down": {
+  "up": {
    "row": 10,
    "frames": 3,
    "fps": 0,
    "loop": false
   },
-  "cast": {
+  "down": {
    "row": 11,
    "frames": 3,
    "fps": 0,
    "loop": false
   },
-  "dash": {
+  "cast": {
    "row": 12,
    "frames": 3,
    "fps": 0,
    "loop": false
   },
-  "rise": {
+  "dash": {
    "row": 13,
    "frames": 3,
    "fps": 0,
    "loop": false
   },
-  "counter": {
+  "rise": {
    "row": 14,
    "frames": 3,
    "fps": 0,
    "loop": false
   },
-  "buff": {
+  "counter": {
    "row": 15,
+   "frames": 3,
+   "fps": 0,
+   "loop": false
+  },
+  "buff": {
+   "row": 16,
    "frames": 3,
    "fps": 0,
    "loop": false

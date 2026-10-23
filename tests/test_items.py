@@ -54,7 +54,7 @@ def test_disabled_spawner_never_spawns(stage):
 
 @pytest.mark.parametrize("key,check", [
     ("hpa", lambda f: f.has(BUFF_POWER) and f.has(BUFF_SCALED) and f.damage_mult > 1),
-    ("taint", lambda f: f.has(BUFF_ARMOR)),
+    ("cordon", lambda f: f.has(BUFF_ARMOR)),
     ("pdb", lambda f: f.has(BUFF_GUARD) and f.taken_mult == 0.5),
     ("probe", lambda f: f.has(BUFF_HASTE)),
     ("undo", lambda f: f.percent == 15),

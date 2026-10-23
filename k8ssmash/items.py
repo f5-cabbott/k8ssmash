@@ -46,7 +46,7 @@ def _sidecar(f: Fighter) -> None:
     f._fire(DRONE)
 
 
-def _taint(f: Fighter) -> None:
+def _cordon(f: Fighter) -> None:
     f.add_buff(BUFF_ARMOR, 8 * FPS)
 
 
@@ -69,7 +69,7 @@ def _probe(f: Fighter) -> None:
 ITEMS: dict[str, ItemDef] = {i.key: i for i in [
     ItemDef("hpa", "HPA: SCALED UP!", "H", (255, 130, 90), _hpa),
     ItemDef("sidecar", "SIDECAR INJECTED", "S", (190, 140, 255), _sidecar),
-    ItemDef("taint", "TAINT APPLIED", "T", (255, 175, 60), _taint),
+    ItemDef("cordon", "NODE CORDONED", "C", (255, 175, 60), _cordon),
     ItemDef("pdb", "PDB: PROTECTED", "P", (110, 235, 150), _pdb),
     ItemDef("chaos", "CHAOS BOMB!", "!", (240, 80, 70), _chaos),
     ItemDef("undo", "ROLLOUT UNDO", "R", (90, 200, 255), _undo),

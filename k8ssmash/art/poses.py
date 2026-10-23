@@ -13,6 +13,7 @@ ANIMS: dict[str, tuple[int, int, bool]] = {
     "fall": (1, 1, False),
     "djump": (3, 16, False),
     "shield": (1, 1, False),
+    "duck": (1, 1, False),
     "hurt": (2, 8, True),
     "jab": (3, 0, False),
     "side": (3, 0, False),
@@ -60,6 +61,10 @@ def djump(i: int) -> Pose:
 
 def shield(i: int) -> Pose:
     return Pose(crouch=3, lean=2, arm_f=(60, 150), arm_b=(30, 170), f_foot=(7, 0), b_foot=(-6, 0))
+
+
+def duck(i: int) -> Pose:
+    return Pose(crouch=11, lean=3, head_dy=2, arm_f=(40, 70), arm_b=(-25, 0), f_foot=(9, 0), b_foot=(-9, 0))
 
 
 def hurt(i: int) -> Pose:
@@ -139,6 +144,6 @@ def buff(i: int) -> Pose:
     ][i]
 
 
-_POSES = {"idle": idle, "run": run, "jump": jump, "fall": fall, "djump": djump, "shield": shield,
+_POSES = {"idle": idle, "run": run, "jump": jump, "fall": fall, "djump": djump, "shield": shield, "duck": duck,
           "hurt": hurt, "jab": jab, "side": side, "up": up, "down": down, "cast": cast,
           "dash": dash, "rise": rise, "counter": counter, "buff": buff}

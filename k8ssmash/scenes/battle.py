@@ -32,6 +32,24 @@ KO_REASONS = ["OOMKilled", "Evicted", "CrashLoopBackOff", "ImagePullBackOff", "T
 READY_STATUS = ["Pending...", "ContainerCreating...", "RUNNING!"]
 
 
+_VIGNETTE: pygame.Surface | None = None
+
+
+def vignette() -> pygame.Surface:
+    """A soft dark-edged overlay, built once from a tiny gradient and smooth-scaled up."""
+    global _VIGNETTE
+    if _VIGNETTE is None:
+        w, h = 64, 36
+        small = pygame.Surface((w, h), pygame.SRCALPHA)
+        for yy in range(h):
+            for xx in range(w):
+                d = math.hypot((xx - w / 2) / (w / 2), (yy - h / 2) / (h / 2))
+                a = max(0.0, min(1.0, (d - 0.55) / 0.8)) ** 1.4
+                small.set_at((xx, yy), (0, 0, 8, int(255 * a)))
+        _VIGNETTE = pygame.transform.smoothscale(small, (CANVAS_W, CANVAS_H))
+    return _VIGNETTE
+
+
 class Battle(Scene):
     metrics_mode: str | None = None  # None: derived from who is human
 
@@ -70,6 +88,8 @@ class Battle(Scene):
         self.font = pygame.font.Font(None, 22)
         self.big = pygame.font.Font(None, 44)
         self.huge = pygame.font.Font(None, 80)
+        self.callout_font = pygame.font.Font(None, 15)
+        self.finale_font = pygame.font.Font(None, 30)
         self.pct_font = pygame.font.Font(None, 58)
         self.pct_pulse = pygame.font.Font(None, 72)
         self.colors = player_colors(app.cfg)
@@ -314,12 +334,33 @@ class Battle(Scene):
             self._center(canvas, text, self.huge if len(text) < 12 else self.big, 140, shadow=True)
         elif self.phase == "finished":
             self._center(canvas, "GAME!", self.huge, 120, shadow=True)
-        elif self.slowmo > 0 and (self.frame // 10) % 2 == 0:
-            self._center(canvas, "TERMINATED", self.huge, 110, shadow=True)
+        elif self.slowmo > 0:
+            self._draw_finale(canvas)
         for i, (text, color, left) in enumerate(self.banners):
             slide = min(1.0, (BANNER_FRAMES - left) / 8)
             y = int(-30 + (66 + i * 34) * slide)
             self._center(canvas, text, self.big, y, color=color, shadow=True)
+
+    def _draw_finale(self, canvas: pygame.Surface) -> None:
+        """Final-KO beat: a soft vignette, cinematic bars and a fading title. Nothing flashes."""
+        t = 1 - self.slowmo / SLOWMO_FRAMES
+        k = min(1.0, t * 4) * min(1.0, self.slowmo / 24)  # ease in quickly, ease out gently
+        k = k * k * (3 - 2 * k)  # smoothstep
+        veil = vignette()
+        veil.set_alpha(int(200 * k))
+        canvas.blit(veil, (0, 0))
+        bar = int(20 * k)
+        pygame.draw.rect(canvas, (6, 6, 14), (0, 0, CANVAS_W, bar))
+        pygame.draw.rect(canvas, (6, 6, 14), (0, CANVAS_H - bar, CANVAS_W, bar))
+        text = "TERMINATED"
+        glyphs = [self.finale_font.render(c, False, (255, 232, 176)) for c in text]
+        width = sum(g.get_width() for g in glyphs) + 5 * (len(text) - 1)
+        x, y = (CANVAS_W - width) // 2, 150 - int((1 - k) * 8)
+        for g in glyphs:
+            shadow = self.finale_font.render(" ", False, (0, 0, 0))
+            g.set_alpha(int(235 * k))
+            canvas.blit(g, (x, y))
+            x += g.get_width() + 5
 
     def _center(self, canvas: pygame.Surface, text: str, font: pygame.font.Font, y: int,
                 color=(255, 255, 255), shadow: bool = False) -> None:
@@ -365,9 +406,12 @@ class Battle(Scene):
             canvas.blit(label, (box.x - 10, box.y - 16))
         self._draw_tag(canvas, f)
         if f.callout_timer > 0:
-            text = self.font.render(f.callout, False, (255, 255, 255))
-            shadow = self.font.render(f.callout, False, (16, 12, 28))
-            pos = (box.centerx - text.get_width() // 2, box.top - 26 - (CALLOUT_FRAMES - f.callout_timer) // 8)
+            alpha = min(255, f.callout_timer * 14)  # fades out over the last ~18 frames
+            text = self.callout_font.render(f.callout, False, (255, 255, 255))
+            shadow = self.callout_font.render(f.callout, False, (16, 12, 28))
+            text.set_alpha(alpha)
+            shadow.set_alpha(alpha)
+            pos = (box.centerx - text.get_width() // 2, box.top - 30 - (CALLOUT_FRAMES - f.callout_timer) // 10)
             canvas.blit(shadow, (pos[0] + 1, pos[1] + 1))
             canvas.blit(text, pos)
 

@@ -70,6 +70,8 @@ def pick_frame(f: Fighter) -> tuple[str, int]:
         return "run", (n * 14 // 60) % 6
     if state == "idle":
         return "idle", (n * 5 // 60) % 4
+    if state == "duck":
+        return "duck", 0
     if state == "djump":
         return "djump", min(2, n // 4)
     if state == "hurt":

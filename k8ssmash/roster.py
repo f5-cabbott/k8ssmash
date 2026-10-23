@@ -41,7 +41,7 @@ def helm() -> FighterStats:
             "side": Move("side", 11, 4, 20, (8, -40, 38, 22), 12, 4.4, 0.07, 30, lunge=1.2, anim="side"),
             "special": Move("helm install", 14, 1, 20, anim="cast", announce="helm install", projectile=ProjectileDef(
                 speed=4.0, width=20, height=20, damage=7, base_kb=3.0, kb_growth=0.04, angle=40, life=80,
-                spawn_dy=-26, color=(232, 190, 70), shape="wheel", boomerang=True, pierce=True,
+                spawn_dy=-30, color=(232, 190, 70), shape="wheel", boomerang=True, pierce=True,
                 hit_interval=30)),
             "special_side": Move("chart charge", 14, 16, 22, (6, -42, 32, 38), 13, 4.6, 0.075, 30, dash=3.2,
                                  anim="dash", announce="Chart Charge"),

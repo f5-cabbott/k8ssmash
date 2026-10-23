@@ -25,7 +25,7 @@ For the Pi, see [`deploy/README.md`](deploy/README.md).
 | Select | add a CPU opponent (select screen), leaderboard (title) | `Backspace` / numpad 0 |
 
 Knock the other pod off the stage. Damage % makes every hit launch farther; 3 stocks, 2 minutes.
-Grab the heptagon power-ups: **HPA** (bigger + stronger), **Sidecar** (drone), **Taint** (armor),
+Grab the heptagon power-ups: **HPA** (bigger + stronger), **Sidecar** (drone), **Cordon** (armor),
 **PDB** (half damage), **Chaos Bomb**, **Rollout Undo** (heal), **Readiness Probe** (speed).
 
 ### Modes and screens

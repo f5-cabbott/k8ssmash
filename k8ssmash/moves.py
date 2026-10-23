@@ -17,7 +17,7 @@ class ProjectileDef:
     gravity: float = 0.0
     vy: float = 0.0  # initial vertical speed (negative = up), for lobbed shots
     spawn_dx: float = 14  # forward offset from fighter centre
-    spawn_dy: float = -22  # offset from feet
+    spawn_dy: float = -30  # offset from feet (chest height: a duck passes underneath)
     color: tuple[int, int, int] = (120, 200, 255)
     shape: str = "orb"  # sprite flavour: orb, bolt, wheel, banana, bomb, drone, wall, skull
     count: int = 1
