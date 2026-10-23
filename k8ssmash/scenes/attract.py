@@ -16,11 +16,15 @@ class Attract(Scene):
         self.battle = Battle(app, stats, stage=random.choice(STAGES)(), human=[False, False], demo=True)
 
     def update(self) -> None:
-        if self.app.idle_frames < 5 or self.battle.winner is not None:
-            # Fresh input, or the demo finished: back to the title.
-            if self.app.idle_frames < 5 or self.battle.finished_frames > 120:
-                self.app.go_title()
-                return
+        if self.app.idle_frames < 5:
+            self.app.go_title()  # someone pressed a button
+            return
+        if self.battle.winner is not None and self.battle.finished_frames > 120:
+            from k8ssmash.scenes.scoreboard import HighScores
+
+            # Demo over: show the leaderboard, then back to the title.
+            self.app.set_scene(HighScores(self.app, on_done=self.app.go_title, seconds=10))
+            return
         self.battle.update()
 
     def draw(self, canvas) -> None:

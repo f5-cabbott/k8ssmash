@@ -12,6 +12,7 @@ from k8ssmash.config import FPS, Config
 from k8ssmash.input import InputManager
 from k8ssmash.render import Display
 from k8ssmash.scenes.base import Scene
+from k8ssmash.scores import RunTracker, ScoreBoard
 from k8ssmash.watchdog import Watchdog
 
 log = logging.getLogger("k8ssmash")
@@ -28,6 +29,8 @@ class App:
         self.display = Display(cfg)
         self.input = InputManager(cfg)
         self.audio = Audio(cfg.sfx_volume, cfg.music_volume, cfg.muted)
+        self.scores = ScoreBoard()
+        self.runs = RunTracker(self.scores)
         self.running = True
         self.scenes: list[Scene] = []
         self._screenshot_n = 0
@@ -52,6 +55,7 @@ class App:
         from k8ssmash.scenes.title import Title
 
         self.idle_frames = 0
+        self.runs.reset()  # whoever walks away ends their run
         self.set_scene(Title(self))
 
     def push_scene(self, scene: Scene) -> None:

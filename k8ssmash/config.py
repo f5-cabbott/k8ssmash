@@ -49,6 +49,11 @@ def config_path() -> Path:
     return base / "k8ssmash" / "config.json"
 
 
+def data_dir() -> Path:
+    """Where persistent game data (scores) lives: next to the config file."""
+    return config_path().parent
+
+
 @dataclass
 class Config:
     width: int = 1920
@@ -58,6 +63,8 @@ class Config:
     music_volume: float = 0.5
     muted: bool = False
     swap_pads: bool = False  # P1/P2 pad order; fix it from the controller test screen
+    colorblind: bool = False  # colorblind-safe player colors
+    event_name: str = "KubeCon"  # shown on the title and leaderboard
     items: bool = True  # k8s power-ups drop during matches
     dev_keys: bool = True  # Esc quits, F-keys active; disabled by the booth service
     # Only joysticks whose name contains one of these (case-insensitive) become players.
@@ -74,7 +81,7 @@ class Config:
             data = json.loads(path.read_text())
         except (OSError, ValueError):
             return cfg
-        for name in ("width", "height", "fullscreen", "dev_keys", "pad_name_filter", "items", "sfx_volume", "music_volume", "muted", "swap_pads"):
+        for name in ("width", "height", "fullscreen", "dev_keys", "pad_name_filter", "items", "sfx_volume", "music_volume", "muted", "swap_pads", "colorblind", "event_name"):
             if name in data:
                 setattr(cfg, name, data[name])
         for slot, keys in enumerate(data.get("keys", [])[:2]):

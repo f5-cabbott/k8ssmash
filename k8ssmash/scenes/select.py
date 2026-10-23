@@ -7,7 +7,8 @@ import pygame
 from k8ssmash.config import CANVAS_W, FPS
 from k8ssmash.roster import roster
 from k8ssmash.scenes.base import Scene
-from k8ssmash.scenes.battle import Battle, P_COLORS
+from k8ssmash.palette import player_colors
+from k8ssmash.scenes.battle import Battle
 from k8ssmash.stage import STAGES
 from k8ssmash.sprites import sprite_set
 
@@ -123,7 +124,7 @@ class CharacterSelect(Scene):
                 if self._active(slot) and self.cursor[slot] == i:
                     off = slot * 4
                     width = 3 if not self.locked[slot] or (self.frame // 8) % 2 == 0 else 5
-                    pygame.draw.rect(canvas, P_COLORS[slot],
+                    pygame.draw.rect(canvas, player_colors(self.app.cfg)[slot],
                                      (cx - off - 2, cy - off - 2, card_w + 2 * off + 4, card_h + 2 * off + 4), width)
         for slot in (0, 1):
             x = 24 + slot * 320
@@ -141,8 +142,8 @@ class CharacterSelect(Scene):
                 blurb = self.roster[self.cursor[slot]].blurb
             else:
                 st = self.roster[self.cursor[slot]]
-                status, color, blurb = st.name, P_COLORS[slot], st.blurb
-            canvas.blit(self.big.render(f"P{slot + 1}", False, P_COLORS[slot]), (x, y - 4))
+                status, color, blurb = st.name, player_colors(self.app.cfg)[slot], st.blurb
+            canvas.blit(self.big.render(f"P{slot + 1}", False, player_colors(self.app.cfg)[slot]), (x, y - 4))
             canvas.blit(self.font.render(status, False, color), (x + 44, y))
             if blurb:
                 canvas.blit(self.small.render(blurb, False, (170, 176, 205)), (x + 44, y + 16))

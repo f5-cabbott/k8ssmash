@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import random
 
 import pygame
 
@@ -13,6 +14,7 @@ from k8ssmash.fighter import (BUFF_ARMOR, BUFF_GUARD, BUFF_HASTE, BUFF_POWER, CA
 from k8ssmash.fx import draw_effect, draw_projectile
 from k8ssmash.items import ItemSpawner, draw_item
 from k8ssmash.input import PlayerInput
+from k8ssmash.palette import damage_color, player_colors
 from k8ssmash.scenes.base import Scene
 from k8ssmash.sprites import pick_frame, sprite_set
 from k8ssmash.stage import Stage, datacenter_stage
@@ -22,7 +24,11 @@ MATCH_SECONDS = 120
 GAME_FRAMES = 150  # 'GAME!' banner before the results screen
 IDLE_ABORT = 45 * FPS
 
-P_COLORS = [(80, 160, 255), (255, 110, 90)]
+SLOWMO_FRAMES = 110  # real frames of slow motion after the final KO (runs at quarter speed)
+BANNER_FRAMES = 80
+KO_REASONS = ["OOMKilled", "Evicted", "CrashLoopBackOff", "ImagePullBackOff", "Terminated", "NodeNotReady",
+              "Preempted"]
+READY_STATUS = ["Pending...", "ContainerCreating...", "RUNNING!"]
 
 
 class Battle(Scene):
@@ -47,10 +53,18 @@ class Battle(Scene):
         self.winner: int | None = None  # fighter slot, -1 for a draw
         self.finished_frames = 0
         self.debug = False
+        self.slowmo = 0
+        self._slow_tick = 0
+        self.banners: list[list] = []  # [text, color, frames left]
+        self.hud_pulse = [0] * len(self.fighters)
+        self.rng = random.Random()
         app.audio.music(MUSIC_FOR_THEME.get(self.stage.theme, "datacenter"))
         self.font = pygame.font.Font(None, 22)
         self.big = pygame.font.Font(None, 44)
         self.huge = pygame.font.Font(None, 80)
+        self.pct_font = pygame.font.Font(None, 58)
+        self.pct_pulse = pygame.font.Font(None, 72)
+        self.colors = player_colors(app.cfg)
 
     # --- logic ---------------------------------------------------------------------------
     @property
@@ -84,7 +98,7 @@ class Battle(Scene):
                 from k8ssmash.scenes.results import Results
                 summary = [{"name": f.stats.name, "kos": f.kos, "damage": f.dealt_damage,
                             "stocks": max(f.stocks, 0)} for f in self.fighters]
-                self.app.set_scene(Results(self.app, self.winner, summary))
+                self.app.set_scene(Results(self.app, self.winner, summary, self.human))
             return
         if not self.demo and self.app.idle_frames >= IDLE_ABORT and any(self.human):
             self.app.go_title()
@@ -98,7 +112,14 @@ class Battle(Scene):
         if self.hitstop > 0:
             self.hitstop -= 1
             return
+        if self.slowmo > 0:
+            self.slowmo -= 1
+            self._slow_tick = (self._slow_tick + 1) % 4
+            if self._slow_tick:
+                return  # the final KO plays out at quarter speed
 
+        self.hud_pulse = [max(0, p - 1) for p in self.hud_pulse]
+        self.banners = [[t, c, n - 1] for t, c, n in self.banners if n > 1]
         self.time_left -= 1
         self.stage.tick(self.frame)
         for f, inp in zip(self.fighters, inputs):
@@ -126,7 +147,14 @@ class Battle(Scene):
                 f.last_hit_by = None
                 f.knock_out()
                 self.app.audio.play("ko")
-        self._check_end()
+                self.announce(f"{f.stats.name}: {self.rng.choice(KO_REASONS)}", self.colors[f.slot])
+                if f.eliminated and not self.demo:
+                    self.slowmo = SLOWMO_FRAMES
+        if self.slowmo == 0:
+            self._check_end()
+
+    def announce(self, text: str, color=(255, 255, 255)) -> None:
+        self.banners = (self.banners + [[text, color, BANNER_FRAMES]])[-2:]
 
     def _hit(self, victim: Fighter, attacker: Fighter, damage: float, base: float, growth: float,
              angle: float, direction: int) -> bool:
@@ -152,6 +180,7 @@ class Battle(Scene):
             self.app.audio.play("hit_heavy" if damage >= 7 else "hit_light")
             attacker.dealt_damage += damage
             victim.last_hit_by = attacker
+            self.hud_pulse[victim.slot] = 12
             self.hitstop = 3 + int(damage // 4)
             self.effects.append(("hit", victim.x, victim.y - victim.stats.height / 2, 10))
         return True
@@ -221,6 +250,7 @@ class Battle(Scene):
         elif not alive:
             self.winner = -1
         elif self.time_left <= 0:
+            self.announce("Timeout!", (255, 235, 120))
             a, b = self.fighters
             if a.stocks != b.stocks:
                 self.winner = 0 if a.stocks > b.stocks else 1
@@ -252,14 +282,24 @@ class Battle(Scene):
             self._center(canvas, f"Reconnect {who} controller to resume", self.font, 175)
             return
         if self.phase == "ready":
-            n = 3 - self.frame * 3 // READY_FRAMES
-            self._center(canvas, str(n) if n > 0 else "GO!", self.huge, 140)
+            text = READY_STATUS[min(2, self.frame * 3 // READY_FRAMES)]
+            self._center(canvas, text, self.huge if len(text) < 12 else self.big, 140, shadow=True)
         elif self.phase == "finished":
-            self._center(canvas, "GAME!", self.huge, 120)
+            self._center(canvas, "GAME!", self.huge, 120, shadow=True)
+        elif self.slowmo > 0 and (self.frame // 10) % 2 == 0:
+            self._center(canvas, "TERMINATED", self.huge, 110, shadow=True)
+        for i, (text, color, left) in enumerate(self.banners):
+            slide = min(1.0, (BANNER_FRAMES - left) / 8)
+            y = int(-30 + (66 + i * 34) * slide)
+            self._center(canvas, text, self.big, y, color=color, shadow=True)
 
-    def _center(self, canvas: pygame.Surface, text: str, font: pygame.font.Font, y: int) -> None:
-        surf = font.render(text, False, (255, 255, 255))
-        canvas.blit(surf, ((CANVAS_W - surf.get_width()) // 2, y))
+    def _center(self, canvas: pygame.Surface, text: str, font: pygame.font.Font, y: int,
+                color=(255, 255, 255), shadow: bool = False) -> None:
+        surf = font.render(text, False, color)
+        x = (CANVAS_W - surf.get_width()) // 2
+        if shadow:
+            canvas.blit(font.render(text, False, (16, 12, 28)), (x + 2, y + 2))
+        canvas.blit(surf, (x, y))
 
     def _draw_fighter(self, canvas: pygame.Surface, f: Fighter) -> None:
         if not f.alive:
@@ -295,6 +335,7 @@ class Battle(Scene):
             pygame.draw.rect(canvas, (0, 255, 0), box, 1)
             label = self.font.render(f"{f.state} {f.move_frame}", False, (255, 255, 255))
             canvas.blit(label, (box.x - 10, box.y - 16))
+        self._draw_tag(canvas, f)
         if f.callout_timer > 0:
             text = self.font.render(f.callout, False, (255, 255, 255))
             shadow = self.font.render(f.callout, False, (16, 12, 28))
@@ -302,16 +343,54 @@ class Battle(Scene):
             canvas.blit(shadow, (pos[0] + 1, pos[1] + 1))
             canvas.blit(text, pos)
 
+    def _draw_tag(self, canvas: pygame.Surface, f: Fighter) -> None:
+        """Marker over the fighter: shape differs per player so color is never the only cue."""
+        color = self.colors[f.slot]
+        label = "CPU" if not self.human[f.slot] else f"P{f.slot + 1}"
+        text = self.font.render(label, False, color)
+        total = text.get_width() + 4 + 10
+        x = f.hurtbox.centerx - total // 2
+        y = f.hurtbox.top - 18
+        canvas.blit(text, (x, y))
+        mx, my = x + text.get_width() + 4, y + 3
+        if f.slot == 0:
+            pygame.draw.polygon(canvas, color, [(mx, my), (mx + 10, my), (mx + 5, my + 8)])
+        else:
+            pygame.draw.rect(canvas, color, (mx, my, 9, 8))
+
     def _draw_hud(self, canvas: pygame.Surface) -> None:
         for f in self.fighters:
-            x = 90 + f.slot * 300
-            color = P_COLORS[f.slot]
-            pct = self.big.render(f"{int(f.percent)}%", False, color)
-            canvas.blit(pct, (x, 310))
-            tag = self.font.render(f"P{f.slot + 1} {f.stats.name}", False, (200, 200, 220))
-            canvas.blit(tag, (x, 296))
+            color = self.colors[f.slot]
+            x = 22 if f.slot == 0 else CANVAS_W - 22 - 250
+            panel = pygame.Rect(x, 286, 250, 66)
+            shade = pygame.Surface(panel.size, pygame.SRCALPHA)
+            shade.fill((8, 10, 24, 170))
+            canvas.blit(shade, panel)
+            pygame.draw.rect(canvas, color, panel, 2)
+            # portrait: head and shoulders from the idle frame
+            sprites = sprite_set(f.stats.name)
+            box = pygame.Rect(panel.x + 4, panel.y + 4, 56, 58)
+            pygame.draw.rect(canvas, (24, 30, 56), box)
+            if sprites is not None:
+                img = sprites.get("idle", 0, 1 if f.slot == 0 else -1)
+                canvas.set_clip(box)
+                canvas.blit(img, (box.x - 12, box.y - 12))
+                canvas.set_clip(None)
+            # damage meter, severity-colored, pulses when hit
+            font = self.pct_pulse if self.hud_pulse[f.slot] else self.pct_font
+            num = font.render(str(int(f.percent)), False, damage_color(f.percent))
+            canvas.blit(font.render(str(int(f.percent)), False, (16, 12, 28)), (panel.x + 68, panel.y + 5))
+            canvas.blit(num, (panel.x + 66, panel.y + 3))
+            canvas.blit(self.font.render("%", False, damage_color(f.percent)),
+                        (panel.x + 66 + num.get_width() + 2, panel.y + 30))
+            name = self.font.render(f.stats.name, False, (210, 214, 235))
+            canvas.blit(name, (panel.right - name.get_width() - 8, panel.y + 6))
             for i in range(max(f.stocks, 0)):
-                pygame.draw.circle(canvas, color, (x + 100 + i * 14, 326), 5)
+                cx, cy = panel.x + 150 + i * 22, panel.bottom - 14
+                if f.slot == 0:
+                    pygame.draw.polygon(canvas, color, [(cx - 6, cy + 5), (cx + 6, cy + 5), (cx, cy - 6)])
+                else:
+                    pygame.draw.rect(canvas, color, (cx - 5, cy - 5, 10, 10))
         secs = max(self.time_left // FPS, 0)
         t = self.big.render(f"{secs // 60}:{secs % 60:02d}", False, (230, 230, 240))
         canvas.blit(t, ((CANVAS_W - t.get_width()) // 2, 10))
