@@ -14,6 +14,19 @@ class SimpleAI:
         self.tap_cooldown = 0  # buttons must be released between presses to register
         self.pending: set[str] = set()
 
+    def _pick_special(self, dist: float, toward: str, foe: Fighter) -> set[str]:
+        moves = self.me.stats.moves
+        options: list[set[str]] = []
+        if dist > 70:
+            options += [{"SPECIAL"}, {"SPECIAL"}]  # ranged neutral special
+        if 40 < dist < 160:
+            options.append({"SPECIAL", toward})  # side special (dash / blink / shot)
+        if dist < 70:
+            options.append({"SPECIAL", "DOWN"})  # down special (area / counter / buff)
+        if foe.y < self.me.y - 50 and dist < 60:
+            options.append({"SPECIAL", "UP"})
+        return self.rng.choice(options) if options else {"SPECIAL"}
+
     def decide(self) -> set[str]:
         me, foe = self.me, self.foe
         held: set[str] = set()
@@ -50,9 +63,8 @@ class SimpleAI:
                 elif roll < 0.04:
                     held.add(toward)
                 self.tap_cooldown = 8
-            elif 90 < dist < 220 and roll < 0.03 and me.move is None:
-                held.add("SPECIAL")
-                held.add(toward)
+            elif roll < 0.035 and me.move is None:
+                held |= self._pick_special(dist, toward, foe)
                 self.tap_cooldown = 20
         if foe.move is not None and dist < 50 and me.on_ground and self.rng.random() < 0.25:
             held = {"SHIELD"}

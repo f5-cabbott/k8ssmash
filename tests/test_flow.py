@@ -93,7 +93,7 @@ def test_select_times_out_to_title(app):
 
 def test_cpu_match_finishes_with_results_and_kos(app):
     r = roster()
-    battle = Battle(app, r, human=[False, False], demo=False)
+    battle = Battle(app, r[:2], human=[False, False], demo=False)
     app.set_scene(battle)
     for _ in range(120 * 60 + 400):
         frame(app)
@@ -117,14 +117,14 @@ def test_results_rematch_and_select(app):
 
 
 def test_battle_idle_abort(app):
-    app.set_scene(Battle(app, roster()))
+    app.set_scene(Battle(app, roster()[:2]))
     for _ in range(45 * 60 + 200):
         frame(app)
     assert isinstance(app.scene, Title)
 
 
 def test_pad_unplug_pauses_battle(app):
-    battle = Battle(app, roster())
+    battle = Battle(app, roster()[:2])
     app.set_scene(battle)
     for _ in range(100):
         frame(app)
@@ -139,7 +139,7 @@ def test_pad_unplug_pauses_battle(app):
 
 
 def test_pad_unplug_of_cpu_slot_does_not_pause(app):
-    battle = Battle(app, roster(), human=[True, False])
+    battle = Battle(app, roster()[:2], human=[True, False])
     app.input.lost.add(1)
     assert not battle.paused_for_pad
 
@@ -156,7 +156,7 @@ def test_test_combo_toggles_controller_screen(app):
 
 
 def test_ai_returns_to_stage_when_off_left(app):
-    battle = Battle(app, roster(), human=[False, False])
+    battle = Battle(app, roster()[:2], human=[False, False])
     f = battle.fighters[0]
     f.x, f.y, f.on_ground = battle.stage.platforms[0].rect.left - 40, 300, False
     held = SimpleAI(f, battle.fighters[1], battle.stage, seed=1).decide()
@@ -164,7 +164,7 @@ def test_ai_returns_to_stage_when_off_left(app):
 
 
 def test_kos_credited_to_last_attacker(app):
-    battle = Battle(app, roster(), human=[False, False])
+    battle = Battle(app, roster()[:2], human=[False, False])
     a, b = battle.fighters
     b.last_hit_by = a
     b.x = -500  # far outside the blast zone

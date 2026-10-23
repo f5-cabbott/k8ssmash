@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 import pygame
 
 from k8ssmash.ai import SimpleAI
@@ -34,6 +36,7 @@ class Battle(Scene):
         self.cpu_inputs = {i: PlayerInput() for i, h in enumerate(self.human) if not h}
         self.ais = {i: SimpleAI(self.fighters[i], self.fighters[1 - i], self.stage) for i in self.cpu_inputs}
         self.projectiles: list[Projectile] = []
+        self.effects: list[tuple[str, float, float, int]] = []  # (kind, x, y, frames left)
         self.frame = 0
         self.time_left = MATCH_SECONDS * FPS
         self.hitstop = 0
@@ -88,10 +91,16 @@ class Battle(Scene):
             return
 
         self.time_left -= 1
+        self.stage.tick(self.frame)
         for f, inp in zip(self.fighters, inputs):
             f.update(inp, self.stage)
-            self.projectiles.extend(f.spawn_queue)
+            for proj in f.spawn_queue:
+                if proj.defn.replace_existing:
+                    self.projectiles = [q for q in self.projectiles
+                                        if not (q.owner is f and q.defn.shape == proj.defn.shape)]
+                self.projectiles.append(proj)
             f.spawn_queue.clear()
+        self.effects = [(k, x, y, t - 1) for k, x, y, t in self.effects if t > 1]
 
         self._update_projectiles()
         self._resolve_melee()
@@ -105,6 +114,18 @@ class Battle(Scene):
 
     def _hit(self, victim: Fighter, attacker: Fighter, damage: float, base: float, growth: float,
              angle: float, direction: int) -> bool:
+        """Resolve one hit. Returns True if the attack connected (hit, shield or counter)."""
+        damage *= attacker.damage_mult
+        if victim.countering:
+            m = victim.move
+            assert m is not None
+            attacker.apply_hit(m.damage * victim.damage_mult, m.base_kb, m.kb_growth, m.angle, victim.facing)
+            victim.dealt_damage += m.damage * victim.damage_mult
+            attacker.last_hit_by = victim
+            victim.say("COUNTER!")
+            self.hitstop = 8
+            self.effects.append(("counter", victim.x, victim.y - 24, 18))
+            return True
         result = victim.apply_hit(damage, base, growth, angle, direction)
         if result == "ignored":
             return False
@@ -112,6 +133,7 @@ class Battle(Scene):
             attacker.dealt_damage += damage
             victim.last_hit_by = attacker
             self.hitstop = 3 + int(damage // 4)
+            self.effects.append(("hit", victim.x, victim.y - victim.stats.height / 2, 10))
         return True
 
     def _resolve_melee(self) -> None:
@@ -126,22 +148,46 @@ class Battle(Scene):
                     m = atk.move
                     if self._hit(vic, atk, m.damage, m.base_kb, m.kb_growth, m.angle, atk.facing):
                         atk.hit_targets.add(vic.slot)
-                        if vic.ko_timer == 0 and vic.percent and False:
-                            pass
+
+    def _explode(self, p: Projectile) -> None:
+        d = p.defn
+        self.effects.append(("boom", p.x, p.y, 20))
+        for vic in self.fighters:
+            if not vic.alive or (vic is p.owner and d.harmless_to_owner):
+                continue
+            cx, cy = vic.hurtbox.center
+            if math.hypot(cx - p.x, cy - p.y) <= d.explode_radius:
+                direction = 1 if cx >= p.x else -1
+                self._hit(vic, p.owner, d.explode_damage, 4.0, 0.06, 60, direction)
 
     def _update_projectiles(self) -> None:
         alive: list[Projectile] = []
         for p in self.projectiles:
-            p.update()
+            p.update(self.stage)
+            d = p.defn
             if p.life <= 0 or not self.stage.blast.collidepoint(p.x, p.y):
+                if p.life <= 0 and d.explode_radius:
+                    self._explode(p)
                 continue
             consumed = False
             for vic in self.fighters:
-                if vic is p.owner or not vic.alive:
+                if (vic is p.owner and d.harmless_to_owner) or not vic.alive or not p.can_hit(vic.slot):
                     continue
-                if p.rect.colliderect(vic.hurtbox):
-                    d = p.defn
-                    consumed = self._hit(vic, p.owner, d.damage, d.base_kb, d.kb_growth, d.angle, p.facing)
+                if not p.rect.colliderect(vic.hurtbox):
+                    continue
+                if vic.countering and not d.orbit:
+                    # Reflect: the projectile now belongs to the countering fighter.
+                    p.owner, p.vx, p.facing = vic, -p.vx, -p.facing
+                    p.age = 0
+                    p.hit_at.clear()
+                    vic.say("REFLECT!")
+                    break
+                direction = p.facing if p.vx else (1 if vic.x >= p.x else -1)
+                if self._hit(vic, p.owner, d.damage, d.base_kb, d.kb_growth, d.angle, direction):
+                    p.mark_hit(vic.slot)
+                    consumed = not (d.pierce or d.hit_interval or d.orbit)
+                    if consumed and d.explode_radius:
+                        self._explode(p)
                     break
             if not consumed:
                 alive.append(p)
