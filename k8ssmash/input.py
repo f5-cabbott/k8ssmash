@@ -55,6 +55,9 @@ class InputManager:
             return
         if any(p is not None and p.get_instance_id() == joy.get_instance_id() for p in self.pads):
             return
+        wanted = [n.lower() for n in self.cfg.pad_name_filter]
+        if wanted and not any(n in joy.get_name().lower() for n in wanted):
+            return
         # Prefer a slot that lost its pad so a re-plug resumes the right player.
         order = sorted(range(len(self.pads)), key=lambda s: (s not in self.lost, s))
         for slot in order:
@@ -106,6 +109,16 @@ class InputManager:
     def poll(self) -> None:
         for slot, player in enumerate(self.players):
             player.update(self._keyboard_held(slot) | self._pad_held(slot))
+
+    def raw_state(self, slot: int) -> tuple[list[int], list[float], tuple[int, int]] | None:
+        """Physical buttons down, axis values and hat for a slot's pad (for the test screen)."""
+        pad = self.pads[slot]
+        if pad is None:
+            return None
+        buttons = [b for b in range(pad.get_numbuttons()) if pad.get_button(b)]
+        axes = [round(pad.get_axis(a), 2) for a in range(pad.get_numaxes())]
+        hat = pad.get_hat(0) if pad.get_numhats() else (0, 0)
+        return buttons, axes, hat
 
     def any_pressed(self, action: str) -> bool:
         return any(action in p.pressed for p in self.players)

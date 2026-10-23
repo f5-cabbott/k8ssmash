@@ -55,6 +55,9 @@ class Config:
     height: int = 1080
     fullscreen: bool = False
     dev_keys: bool = True  # Esc quits, F-keys active; disabled by the booth service
+    # Only joysticks whose name contains one of these (case-insensitive) become players.
+    # Keeps other attached pads (e.g. an Xbox-style controller) out of the game; [] accepts all.
+    pad_name_filter: list[str] = field(default_factory=lambda: ["USB Gamepad"])
     keys: list[dict[str, str]] = field(default_factory=lambda: [dict(k) for k in DEFAULT_KEYS])
     pad: dict[str, list[int]] = field(default_factory=lambda: {k: list(v) for k, v in DEFAULT_PAD.items()})
 
@@ -66,7 +69,7 @@ class Config:
             data = json.loads(path.read_text())
         except (OSError, ValueError):
             return cfg
-        for name in ("width", "height", "fullscreen", "dev_keys"):
+        for name in ("width", "height", "fullscreen", "dev_keys", "pad_name_filter"):
             if name in data:
                 setattr(cfg, name, data[name])
         for slot, keys in enumerate(data.get("keys", [])[:2]):

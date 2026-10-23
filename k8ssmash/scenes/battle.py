@@ -42,12 +42,18 @@ class Battle(Scene):
             return "finished"
         return "ready" if self.frame < READY_FRAMES else "fight"
 
+    @property
+    def paused_for_pad(self) -> bool:
+        return bool(self.app.input.lost)
+
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.KEYDOWN and event.key == pygame.K_F3:
             self.debug = not self.debug
 
     def update(self) -> None:
         inputs = self.app.input.players
+        if self.paused_for_pad:
+            return
         self.frame += 1
         if self.phase == "finished":
             self.finished_frames += 1
@@ -142,6 +148,14 @@ class Battle(Scene):
         for f in self.fighters:
             self._draw_fighter(canvas, f)
         self._draw_hud(canvas)
+        if self.paused_for_pad:
+            shade = pygame.Surface((CANVAS_W, CANVAS_H), pygame.SRCALPHA)
+            shade.fill((0, 0, 0, 180))
+            canvas.blit(shade, (0, 0))
+            who = " & ".join(f"P{s + 1}" for s in sorted(self.app.input.lost))
+            self._center(canvas, "CONTROLLER DISCONNECTED", self.big, 130)
+            self._center(canvas, f"Reconnect {who} controller to resume", self.font, 175)
+            return
         if self.phase == "ready":
             n = 3 - self.frame * 3 // READY_FRAMES
             self._center(canvas, str(n) if n > 0 else "GO!", self.huge, 140)
