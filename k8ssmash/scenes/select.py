@@ -8,6 +8,7 @@ from k8ssmash.config import CANVAS_W, FPS
 from k8ssmash.roster import roster
 from k8ssmash.scenes.base import Scene
 from k8ssmash.scenes.battle import Battle, P_COLORS
+from k8ssmash.sprites import sprite_set
 
 BG = (16, 20, 38)
 TIMEOUT = 30 * FPS
@@ -23,8 +24,10 @@ class CharacterSelect(Scene):
         self.cursor = [0, min(1, len(self.roster) - 1)]
         self.locked = [False, False]
         self.ready_frames = 0
-        self.big = pygame.font.Font(None, 40)
+        self.big = pygame.font.Font(None, 36)
         self.font = pygame.font.Font(None, 22)
+        self.small = pygame.font.Font(None, 18)
+        self.frame = 0
         self.rng = random.Random()
 
     # --- logic ---------------------------------------------------------------------------
@@ -85,37 +88,55 @@ class CharacterSelect(Scene):
     def draw(self, canvas: pygame.Surface) -> None:
         canvas.fill(BG)
         head = self.big.render("CHOOSE YOUR POD", False, (255, 255, 255))
-        canvas.blit(head, ((CANVAS_W - head.get_width()) // 2, 16))
+        canvas.blit(head, ((CANVAS_W - head.get_width()) // 2, 10))
         n = len(self.roster)
         cols = min(n, 4)
-        card_w, card_h, gap = 120, 90, 14
+        card_w, card_h, gap = 140, 108, 12
         total = cols * card_w + (cols - 1) * gap
         x0 = (CANVAS_W - total) // 2
         for i, st in enumerate(self.roster):
             cx = x0 + (i % cols) * (card_w + gap)
-            cy = 70 + (i // cols) * (card_h + gap)
-            pygame.draw.rect(canvas, (34, 40, 70), (cx, cy, card_w, card_h))
-            pygame.draw.rect(canvas, st.color, (cx + 40, cy + 14, 40, 52))
-            canvas.blit(self.font.render(st.name, False, (230, 230, 245)), (cx + 8, cy + card_h - 20))
+            cy = 46 + (i // cols) * (card_h + gap)
+            pygame.draw.rect(canvas, (30, 36, 64), (cx, cy, card_w, card_h))
+            pygame.draw.rect(canvas, _dim(st.color), (cx, cy + card_h - 22, card_w, 22))
+            sprites = sprite_set(st.name)
+            if sprites is not None:
+                img = sprites.get("idle", (self.frame // 12) % 4, 1)
+                canvas.blit(img, (cx + (card_w - img.get_width()) // 2, cy + 2))
+            else:
+                pygame.draw.rect(canvas, st.color, (cx + 50, cy + 14, 40, 52))
+            label = self.font.render(st.name, False, (240, 240, 255))
+            canvas.blit(label, (cx + (card_w - label.get_width()) // 2, cy + card_h - 18))
             for slot in (0, 1):
                 if self._active(slot) and self.cursor[slot] == i:
                     off = slot * 4
-                    width = 0 if self.locked[slot] and False else 3
-                    pygame.draw.rect(canvas, P_COLORS[slot], (cx - off, cy - off, card_w + 2 * off, card_h + 2 * off), width)
+                    width = 3 if not self.locked[slot] or (self.frame // 8) % 2 == 0 else 5
+                    pygame.draw.rect(canvas, P_COLORS[slot],
+                                     (cx - off - 2, cy - off - 2, card_w + 2 * off + 4, card_h + 2 * off + 4), width)
         for slot in (0, 1):
-            y = 262
-            x = 40 + slot * 320
+            x = 24 + slot * 320
+            y = 296
             if self.cpu[slot]:
                 status, color = ("CPU  READY" if self.locked[slot] else "CPU"), (180, 180, 200)
+                blurb = ""
             elif not self.joined[slot]:
                 status, color = "Press START to join", (150, 150, 170)
                 if slot == 1 and self.joined[0]:
                     status += "  (or SELECT: CPU)"
+                blurb = ""
             elif self.locked[slot]:
                 status, color = "READY!", (120, 230, 140)
+                blurb = self.roster[self.cursor[slot]].blurb
             else:
-                status, color = f"P{slot + 1}: {self.roster[self.cursor[slot]].name}", P_COLORS[slot]
-            canvas.blit(self.big.render(f"P{slot + 1}", False, P_COLORS[slot]), (x, y))
-            canvas.blit(self.font.render(status, False, color), (x + 40, y + 8))
-        hint = self.font.render("B: select   A: back   SELECT: add CPU opponent", False, (120, 126, 160))
-        canvas.blit(hint, ((CANVAS_W - hint.get_width()) // 2, 332))
+                st = self.roster[self.cursor[slot]]
+                status, color, blurb = st.name, P_COLORS[slot], st.blurb
+            canvas.blit(self.big.render(f"P{slot + 1}", False, P_COLORS[slot]), (x, y - 4))
+            canvas.blit(self.font.render(status, False, color), (x + 44, y))
+            if blurb:
+                canvas.blit(self.small.render(blurb, False, (170, 176, 205)), (x + 44, y + 16))
+        hint = self.small.render("B: select   A: back   SELECT: add CPU opponent", False, (120, 126, 160))
+        canvas.blit(hint, ((CANVAS_W - hint.get_width()) // 2, 342))
+
+
+def _dim(color):
+    return tuple(int(c * 0.45) for c in color)

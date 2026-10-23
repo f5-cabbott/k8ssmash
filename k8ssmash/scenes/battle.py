@@ -6,9 +6,12 @@ import pygame
 
 from k8ssmash.ai import SimpleAI
 from k8ssmash.config import CANVAS_H, CANVAS_W, FPS
-from k8ssmash.fighter import Fighter, FighterStats, Projectile
+from k8ssmash.fighter import (BUFF_ARMOR, BUFF_GUARD, BUFF_HASTE, BUFF_POWER, CALLOUT_FRAMES, Fighter,
+                              FighterStats, Projectile)
+from k8ssmash.fx import draw_effect, draw_projectile
 from k8ssmash.input import PlayerInput
 from k8ssmash.scenes.base import Scene
+from k8ssmash.sprites import pick_frame, sprite_set
 from k8ssmash.stage import Stage, datacenter_stage
 
 READY_FRAMES = 90
@@ -214,10 +217,12 @@ class Battle(Scene):
         for plat in self.stage.platforms:
             pygame.draw.rect(canvas, PLATFORM, plat.rect)
             pygame.draw.rect(canvas, PLATFORM_TOP, (plat.rect.x, plat.rect.y, plat.rect.w, 3))
-        for p in self.projectiles:
-            pygame.draw.ellipse(canvas, p.defn.color, p.rect)
         for f in self.fighters:
             self._draw_fighter(canvas, f)
+        for p in self.projectiles:
+            draw_projectile(canvas, p)
+        for kind, x, y, left in self.effects:
+            draw_effect(canvas, kind, x, y, left)
         self._draw_hud(canvas)
         if self.paused_for_pad:
             shade = pygame.Surface((CANVAS_W, CANVAS_H), pygame.SRCALPHA)
@@ -243,22 +248,40 @@ class Battle(Scene):
         if f.invuln > 0 and (f.invuln // 4) % 2 == 0:
             return
         box = f.hurtbox
-        color = f.stats.color
-        if f.state == "hurt":
-            color = (255, 255, 255) if f.hitstun % 4 < 2 else color
-        pygame.draw.rect(canvas, color, box)
-        eye_x = box.centerx + f.facing * 5 - 2
-        pygame.draw.rect(canvas, (20, 20, 30), (eye_x, box.top + 8, 4, 5))
+        sprites = sprite_set(f.stats.name)
+        if sprites is not None:
+            anim, idx = pick_frame(f)
+            img = sprites.get(anim, idx, f.facing, f.scale)
+            if f.state == "hurt" and f.hitstun % 4 < 2:
+                img = img.copy()
+                img.fill((90, 90, 90), special_flags=pygame.BLEND_RGB_ADD)
+            fx, fy = sprites.feet
+            canvas.blit(img, (round(f.x - fx * f.scale), round(f.y - fy * f.scale)))
+        else:
+            pygame.draw.rect(canvas, f.stats.color, box)
         if f.shielding:
-            r = int(16 + 12 * f.shield_hp / 60)
-            pygame.draw.circle(canvas, (120, 220, 255), box.center, r, 2)
+            r = int(18 + 12 * f.shield_hp / 60)
+            bubble = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
+            pygame.draw.circle(bubble, (120, 220, 255, 70), (r, r), r)
+            pygame.draw.circle(bubble, (180, 240, 255, 200), (r, r), r, 2)
+            canvas.blit(bubble, (box.centerx - r, box.centery - r))
+        for buff, color in ((BUFF_ARMOR, (255, 170, 60)), (BUFF_GUARD, (120, 255, 150)),
+                            (BUFF_POWER, (255, 120, 90)), (BUFF_HASTE, (255, 240, 120))):
+            if f.has(buff) and (self.frame // 6) % 2 == 0:
+                pygame.draw.ellipse(canvas, color, box.inflate(6, 4), 1)
         hb = f.active_hitbox()
-        if hb is not None:
-            pygame.draw.rect(canvas, (255, 240, 120), hb, 0 if self.debug else 1)
+        if hb is not None and self.debug:
+            pygame.draw.rect(canvas, (255, 240, 120), hb, 1)
         if self.debug:
             pygame.draw.rect(canvas, (0, 255, 0), box, 1)
             label = self.font.render(f"{f.state} {f.move_frame}", False, (255, 255, 255))
             canvas.blit(label, (box.x - 10, box.y - 16))
+        if f.callout_timer > 0:
+            text = self.font.render(f.callout, False, (255, 255, 255))
+            shadow = self.font.render(f.callout, False, (16, 12, 28))
+            pos = (box.centerx - text.get_width() // 2, box.top - 26 - (CALLOUT_FRAMES - f.callout_timer) // 8)
+            canvas.blit(shadow, (pos[0] + 1, pos[1] + 1))
+            canvas.blit(text, pos)
 
     def _draw_hud(self, canvas: pygame.Surface) -> None:
         for f in self.fighters:

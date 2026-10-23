@@ -15,7 +15,7 @@ def moveset(**overrides: Move) -> dict[str, Move]:
 def pod() -> FighterStats:
     """Balanced all-rounder: the reference fighter."""
     return FighterStats(
-        "Pod", (70, 150, 255), blurb="Balanced. Does a bit of everything.",
+        "Pod", (70, 150, 255), blurb="Balanced all-rounder.",
         moves=moveset(**{
             "special": Move("apply", 10, 1, 18, anim="cast", announce="kubectl apply", projectile=ProjectileDef(
                 speed=4.8, width=12, height=9, damage=5, base_kb=2.6, kb_growth=0.03, angle=30,
@@ -35,7 +35,7 @@ def helm() -> FighterStats:
     """Heavy captain. Slow, hits like a tugboat, wheel boomerang."""
     return FighterStats(
         "Helm", (232, 190, 70), weight=122, run_speed=2.2, air_speed=2.0, jump_vel=-7.2, djump_vel=-6.6,
-        gravity=0.4, width=28, height=50, blurb="Heavy captain. Slow, but every hit is a broadside.",
+        gravity=0.4, width=28, height=50, blurb="Heavy captain. Slow, hits hard.",
         moves=moveset(**{
             "jab": Move("jab", 4, 3, 11, (8, -34, 26, 16), 4, 2.4, 0.02, 35, anim="jab"),
             "side": Move("side", 11, 4, 20, (8, -40, 38, 22), 12, 4.4, 0.07, 30, lunge=1.2, anim="side"),
@@ -56,7 +56,7 @@ def kubectl() -> FighterStats:
     """Fast technical fighter: command-line combos."""
     return FighterStats(
         "Kubectl", (110, 235, 170), weight=92, run_speed=3.0, air_speed=2.6, air_accel=0.26,
-        blurb="Fast and technical. Fires off commands.",
+        blurb="Fast and technical. Fires commands.",
         moves=moveset(**{
             "jab": Move("jab", 2, 3, 7, (6, -32, 22, 14), 2.5, 2.0, 0.015, 38, anim="jab"),
             "special": Move("get pods", 11, 1, 20, anim="cast", announce="kubectl get pods", projectile=ProjectileDef(
@@ -74,7 +74,7 @@ def monkey() -> FighterStats:
     """Chaos Monkey: light and slippery, with trap-laying."""
     return FighterStats(
         "Chaos Monkey", (230, 130, 70), weight=84, width=22, height=42, run_speed=3.0, air_speed=2.7,
-        jump_vel=-8.0, djump_vel=-7.6, gravity=0.37, blurb="Light and slippery. Leaves traps everywhere.",
+        jump_vel=-8.0, djump_vel=-7.6, gravity=0.37, blurb="Light trickster. Lays traps.",
         moves=moveset(**{
             "special": Move("banana toss", 9, 1, 16, anim="cast", announce="Banana Toss", projectile=ProjectileDef(
                 speed=3.2, width=12, height=10, damage=6, base_kb=2.8, kb_growth=0.03, angle=60, life=420,
@@ -94,7 +94,7 @@ def monkey() -> FighterStats:
 def sidecar() -> FighterStats:
     """Support fighter fighting alongside an orbiting drone."""
     return FighterStats(
-        "Sidecar", (190, 140, 255), weight=96, blurb="Fights alongside an orbiting drone buddy.",
+        "Sidecar", (190, 140, 255), weight=96, blurb="Fights with an orbiting drone.",
         moves=moveset(**{
             "special": Move("deploy", 12, 1, 18, anim="cast", announce="Deploy Sidecar", projectile=ProjectileDef(
                 speed=0, width=12, height=12, damage=3, base_kb=2.2, kb_growth=0.02, angle=45, life=420,
@@ -113,7 +113,7 @@ def ingress() -> FighterStats:
     """Gatekeeper: zoning with ports, routes and a firewall wall."""
     return FighterStats(
         "Ingress", (90, 215, 220), weight=108, run_speed=2.4, width=26, height=48,
-        blurb="Gatekeeper. Controls space with ports and walls.",
+        blurb="Gatekeeper. Ports and walls.",
         moves=moveset(**{
             "special": Move("open port", 14, 1, 20, anim="cast", announce="Open Port", projectile=ProjectileDef(
                 speed=2.6, width=26, height=26, damage=9, base_kb=3.4, kb_growth=0.05, angle=35, life=110,
@@ -132,7 +132,7 @@ def ingress() -> FighterStats:
 def operator() -> FighterStats:
     """Counter-puncher that reconciles state back to what it wants."""
     return FighterStats(
-        "Operator", (255, 150, 190), weight=98, blurb="Counter-puncher. Punishes mistakes and self-heals.",
+        "Operator", (255, 150, 190), weight=98, blurb="Counter-puncher. Self-heals.",
         moves=moveset(**{
             "special": Move("reconcile", 4, 26, 20, (0, 0, 0, 0), 12, 4.6, 0.07, 40, counter=True,
                             anim="counter", announce="Reconcile"),
@@ -149,7 +149,7 @@ def oomkiller() -> FighterStats:
     """Heavy glass cannon. Huge damage, short reach, big recoveries."""
     return FighterStats(
         "OOMKiller", (205, 60, 70), weight=116, run_speed=2.3, width=28, height=50, jump_vel=-7.0,
-        blurb="Glass cannon. Everything it touches gets OOMKilled.",
+        blurb="Glass cannon. Huge damage.",
         moves=moveset(**{
             "jab": Move("jab", 5, 3, 12, (8, -36, 28, 16), 4, 2.6, 0.022, 38, anim="jab"),
             "side": Move("side", 12, 4, 22, (8, -42, 40, 24), 13, 4.8, 0.08, 30, lunge=1.3, anim="side"),
