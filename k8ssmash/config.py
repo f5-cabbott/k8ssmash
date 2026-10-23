@@ -54,6 +54,7 @@ class Config:
     width: int = 1920
     height: int = 1080
     fullscreen: bool = False
+    items: bool = True  # k8s power-ups drop during matches
     dev_keys: bool = True  # Esc quits, F-keys active; disabled by the booth service
     # Only joysticks whose name contains one of these (case-insensitive) become players.
     # Keeps other attached pads (e.g. an Xbox-style controller) out of the game; [] accepts all.
@@ -69,7 +70,7 @@ class Config:
             data = json.loads(path.read_text())
         except (OSError, ValueError):
             return cfg
-        for name in ("width", "height", "fullscreen", "dev_keys", "pad_name_filter"):
+        for name in ("width", "height", "fullscreen", "dev_keys", "pad_name_filter", "items"):
             if name in data:
                 setattr(cfg, name, data[name])
         for slot, keys in enumerate(data.get("keys", [])[:2]):

@@ -59,3 +59,34 @@ def datacenter_stage() -> Stage:
         ],
         spawns=[(200, 250), (440, 250)],
     )
+
+
+def control_plane_stage() -> Stage:
+    return Stage(
+        name="Control Plane",
+        platforms=[
+            Platform(pygame.Rect(100, 255, 440, 36)),
+            Platform(pygame.Rect(140, 196, 100, 8), dropthrough=True),
+            Platform(pygame.Rect(400, 196, 100, 8), dropthrough=True),
+            Platform(pygame.Rect(270, 140, 100, 8), dropthrough=True),
+        ],
+        spawns=[(190, 255), (450, 255)],
+        theme="controlplane",
+    )
+
+
+def node_pool_stage() -> Stage:
+    return Stage(
+        name="Node Pool",
+        platforms=[
+            Platform(pygame.Rect(50, 255, 200, 34)),
+            Platform(pygame.Rect(390, 255, 200, 34)),
+            Platform(pygame.Rect(270, 235, 100, 8), dropthrough=True, motion=("y", 22, 300)),
+            Platform(pygame.Rect(245, 170, 150, 8), dropthrough=True),
+        ],
+        spawns=[(150, 255), (490, 255)],
+        theme="nodepool",
+    )
+
+
+STAGES = [datacenter_stage, control_plane_stage, node_pool_stage]

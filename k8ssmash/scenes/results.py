@@ -29,10 +29,12 @@ class Results(Scene):
             self.app.go_title()
         elif self.frame > LOCK:
             if self.app.input.any_pressed("START"):
-                cursor, human = getattr(self.app, "last_match", ([0, 1], [True, True]))
+                cursor, human, stage_idx = self.app.last_match
                 from k8ssmash.roster import roster
+                from k8ssmash.stage import STAGES
                 r = roster()
-                self.app.set_scene(Battle(self.app, [r[cursor[0]], r[cursor[1]]], human=human))
+                self.app.set_scene(Battle(self.app, [r[cursor[0]], r[cursor[1]]], stage=STAGES[stage_idx](),
+                                          human=human))
             elif self.app.input.any_pressed("SELECT"):
                 self.app.set_scene(CharacterSelect(self.app))
 

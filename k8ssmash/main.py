@@ -23,7 +23,7 @@ class App:
         self.scenes: list[Scene] = []
         self._screenshot_n = 0
         self.idle_frames = 0  # frames since any player pressed anything; drives attract/reset
-        self.last_match: tuple[list[int], list[bool]] = ([0, 1], [True, True])
+        self.last_match: tuple[list[int], list[bool], int] = ([0, 1], [True, True], 0)
         self._combo_frames = 0
         self._combo_armed = True
 

@@ -143,3 +143,25 @@ def test_special_spawns_projectile(stage):
 def test_integer_scale(size, scale):
     assert integer_scale(*size) == scale
     assert CANVAS_W * scale <= size[0]
+
+
+def test_moving_platform_carries_rider():
+    from k8ssmash.stage import node_pool_stage
+    stage = node_pool_stage()
+    mover = stage.platforms[2]
+    f = Fighter(FighterStats("T", (255, 255, 255)), 0)
+    f.spawn((mover.rect.centerx, mover.rect.top - 1), 1)
+    for frame in range(1, 400):
+        stage.tick(frame)
+        tick(f, stage)
+    assert f.on_ground and f.standing_on is mover and f.y == mover.rect.top
+    assert abs(f.x - mover.rect.centerx) < 2  # still riding the platform
+
+
+def test_all_stages_have_valid_spawns():
+    from k8ssmash.stage import STAGES
+    for make in STAGES:
+        st = make()
+        assert len(st.spawns) >= 2 and st.name
+        for sx, sy in st.spawns:
+            assert any(p.rect.left <= sx <= p.rect.right and p.rect.top == sy for p in st.platforms)

@@ -89,3 +89,8 @@ def draw_effect(canvas: pygame.Surface, kind: str, x: float, y: float, left: int
         pygame.draw.circle(canvas, (255, 255, 255), (x, y), r, 2)
         pygame.draw.line(canvas, (255, 220, 90), (x - r, y - r), (x + r, y + r), 2)
         pygame.draw.line(canvas, (255, 220, 90), (x - r, y + r), (x + r, y - r), 2)
+    elif kind == "pickup":
+        r = 6 + (24 - left)
+        for i in range(6):
+            a = i * math.pi / 3 + left * 0.15
+            pygame.draw.circle(canvas, (255, 245, 170), (x + math.cos(a) * r, y + math.sin(a) * r * 1.3), 2)

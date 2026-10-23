@@ -5,10 +5,12 @@ import math
 import pygame
 
 from k8ssmash.ai import SimpleAI
+from k8ssmash.backdrops import draw_backdrop, draw_platform
 from k8ssmash.config import CANVAS_H, CANVAS_W, FPS
 from k8ssmash.fighter import (BUFF_ARMOR, BUFF_GUARD, BUFF_HASTE, BUFF_POWER, CALLOUT_FRAMES, Fighter,
                               FighterStats, Projectile)
 from k8ssmash.fx import draw_effect, draw_projectile
+from k8ssmash.items import ItemSpawner, draw_item
 from k8ssmash.input import PlayerInput
 from k8ssmash.scenes.base import Scene
 from k8ssmash.sprites import pick_frame, sprite_set
@@ -19,16 +21,14 @@ MATCH_SECONDS = 120
 GAME_FRAMES = 150  # 'GAME!' banner before the results screen
 IDLE_ABORT = 45 * FPS
 
-BG = (18, 22, 38)
-PLATFORM = (70, 90, 140)
-PLATFORM_TOP = (140, 170, 230)
 P_COLORS = [(80, 160, 255), (255, 110, 90)]
 
 
 class Battle(Scene):
     def __init__(self, app, stats: list[FighterStats], stage: Stage | None = None, stocks: int = 3,
-                 human: list[bool] | None = None, demo: bool = False):
+                 human: list[bool] | None = None, demo: bool = False, items: bool | None = None):
         super().__init__(app)
+        self.spawner = ItemSpawner(enabled=app.cfg.items if items is None else items)
         self.stage = stage or datacenter_stage()
         self.human = human or [True, True]
         self.demo = demo
@@ -104,6 +104,8 @@ class Battle(Scene):
                 self.projectiles.append(proj)
             f.spawn_queue.clear()
         self.effects = [(k, x, y, t - 1) for k, x, y, t in self.effects if t > 1]
+        for f, item in self.spawner.update(self.stage, self.fighters):
+            self.effects.append(("pickup", f.x, f.y - f.stats.height / 2, 24))
 
         self._update_projectiles()
         self._resolve_melee()
@@ -213,10 +215,11 @@ class Battle(Scene):
 
     # --- drawing -------------------------------------------------------------------------
     def draw(self, canvas: pygame.Surface) -> None:
-        canvas.fill(BG)
+        draw_backdrop(canvas, self.stage.theme, self.frame)
         for plat in self.stage.platforms:
-            pygame.draw.rect(canvas, PLATFORM, plat.rect)
-            pygame.draw.rect(canvas, PLATFORM_TOP, (plat.rect.x, plat.rect.y, plat.rect.w, 3))
+            draw_platform(canvas, plat, self.stage.theme)
+        for item in self.spawner.items:
+            draw_item(canvas, item, self.font, self.frame)
         for f in self.fighters:
             self._draw_fighter(canvas, f)
         for p in self.projectiles:

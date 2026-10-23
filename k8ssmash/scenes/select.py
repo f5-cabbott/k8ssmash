@@ -8,6 +8,7 @@ from k8ssmash.config import CANVAS_W, FPS
 from k8ssmash.roster import roster
 from k8ssmash.scenes.base import Scene
 from k8ssmash.scenes.battle import Battle, P_COLORS
+from k8ssmash.stage import STAGES
 from k8ssmash.sprites import sprite_set
 
 BG = (16, 20, 38)
@@ -24,6 +25,7 @@ class CharacterSelect(Scene):
         self.cursor = [0, min(1, len(self.roster) - 1)]
         self.locked = [False, False]
         self.ready_frames = 0
+        self.stage_idx = random.randrange(len(STAGES))
         self.big = pygame.font.Font(None, 36)
         self.font = pygame.font.Font(None, 22)
         self.small = pygame.font.Font(None, 18)
@@ -62,6 +64,11 @@ class CharacterSelect(Scene):
             if "SPECIAL" in inp.pressed:
                 self.joined[slot] = False
 
+        # L/R shoulder (SHIELD) cycles the stage.
+        for inp in players:
+            if "SHIELD" in inp.pressed:
+                self.stage_idx = (self.stage_idx + 1) % len(STAGES)
+
         # A lone player can press SELECT to add a CPU opponent.
         for slot in (0, 1):
             other = 1 - slot
@@ -81,8 +88,8 @@ class CharacterSelect(Scene):
     def _start(self) -> None:
         stats = [self.roster[self.cursor[s]] for s in (0, 1)]
         human = [self.joined[s] and not self.cpu[s] for s in (0, 1)]
-        self.app.last_match = (list(self.cursor), human)
-        self.app.set_scene(Battle(self.app, stats, human=human))
+        self.app.last_match = (list(self.cursor), human, self.stage_idx)
+        self.app.set_scene(Battle(self.app, stats, stage=STAGES[self.stage_idx](), human=human))
 
     # --- drawing -------------------------------------------------------------------------
     def draw(self, canvas: pygame.Surface) -> None:
@@ -134,7 +141,7 @@ class CharacterSelect(Scene):
             canvas.blit(self.font.render(status, False, color), (x + 44, y))
             if blurb:
                 canvas.blit(self.small.render(blurb, False, (170, 176, 205)), (x + 44, y + 16))
-        hint = self.small.render("B: select   A: back   SELECT: add CPU opponent", False, (120, 126, 160))
+        hint = self.small.render(f"B: select   A: back   SELECT: add CPU   L/R: stage - {STAGES[self.stage_idx]().name}", False, (120, 126, 160))
         canvas.blit(hint, ((CANVAS_W - hint.get_width()) // 2, 342))
 
 

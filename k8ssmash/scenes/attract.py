@@ -6,13 +6,14 @@ import random
 from k8ssmash.roster import roster
 from k8ssmash.scenes.base import Scene
 from k8ssmash.scenes.battle import Battle
+from k8ssmash.stage import STAGES
 
 
 class Attract(Scene):
     def __init__(self, app):
         super().__init__(app)
         stats = random.sample(roster(), 2)
-        self.battle = Battle(app, stats, human=[False, False], demo=True)
+        self.battle = Battle(app, stats, stage=random.choice(STAGES)(), human=[False, False], demo=True)
 
     def update(self) -> None:
         if self.app.idle_frames < 5 or self.battle.winner is not None:
