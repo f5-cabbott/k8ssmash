@@ -444,7 +444,8 @@ class Battle(Scene):
             if sprites is not None:
                 img = sprites.get("idle", 0, 1 if f.slot == 0 else -1)
                 canvas.set_clip(box)
-                canvas.blit(img, (box.x - 12, box.y - 12))
+                fx, fy = sprites.feet
+                canvas.blit(img, (box.x + box.w // 2 - fx, box.y - (fy - 62)))
                 canvas.set_clip(None)
             # damage meter, severity-colored, pulses when hit
             font = self.pct_pulse if self.hud_pulse[f.slot] else self.pct_font
