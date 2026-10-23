@@ -13,6 +13,7 @@ from k8ssmash.fighter import (BUFF_ARMOR, BUFF_GUARD, BUFF_HASTE, BUFF_POWER, CA
                               FighterStats, Projectile)
 from k8ssmash.fx import draw_effect, draw_projectile
 from k8ssmash.items import ItemSpawner, draw_item
+from k8ssmash.metrics import METRICS
 from k8ssmash.input import PlayerInput
 from k8ssmash.palette import damage_color, player_colors
 from k8ssmash.scenes.base import Scene
@@ -32,6 +33,8 @@ READY_STATUS = ["Pending...", "ContainerCreating...", "RUNNING!"]
 
 
 class Battle(Scene):
+    metrics_mode: str | None = None  # None: derived from who is human
+
     def __init__(self, app, stats: list[FighterStats], stage: Stage | None = None, stocks: int = 3,
                  human: list[bool] | None = None, demo: bool = False, items: bool | None = None):
         super().__init__(app)
@@ -53,6 +56,11 @@ class Battle(Scene):
         self.winner: int | None = None  # fighter slot, -1 for a draw
         self.finished_frames = 0
         self.debug = False
+        self._reported = False
+        if not self.demo:
+            METRICS.inc("matches_started_total", mode=self.mode_label)
+            for f in self.fighters:
+                METRICS.inc("fighter_picks_total", fighter=f.stats.name)
         self.slowmo = 0
         self._slow_tick = 0
         self.banners: list[list] = []  # [text, color, frames left]
@@ -67,6 +75,19 @@ class Battle(Scene):
         self.colors = player_colors(app.cfg)
 
     # --- logic ---------------------------------------------------------------------------
+    @property
+    def mode_label(self) -> str:
+        return self.metrics_mode or ("versus" if all(self.human) else "vs_cpu")
+
+    def _report_result(self) -> None:
+        if self._reported or self.demo or self.winner is None:
+            return
+        self._reported = True
+        METRICS.inc("matches_finished_total", mode=self.mode_label)
+        METRICS.observe("match_duration_seconds", (self.frame - READY_FRAMES) / FPS)
+        if self.winner in (0, 1):
+            METRICS.inc("fighter_wins_total", fighter=self.fighters[self.winner].stats.name)
+
     @property
     def phase(self) -> str:
         if self.winner is not None:
@@ -126,6 +147,8 @@ class Battle(Scene):
             f.update(inp, self.stage)
             for ev in f.events:
                 self.app.audio.play(ev, 0.7 if ev in ("jump", "djump") else 1.0)
+                if ev == "special" and f.move is not None and not self.demo:
+                    METRICS.inc("specials_used_total", fighter=f.stats.name, move=f.move.name)
             f.events.clear()
             for proj in f.spawn_queue:
                 if proj.defn.replace_existing:
@@ -137,6 +160,8 @@ class Battle(Scene):
         for f, item in self.spawner.update(self.stage, self.fighters):
             self.effects.append(("pickup", f.x, f.y - f.stats.height / 2, 24))
             self.app.audio.play("pickup")
+            if not self.demo:
+                METRICS.inc("items_picked_total", item=item.defn.key)
 
         self._update_projectiles()
         self._resolve_melee()
@@ -144,6 +169,8 @@ class Battle(Scene):
             if f.alive and not self.stage.blast.collidepoint(f.x, f.y - f.stats.height / 2):
                 if f.last_hit_by is not None:
                     f.last_hit_by.kos += 1
+                    if not self.demo:
+                        METRICS.inc("fighter_kos_total", fighter=f.last_hit_by.stats.name)
                 f.last_hit_by = None
                 f.knock_out()
                 self.app.audio.play("ko")
@@ -152,6 +179,7 @@ class Battle(Scene):
                     self.slowmo = SLOWMO_FRAMES
         if self.slowmo == 0:
             self._check_end()
+            self._report_result()
 
     def announce(self, text: str, color=(255, 255, 255)) -> None:
         self.banners = (self.banners + [[text, color, BANNER_FRAMES]])[-2:]

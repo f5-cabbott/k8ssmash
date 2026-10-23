@@ -16,8 +16,17 @@ class ControllerTest(Scene):
         super().__init__(app)
         self.font = pygame.font.Font(None, 17)
         self.big = pygame.font.Font(None, 34)
+        self._rebind_hold = 0
 
     def update(self) -> None:
+        held = any("SELECT" in p.held and "START" not in p.held for p in self.app.input.players)
+        self._rebind_hold = self._rebind_hold + 1 if held else 0
+        if self._rebind_hold >= 120:
+            from k8ssmash.scenes.rebind import Rebind
+
+            self._rebind_hold = 0
+            self.app.push_scene(Rebind(self.app, on_done=self.app.pop_scene))
+            return
         # Pressing JUMP on the pad currently labelled P2 makes it P1 (and swaps the other).
         if "JUMP" in self.app.input.players[1].pressed and self.app.input.pads[1] is not None:
             self.app.input.swap_pads()
@@ -26,7 +35,7 @@ class ControllerTest(Scene):
         canvas.fill(BG)
         title = self.big.render("CONTROLLER TEST   (hold SELECT+START to exit)", False, (255, 255, 255))
         canvas.blit(title, ((CANVAS_W - title.get_width()) // 2, 12))
-        hint = self.font.render("Press JUMP on a pad labelled P2 to make it P1", False, (150, 160, 200))
+        hint = self.font.render("JUMP on P2 pad: make it P1      hold SELECT 2s: rebind buttons", False, (150, 160, 200))
         canvas.blit(hint, ((CANVAS_W - hint.get_width()) // 2, 340))
         for slot, player in enumerate(self.app.input.players):
             self._draw_pad(canvas, slot, player.held, 20 + slot * 310)

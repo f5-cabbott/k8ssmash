@@ -10,6 +10,7 @@ import pygame
 from k8ssmash.audio_manager import Audio
 from k8ssmash.config import FPS, Config
 from k8ssmash.input import InputManager
+from k8ssmash.metrics import METRICS, start_server
 from k8ssmash.render import Display
 from k8ssmash.scenes.base import Scene
 from k8ssmash.scores import RunTracker, ScoreBoard
@@ -41,6 +42,9 @@ class App:
         self._exit_frames = 0
         self.show_fps = False
         self.watchdog = Watchdog()
+        self.fps = 0.0
+        METRICS.add_collector(self._collect_metrics)
+        self.metrics_server = start_server(cfg.metrics_port, cfg.metrics_host) if cfg.metrics_port else None
         self._fps_font = pygame.font.Font(None, 18)
 
     @property
@@ -80,6 +84,13 @@ class App:
             else:
                 self.push_scene(ControllerTest(self))
 
+    def _collect_metrics(self, m) -> None:
+        m.set("fps", self.fps)
+        m.set("pads_connected", sum(p is not None for p in self.input.pads))
+        for board in ("streak", "kos"):
+            top = self.scores.top(board)
+            m.set("high_score", top[0].value if top else 0, board=board)
+
     def _check_exit_combo(self) -> None:
         held = any(EXIT_COMBO <= p.held for p in self.input.players)
         self._exit_frames = self._exit_frames + 1 if held else 0
@@ -102,6 +113,9 @@ class App:
                 elif event.key == pygame.K_F9:
                     self.audio.toggle_mute()
                     self.cfg.muted = self.audio.muted
+                elif event.key == pygame.K_F6:
+                    self.cfg.colorblind = not self.cfg.colorblind
+                    self.cfg.save()
                 elif event.key == pygame.K_F8:
                     self.show_fps = not self.show_fps
                 elif event.key == pygame.K_F12:
@@ -141,7 +155,10 @@ class App:
                 self.display.canvas.blit(self._fps_font.render(text, False, (255, 255, 0), (0, 0, 0)), (4, 4))
             self.display.present()
             clock.tick(FPS * 2)
+            self.fps = clock.get_fps()
         self.watchdog.stopping()
+        if self.metrics_server:
+            self.metrics_server.shutdown()
         self.cfg.save()
         pygame.quit()
 
@@ -155,6 +172,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--size", metavar="WxH", help="window size, e.g. 1920x1080 or 2560x1440")
     ap.add_argument("--no-items", action="store_true", help="disable k8s power-ups")
     ap.add_argument("--mute", action="store_true", help="start muted")
+    ap.add_argument("--metrics-port", type=int, metavar="PORT",
+                    help="serve Prometheus metrics on this port (off by default)")
+    ap.add_argument("--colorblind", action="store_true", help="colorblind-safe player colors")
+    ap.add_argument("--rebind", action="store_true", help="open the button rebinding screen first")
     ap.add_argument("--fps", action="store_true", help="show the FPS overlay (F8 toggles it)")
     ap.add_argument("--software-render", action="store_true", help="scale on the CPU instead of the GPU")
     ap.add_argument("-v", "--verbose", action="store_true")
@@ -177,6 +198,10 @@ def apply_args(cfg: Config, args: argparse.Namespace) -> Config:
         cfg.items = False
     if args.mute:
         cfg.muted = True
+    if args.colorblind:
+        cfg.colorblind = True
+    if args.metrics_port is not None:
+        cfg.metrics_port = args.metrics_port
     return cfg
 
 
@@ -194,6 +219,10 @@ def main(argv: list[str] | None = None) -> None:
             app.display._set_mode()
         app.show_fps = args.fps
         app.set_scene(Title(app))
+        if args.rebind:
+            from k8ssmash.scenes.rebind import Rebind
+
+            app.push_scene(Rebind(app, on_done=app.go_title))
         app.run()
     except Exception:
         # systemd restarts us (Restart=on-failure); make sure the reason is in the journal.

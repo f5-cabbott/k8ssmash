@@ -18,8 +18,9 @@ START_DELAY = 45
 
 
 class CharacterSelect(Scene):
-    def __init__(self, app):
+    def __init__(self, app, training: bool = False):
         super().__init__(app)
+        self.training = training
         self.roster = roster()
         self.joined = [False, False]
         self.cpu = [False, False]
@@ -86,12 +87,22 @@ class CharacterSelect(Scene):
             if self.cpu[slot] and self.locked[1 - slot]:
                 self.locked[slot] = True
 
-        both = all(self._active(s) for s in (0, 1)) and all(self.locked)
+        if self.training:
+            both = self.joined[0] and self.locked[0]
+        else:
+            both = all(self._active(s) for s in (0, 1)) and all(self.locked)
         self.ready_frames = self.ready_frames + 1 if both else 0
         if self.ready_frames >= START_DELAY:
             self._start()
 
     def _start(self) -> None:
+        if self.training:
+            from k8ssmash.scenes.training import Training
+
+            dummy = self.roster[(self.cursor[0] + 1 + self.rng.randrange(len(self.roster) - 1)) % len(self.roster)]
+            self.app.set_scene(Training(self.app, [self.roster[self.cursor[0]], dummy],
+                                        stage=STAGES[self.stage_idx]()))
+            return
         stats = [self.roster[self.cursor[s]] for s in (0, 1)]
         human = [self.joined[s] and not self.cpu[s] for s in (0, 1)]
         self.app.last_match = (list(self.cursor), human, self.stage_idx)
@@ -100,7 +111,7 @@ class CharacterSelect(Scene):
     # --- drawing -------------------------------------------------------------------------
     def draw(self, canvas: pygame.Surface) -> None:
         canvas.fill(BG)
-        head = self.big.render("CHOOSE YOUR POD", False, (255, 255, 255))
+        head = self.big.render("TRAINING: CHOOSE YOUR POD" if self.training else "CHOOSE YOUR POD", False, (255, 255, 255))
         canvas.blit(head, ((CANVAS_W - head.get_width()) // 2, 10))
         n = len(self.roster)
         cols = min(n, 4)
@@ -132,6 +143,8 @@ class CharacterSelect(Scene):
             if self.cpu[slot]:
                 status, color = ("CPU  READY" if self.locked[slot] else "CPU"), (180, 180, 200)
                 blurb = ""
+            elif self.training and slot == 1:
+                status, color, blurb = "Dummy: random", (150, 150, 170), ""
             elif not self.joined[slot]:
                 status, color = "Press START to join", (150, 150, 170)
                 if slot == 1 and self.joined[0]:

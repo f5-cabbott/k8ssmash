@@ -46,6 +46,9 @@ class Title(Scene):
         if starting:
             self.app.audio.play("menu_select")
             self.app.set_scene(CharacterSelect(self.app))
+        elif any("SPECIAL" in p.pressed for p in self.app.input.players):
+            self.app.audio.play("menu_select")
+            self.app.set_scene(CharacterSelect(self.app, training=True))
         elif self.app.idle_frames >= ATTRACT_AFTER:
             self.app.set_scene(Attract(self.app))
 
@@ -79,5 +82,5 @@ class Title(Scene):
         if (self.frame // 30) % 2 == 0:
             press = self.big.render("PRESS START", False, (255, 220, 90))
             canvas.blit(press, ((CANVAS_W - press.get_width()) // 2, 298))
-        hint = self.font.render("SELECT: leaderboard", False, (110, 124, 190))
+        hint = self.font.render("SELECT: leaderboard     A: training", False, (110, 124, 190))
         canvas.blit(hint, ((CANVAS_W - hint.get_width()) // 2, 338))

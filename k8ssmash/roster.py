@@ -18,9 +18,9 @@ def pod() -> FighterStats:
         "Pod", (70, 150, 255), blurb="Balanced all-rounder.",
         moves=moveset(**{
             "special": Move("apply", 10, 1, 18, anim="cast", announce="kubectl apply", projectile=ProjectileDef(
-                speed=4.8, width=12, height=9, damage=5, base_kb=2.6, kb_growth=0.03, angle=30,
+                speed=4.8, width=12, height=9, damage=6, base_kb=2.8, kb_growth=0.035, angle=30,
                 color=(130, 205, 255), shape="bolt")),
-            "special_side": Move("rolling update", 9, 14, 16, (4, -38, 24, 32), 9, 4.0, 0.06, 35, dash=4.4,
+            "special_side": Move("rolling update", 9, 14, 16, (4, -38, 24, 32), 10, 4.2, 0.065, 35, dash=4.4,
                                  anim="dash", announce="Rolling Update"),
             "special_up": Move("restart", 7, 8, 14, (-10, -62, 24, 40), 8, 3.8, 0.06, 80, rise=8.6,
                                once_per_air=True, anim="rise", announce="Restart"),
@@ -58,11 +58,11 @@ def kubectl() -> FighterStats:
         "Kubectl", (110, 235, 170), weight=92, run_speed=3.0, air_speed=2.6, air_accel=0.26,
         blurb="Fast and technical. Fires commands.",
         moves=moveset(**{
-            "jab": Move("jab", 2, 3, 7, (6, -32, 22, 14), 2.5, 2.0, 0.015, 38, anim="jab"),
+            "jab": Move("jab", 2, 3, 7, (6, -32, 22, 14), 3, 2.2, 0.018, 38, anim="jab"),
             "special": Move("get pods", 11, 1, 20, anim="cast", announce="kubectl get pods", projectile=ProjectileDef(
-                speed=5.2, width=9, height=7, damage=3, base_kb=2.0, kb_growth=0.02, angle=28, count=3,
+                speed=5.2, width=9, height=7, damage=4, base_kb=2.2, kb_growth=0.025, angle=28, count=3,
                 spread=22, color=(130, 255, 190), shape="bolt")),
-            "special_side": Move("exec", 5, 9, 14, (2, -36, 22, 22), 7, 3.4, 0.05, 30, dash=6.0,
+            "special_side": Move("exec", 5, 9, 14, (2, -36, 22, 22), 8, 3.6, 0.055, 30, dash=6.0,
                                  anim="dash", announce="kubectl exec"),
             "special_up": Move("port-forward", 6, 8, 14, (-8, -64, 20, 36), 6, 3.2, 0.05, 85, rise=9.6,
                                once_per_air=True, anim="rise", announce="port-forward"),
@@ -77,7 +77,7 @@ def monkey() -> FighterStats:
         jump_vel=-8.0, djump_vel=-7.6, gravity=0.37, blurb="Light trickster. Lays traps.",
         moves=moveset(**{
             "special": Move("banana toss", 9, 1, 16, anim="cast", announce="Banana Toss", projectile=ProjectileDef(
-                speed=3.2, width=12, height=10, damage=6, base_kb=2.8, kb_growth=0.03, angle=60, life=420,
+                speed=3.2, width=12, height=10, damage=7, base_kb=3.0, kb_growth=0.035, angle=60, life=420,
                 gravity=0.16, vy=-3.2, color=(255, 225, 80), shape="banana", stick=True,
                 replace_existing=True)),
             "special_side": Move("vine swing", 7, 6, 12, (6, -34, 26, 22), 6, 3.4, 0.05, 40, blink=70,
@@ -87,7 +87,7 @@ def monkey() -> FighterStats:
             "special_down": Move("chaos!", 14, 1, 22, anim="cast", announce="CHAOS!", projectile=ProjectileDef(
                 speed=0, width=14, height=14, damage=0, base_kb=0, kb_growth=0, angle=0, life=70,
                 gravity=0.3, spawn_dx=16, spawn_dy=-8, color=(240, 90, 60), shape="bomb", stick=True,
-                explode_radius=54, explode_damage=14, harmless_to_owner=False, replace_existing=True)),
+                explode_radius=54, explode_damage=16, harmless_to_owner=False, replace_existing=True)),
         }))
 
 
@@ -148,15 +148,15 @@ def operator() -> FighterStats:
 def oomkiller() -> FighterStats:
     """Heavy glass cannon. Huge damage, short reach, big recoveries."""
     return FighterStats(
-        "OOMKiller", (205, 60, 70), weight=116, run_speed=2.3, width=28, height=50, jump_vel=-7.0,
+        "OOMKiller", (205, 60, 70), weight=110, run_speed=2.3, width=28, height=50, jump_vel=-7.0,
         blurb="Glass cannon. Huge damage.",
         moves=moveset(**{
             "jab": Move("jab", 5, 3, 12, (8, -36, 28, 16), 4, 2.6, 0.022, 38, anim="jab"),
-            "side": Move("side", 12, 4, 22, (8, -42, 40, 24), 13, 4.8, 0.08, 30, lunge=1.3, anim="side"),
+            "side": Move("side", 12, 4, 22, (8, -42, 40, 24), 12, 4.6, 0.075, 30, lunge=1.3, anim="side"),
             "special": Move("sigkill", 18, 1, 26, anim="cast", announce="SIGKILL", projectile=ProjectileDef(
-                speed=3.0, width=22, height=16, damage=14, base_kb=4.2, kb_growth=0.07, angle=28, life=90,
+                speed=3.0, width=22, height=16, damage=12, base_kb=4.0, kb_growth=0.065, angle=28, life=90,
                 color=(235, 70, 80), shape="skull")),
-            "special_side": Move("reap", 14, 14, 26, (4, -44, 40, 40), 15, 5.0, 0.085, 28, dash=3.0,
+            "special_side": Move("reap", 14, 14, 26, (4, -44, 40, 40), 13, 4.8, 0.08, 28, dash=3.0,
                                  anim="dash", announce="Reap"),
             "special_up": Move("memory leak", 10, 10, 20, (-14, -72, 32, 56), 11, 4.4, 0.07, 82, rise=7.0,
                                once_per_air=True, anim="rise", announce="Memory Leak"),

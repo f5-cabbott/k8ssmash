@@ -65,6 +65,8 @@ class Config:
     swap_pads: bool = False  # P1/P2 pad order; fix it from the controller test screen
     colorblind: bool = False  # colorblind-safe player colors
     event_name: str = "KubeCon"  # shown on the title and leaderboard
+    metrics_port: int = 0  # 0 = no Prometheus endpoint
+    metrics_host: str = "0.0.0.0"
     items: bool = True  # k8s power-ups drop during matches
     dev_keys: bool = True  # Esc quits, F-keys active; disabled by the booth service
     # Only joysticks whose name contains one of these (case-insensitive) become players.
@@ -81,7 +83,7 @@ class Config:
             data = json.loads(path.read_text())
         except (OSError, ValueError):
             return cfg
-        for name in ("width", "height", "fullscreen", "dev_keys", "pad_name_filter", "items", "sfx_volume", "music_volume", "muted", "swap_pads", "colorblind", "event_name"):
+        for name in ("width", "height", "fullscreen", "dev_keys", "pad_name_filter", "items", "sfx_volume", "music_volume", "muted", "swap_pads", "colorblind", "event_name", "metrics_port", "metrics_host"):
             if name in data:
                 setattr(cfg, name, data[name])
         for slot, keys in enumerate(data.get("keys", [])[:2]):

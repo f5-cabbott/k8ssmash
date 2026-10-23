@@ -112,9 +112,31 @@ Other aspect ratios still work; the picture is centered with black bars.
 | Need the game windowed on a desktop Pi OS | `python -m k8ssmash --windowed --fps` (not the kiosk path; F8 toggles the FPS overlay, F10 cycles 1080p/1440p) |
 
 Useful flags: `--booth`, `--windowed`, `--size 2560x1440`, `--fps`, `--no-items`, `--mute`,
-`--software-render`. Set extra ones for the service with `K8SSMASH_EXTRA_ARGS` in `/etc/default/k8ssmash`.
+`--colorblind`, `--rebind`, `--metrics-port`, `--software-render`. Set extra ones for the service with `K8SSMASH_EXTRA_ARGS` in `/etc/default/k8ssmash`.
 
-## 9. Running it on a desktop Pi OS instead
+## 9. Optional: metrics for the booth dashboard
+
+The game can expose Prometheus metrics (matches played, picks, wins, KOs, special-move usage, power-ups, FPS,
+pads connected). It is **off by default**. To turn it on, add to `/etc/default/k8ssmash`:
+
+```
+K8SSMASH_EXTRA_ARGS=--metrics-port 9877
+```
+
+then `sudo systemctl restart k8ssmash` and check `curl localhost:9877/metrics`. Scrape it from Prometheus:
+
+```yaml
+scrape_configs:
+  - job_name: k8ssmash
+    static_configs:
+      - targets: ["booth-pi.local:9877"]
+```
+
+and import `deploy/grafana/k8ssmash-dashboard.json` into Grafana. The endpoint has no authentication and listens
+on all interfaces, so only enable it on a network you trust (or set `metrics_host` to `127.0.0.1` in the config).
+If the port is taken the game just logs a warning and carries on.
+
+## 10. Running it on a desktop Pi OS instead
 
 If you would rather keep the Wayland desktop, skip the systemd unit and start the game from the compositor's
 autostart (`~/.config/labwc/autostart`):
