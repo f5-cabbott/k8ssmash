@@ -125,6 +125,7 @@ class Fighter:
         self.move_frame = 0
         self.hit_targets: set[int] = set()
         self.spawn_queue: list[Projectile] = []
+        self.events: list[str] = []  # sound cues for the battle scene to play
         self.buffs: dict[str, int] = {}
         self.kos = 0
         self.dealt_damage = 0.0
@@ -239,6 +240,7 @@ class Fighter:
                 self.hitstun = 90
                 self.shielding = False
                 self.vy = -5.0
+                self.events.append("shield_break")
             return "shield"
         self.percent += damage * self.taken_mult
         if self.armored:
@@ -336,11 +338,13 @@ class Fighter:
                 self.on_ground = False
                 self.standing_on = None
                 self.state = "jump"
+                self.events.append("jump")
             elif self.aerial_jumps > 0:
                 self.aerial_jumps -= 1
                 self.vy = s.djump_vel
                 self.vx *= 0.5
                 self.state = "djump"
+                self.events.append("djump")
         if "DOWN" in inp and self.on_ground:
             self.drop_timer = 10
 
@@ -400,6 +404,7 @@ class Fighter:
         self.state = "attack"
         if move.announce:
             self.say(move.announce)
+            self.events.append("special")
 
     def _advance_move(self, inp: PlayerInput) -> None:
         m = self.move

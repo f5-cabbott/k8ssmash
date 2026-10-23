@@ -16,6 +16,7 @@ class Results(Scene):
         self.winner = winner
         self.summary = summary
         self.frame = 0
+        app.audio.music("results", loop=False)
         self.huge = pygame.font.Font(None, 72)
         self.big = pygame.font.Font(None, 34)
         self.font = pygame.font.Font(None, 24)

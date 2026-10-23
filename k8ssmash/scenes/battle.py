@@ -5,6 +5,7 @@ import math
 import pygame
 
 from k8ssmash.ai import SimpleAI
+from k8ssmash.audio_manager import MUSIC_FOR_THEME
 from k8ssmash.backdrops import draw_backdrop, draw_platform
 from k8ssmash.config import CANVAS_H, CANVAS_W, FPS
 from k8ssmash.fighter import (BUFF_ARMOR, BUFF_GUARD, BUFF_HASTE, BUFF_POWER, CALLOUT_FRAMES, Fighter,
@@ -46,6 +47,7 @@ class Battle(Scene):
         self.winner: int | None = None  # fighter slot, -1 for a draw
         self.finished_frames = 0
         self.debug = False
+        app.audio.music(MUSIC_FOR_THEME.get(self.stage.theme, "datacenter"))
         self.font = pygame.font.Font(None, 22)
         self.big = pygame.font.Font(None, 44)
         self.huge = pygame.font.Font(None, 80)
@@ -88,7 +90,11 @@ class Battle(Scene):
             self.app.go_title()
             return
         if self.phase == "ready":
+            if self.frame in (1, 31, 61):
+                self.app.audio.play("countdown")
             return
+        if self.frame == READY_FRAMES:
+            self.app.audio.play("go")
         if self.hitstop > 0:
             self.hitstop -= 1
             return
@@ -97,6 +103,9 @@ class Battle(Scene):
         self.stage.tick(self.frame)
         for f, inp in zip(self.fighters, inputs):
             f.update(inp, self.stage)
+            for ev in f.events:
+                self.app.audio.play(ev, 0.7 if ev in ("jump", "djump") else 1.0)
+            f.events.clear()
             for proj in f.spawn_queue:
                 if proj.defn.replace_existing:
                     self.projectiles = [q for q in self.projectiles
@@ -106,6 +115,7 @@ class Battle(Scene):
         self.effects = [(k, x, y, t - 1) for k, x, y, t in self.effects if t > 1]
         for f, item in self.spawner.update(self.stage, self.fighters):
             self.effects.append(("pickup", f.x, f.y - f.stats.height / 2, 24))
+            self.app.audio.play("pickup")
 
         self._update_projectiles()
         self._resolve_melee()
@@ -115,6 +125,7 @@ class Battle(Scene):
                     f.last_hit_by.kos += 1
                 f.last_hit_by = None
                 f.knock_out()
+                self.app.audio.play("ko")
         self._check_end()
 
     def _hit(self, victim: Fighter, attacker: Fighter, damage: float, base: float, growth: float,
@@ -130,11 +141,15 @@ class Battle(Scene):
             victim.say("COUNTER!")
             self.hitstop = 8
             self.effects.append(("counter", victim.x, victim.y - 24, 18))
+            self.app.audio.play("counter")
             return True
         result = victim.apply_hit(damage, base, growth, angle, direction)
         if result == "ignored":
             return False
+        if result == "shield":
+            self.app.audio.play("shield")
         if result == "hit":
+            self.app.audio.play("hit_heavy" if damage >= 7 else "hit_light")
             attacker.dealt_damage += damage
             victim.last_hit_by = attacker
             self.hitstop = 3 + int(damage // 4)
@@ -157,6 +172,7 @@ class Battle(Scene):
     def _explode(self, p: Projectile) -> None:
         d = p.defn
         self.effects.append(("boom", p.x, p.y, 20))
+        self.app.audio.play("explosion")
         for vic in self.fighters:
             if not vic.alive or (vic is p.owner and d.harmless_to_owner):
                 continue

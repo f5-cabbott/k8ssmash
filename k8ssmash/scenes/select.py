@@ -30,6 +30,7 @@ class CharacterSelect(Scene):
         self.font = pygame.font.Font(None, 22)
         self.small = pygame.font.Font(None, 18)
         self.frame = 0
+        app.audio.music("title")
         self.rng = random.Random()
 
     # --- logic ---------------------------------------------------------------------------
@@ -47,12 +48,15 @@ class CharacterSelect(Scene):
                 if "START" in inp.pressed and "SELECT" not in inp.held:
                     self.joined[slot] = True
                     self.cpu[slot] = False
+                    self.app.audio.play("join")
                 continue
             if self.locked[slot]:
                 if "SPECIAL" in inp.pressed:
                     self.locked[slot] = False
                     self.ready_frames = 0
                 continue
+            if inp.pressed & {"LEFT", "RIGHT", "UP", "DOWN"}:
+                self.app.audio.play("menu_move")
             if "LEFT" in inp.pressed:
                 self.cursor[slot] = (self.cursor[slot] - 1) % n
             if "RIGHT" in inp.pressed:
@@ -61,6 +65,7 @@ class CharacterSelect(Scene):
                 self.cursor[slot] = (self.cursor[slot] + n // 2) % n if n > 2 else self.cursor[slot]
             if "ATTACK" in inp.pressed or "START" in inp.pressed:
                 self.locked[slot] = True
+                self.app.audio.play("menu_select")
             if "SPECIAL" in inp.pressed:
                 self.joined[slot] = False
 

@@ -27,6 +27,7 @@ class Title(Scene):
     def __init__(self, app):
         super().__init__(app)
         self.frame = 0
+        app.audio.music("title")
         self.huge = pygame.font.Font(None, 96)
         self.big = pygame.font.Font(None, 36)
         self.font = pygame.font.Font(None, 22)
@@ -39,6 +40,7 @@ class Title(Scene):
         # START with SELECT held is the controller-test combo, not "start game".
         starting = any("START" in p.pressed and "SELECT" not in p.held for p in self.app.input.players)
         if starting:
+            self.app.audio.play("menu_select")
             self.app.set_scene(CharacterSelect(self.app))
         elif self.app.idle_frames >= ATTRACT_AFTER:
             self.app.set_scene(Attract(self.app))

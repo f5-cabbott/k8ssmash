@@ -5,6 +5,7 @@ import time
 
 import pygame
 
+from k8ssmash.audio_manager import Audio
 from k8ssmash.config import FPS, Config
 from k8ssmash.input import InputManager
 from k8ssmash.render import Display
@@ -19,6 +20,7 @@ class App:
         self.cfg = cfg
         self.display = Display(cfg)
         self.input = InputManager(cfg)
+        self.audio = Audio(cfg.sfx_volume, cfg.music_volume, cfg.muted)
         self.running = True
         self.scenes: list[Scene] = []
         self._screenshot_n = 0
@@ -75,6 +77,9 @@ class App:
                     self.display.toggle_fullscreen()
                 elif event.key == pygame.K_F10:
                     self.display.cycle_resolution()
+                elif event.key == pygame.K_F9:
+                    self.audio.toggle_mute()
+                    self.cfg.muted = self.audio.muted
                 elif event.key == pygame.K_F12:
                     self._screenshot_n += 1
                     self.display.screenshot(f"screenshots/shot_{self._screenshot_n:03d}.png")
