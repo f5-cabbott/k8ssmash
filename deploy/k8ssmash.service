@@ -1,0 +1,43 @@
+# K8s Smash booth service (Raspberry Pi OS Lite, 64-bit, KMS/DRM kiosk).
+# Installed by deploy/setup-pi.sh, which fills in __USER__ and __APP_DIR__.
+[Unit]
+Description=K8s Smash (KubeCon booth game)
+After=sound.target systemd-udev-settle.service
+Wants=systemd-udev-settle.service
+# We own the screen on tty1, so keep the login prompt off it.
+Conflicts=getty@tty1.service
+After=getty@tty1.service
+# Never give up restarting: a booth game must come back on its own.
+StartLimitIntervalSec=0
+
+[Service]
+Type=notify
+NotifyAccess=main
+User=__USER__
+SupplementaryGroups=video render input audio
+WorkingDirectory=__APP_DIR__
+# Overridable per machine (audio device, resolution, ...) without editing this file.
+EnvironmentFile=-/etc/default/k8ssmash
+Environment=SDL_VIDEODRIVER=kmsdrm
+Environment=K8SSMASH_BOOTH=1
+Environment=K8SSMASH_CONFIG=/var/lib/k8ssmash/config.json
+ExecStart=__APP_DIR__/.venv/bin/python -m k8ssmash --booth $K8SSMASH_EXTRA_ARGS
+StateDirectory=k8ssmash
+
+# Crash or hang -> restart. A staff-initiated quit (exit combo) exits 0 and stays stopped.
+Restart=on-failure
+RestartSec=2
+WatchdogSec=20
+TimeoutStartSec=60
+
+# Own tty1 so SDL's KMS/DRM backend can take the display.
+TTYPath=/dev/tty1
+StandardInput=tty
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

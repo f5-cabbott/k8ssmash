@@ -57,6 +57,7 @@ class Config:
     sfx_volume: float = 0.8
     music_volume: float = 0.5
     muted: bool = False
+    swap_pads: bool = False  # P1/P2 pad order; fix it from the controller test screen
     items: bool = True  # k8s power-ups drop during matches
     dev_keys: bool = True  # Esc quits, F-keys active; disabled by the booth service
     # Only joysticks whose name contains one of these (case-insensitive) become players.
@@ -73,7 +74,7 @@ class Config:
             data = json.loads(path.read_text())
         except (OSError, ValueError):
             return cfg
-        for name in ("width", "height", "fullscreen", "dev_keys", "pad_name_filter", "items", "sfx_volume", "music_volume", "muted"):
+        for name in ("width", "height", "fullscreen", "dev_keys", "pad_name_filter", "items", "sfx_volume", "music_volume", "muted", "swap_pads"):
             if name in data:
                 setattr(cfg, name, data[name])
         for slot, keys in enumerate(data.get("keys", [])[:2]):

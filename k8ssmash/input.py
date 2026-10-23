@@ -46,6 +46,8 @@ class InputManager:
         pygame.joystick.init()
         for index in range(pygame.joystick.get_count()):
             self._add_pad(index)
+        if cfg.swap_pads:
+            self._swap()
 
     # --- hotplug -------------------------------------------------------------------------
     def _add_pad(self, device_index: int) -> None:
@@ -66,6 +68,17 @@ class InputManager:
                 self.lost.discard(slot)
                 self._had_pad.add(slot)
                 return
+
+    def _swap(self) -> None:
+        self.pads[0], self.pads[1] = self.pads[1], self.pads[0]
+        self.lost = {1 - s for s in self.lost}
+        self._had_pad = {1 - s for s in self._had_pad}
+
+    def swap_pads(self) -> None:
+        """Exchange which physical pad is P1 and which is P2, and remember it."""
+        self._swap()
+        self.cfg.swap_pads = not self.cfg.swap_pads
+        self.cfg.save()
 
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.JOYDEVICEADDED:
