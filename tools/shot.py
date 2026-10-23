@@ -6,14 +6,15 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
 from k8ssmash.config import Config
-from k8ssmash.main import App, placeholder_roster
+from k8ssmash.main import App
+from k8ssmash.roster import roster
 from k8ssmash.scenes.battle import READY_FRAMES, Battle
 
 out = sys.argv[1] if len(sys.argv) > 1 else "screenshots/headless.png"
 cfg = Config()
 cfg.dev_keys = True
 app = App(cfg)
-battle = Battle(app, placeholder_roster())
+battle = Battle(app, roster())
 app.set_scene(battle)
 
 script = {

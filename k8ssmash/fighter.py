@@ -81,6 +81,7 @@ class Fighter:
         self.hit_targets: set[int] = set()
         self.spawn_queue: list[Projectile] = []
         self.kos = 0
+        self.last_hit_by: Fighter | None = None
         self.dealt_damage = 0.0
         self.state = "idle"
         self.spawn_point = (0.0, 0.0)

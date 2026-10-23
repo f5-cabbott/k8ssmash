@@ -2,14 +2,17 @@ from __future__ import annotations
 
 import pygame
 
+from k8ssmash.ai import SimpleAI
 from k8ssmash.config import CANVAS_H, CANVAS_W, FPS
 from k8ssmash.fighter import Fighter, FighterStats, Projectile
+from k8ssmash.input import PlayerInput
 from k8ssmash.scenes.base import Scene
 from k8ssmash.stage import Stage, datacenter_stage
 
 READY_FRAMES = 90
-MATCH_SECONDS = 180
-RESULT_LOCK = 90
+MATCH_SECONDS = 120
+GAME_FRAMES = 150  # 'GAME!' banner before the results screen
+IDLE_ABORT = 45 * FPS
 
 BG = (18, 22, 38)
 PLATFORM = (70, 90, 140)
@@ -18,12 +21,18 @@ P_COLORS = [(80, 160, 255), (255, 110, 90)]
 
 
 class Battle(Scene):
-    def __init__(self, app, stats: list[FighterStats], stage: Stage | None = None, stocks: int = 3):
+    def __init__(self, app, stats: list[FighterStats], stage: Stage | None = None, stocks: int = 3,
+                 human: list[bool] | None = None, demo: bool = False):
         super().__init__(app)
         self.stage = stage or datacenter_stage()
+        self.human = human or [True, True]
+        self.demo = demo
         self.fighters = [Fighter(st, i, stocks) for i, st in enumerate(stats)]
         for i, f in enumerate(self.fighters):
             f.spawn(self.stage.spawns[i], 1 if i == 0 else -1)
+        # Human slots read the shared pads; CPU slots get their own PlayerInput driven by an AI.
+        self.cpu_inputs = {i: PlayerInput() for i, h in enumerate(self.human) if not h}
+        self.ais = {i: SimpleAI(self.fighters[i], self.fighters[1 - i], self.stage) for i in self.cpu_inputs}
         self.projectiles: list[Projectile] = []
         self.frame = 0
         self.time_left = MATCH_SECONDS * FPS
@@ -44,21 +53,33 @@ class Battle(Scene):
 
     @property
     def paused_for_pad(self) -> bool:
-        return bool(self.app.input.lost)
+        return any(self.human[s] for s in self.app.input.lost if s < len(self.human)) and not self.demo
+
+    def _inputs(self) -> list[PlayerInput]:
+        for slot, ai in self.ais.items():
+            self.cpu_inputs[slot].update(ai.decide())
+        return [self.cpu_inputs[i] if i in self.cpu_inputs else self.app.input.players[i]
+                for i in range(len(self.fighters))]
 
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.KEYDOWN and event.key == pygame.K_F3:
             self.debug = not self.debug
 
     def update(self) -> None:
-        inputs = self.app.input.players
         if self.paused_for_pad:
             return
+        inputs = self._inputs()
         self.frame += 1
         if self.phase == "finished":
             self.finished_frames += 1
-            if self.finished_frames > RESULT_LOCK and self.app.input.any_pressed("START"):
-                self.app.set_scene(Battle(self.app, [f.stats for f in self.fighters]))
+            if self.finished_frames >= GAME_FRAMES and not self.demo:
+                from k8ssmash.scenes.results import Results
+                summary = [{"name": f.stats.name, "kos": f.kos, "damage": f.dealt_damage,
+                            "stocks": max(f.stocks, 0)} for f in self.fighters]
+                self.app.set_scene(Results(self.app, self.winner, summary))
+            return
+        if not self.demo and self.app.idle_frames >= IDLE_ABORT and any(self.human):
+            self.app.go_title()
             return
         if self.phase == "ready":
             return
@@ -76,6 +97,9 @@ class Battle(Scene):
         self._resolve_melee()
         for f in self.fighters:
             if f.alive and not self.stage.blast.collidepoint(f.x, f.y - f.stats.height / 2):
+                if f.last_hit_by is not None:
+                    f.last_hit_by.kos += 1
+                f.last_hit_by = None
                 f.knock_out()
         self._check_end()
 
@@ -86,6 +110,7 @@ class Battle(Scene):
             return False
         if result == "hit":
             attacker.dealt_damage += damage
+            victim.last_hit_by = attacker
             self.hitstop = 3 + int(damage // 4)
         return True
 
@@ -160,10 +185,7 @@ class Battle(Scene):
             n = 3 - self.frame * 3 // READY_FRAMES
             self._center(canvas, str(n) if n > 0 else "GO!", self.huge, 140)
         elif self.phase == "finished":
-            text = "DRAW" if self.winner == -1 else f"P{self.winner + 1} WINS"
-            self._center(canvas, text, self.huge, 120)
-            if self.finished_frames > RESULT_LOCK:
-                self._center(canvas, "Press START for rematch", self.big, 190)
+            self._center(canvas, "GAME!", self.huge, 120)
 
     def _center(self, canvas: pygame.Surface, text: str, font: pygame.font.Font, y: int) -> None:
         surf = font.render(text, False, (255, 255, 255))

@@ -6,19 +6,11 @@ import time
 import pygame
 
 from k8ssmash.config import FPS, Config
-from k8ssmash.fighter import FighterStats
 from k8ssmash.input import InputManager
 from k8ssmash.render import Display
 from k8ssmash.scenes.base import Scene
 
 STEP = 1.0 / FPS
-
-
-def placeholder_roster() -> list[FighterStats]:
-    return [
-        FighterStats("Pod", (80, 160, 255)),
-        FighterStats("Chaos", (255, 110, 90), weight=110, run_speed=2.4),
-    ]
 
 
 class App:
@@ -30,6 +22,8 @@ class App:
         self.running = True
         self.scenes: list[Scene] = []
         self._screenshot_n = 0
+        self.idle_frames = 0  # frames since any player pressed anything; drives attract/reset
+        self.last_match: tuple[list[int], list[bool]] = ([0, 1], [True, True])
         self._combo_frames = 0
         self._combo_armed = True
 
@@ -39,6 +33,13 @@ class App:
 
     def set_scene(self, scene: Scene) -> None:
         self.scenes = [scene]
+
+    def go_title(self) -> None:
+        """Back to the title with the idle clock reset, so attract mode waits a full interval."""
+        from k8ssmash.scenes.title import Title
+
+        self.idle_frames = 0
+        self.set_scene(Title(self))
 
     def push_scene(self, scene: Scene) -> None:
         self.scenes.append(scene)
@@ -81,6 +82,7 @@ class App:
 
     def step(self) -> None:
         self.input.poll()
+        self.idle_frames = 0 if any(p.pressed for p in self.input.players) else self.idle_frames + 1
         self._check_test_combo()
         self.scene.update()
 
@@ -104,13 +106,13 @@ class App:
 
 
 def main() -> None:
-    from k8ssmash.scenes.battle import Battle
+    from k8ssmash.scenes.title import Title
 
     cfg = Config.load()
     if "--fullscreen" in sys.argv:
         cfg.fullscreen = True
     app = App(cfg)
-    app.set_scene(Battle(app, placeholder_roster()))
+    app.set_scene(Title(app))
     app.run()
 
 
