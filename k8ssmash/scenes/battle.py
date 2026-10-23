@@ -80,6 +80,7 @@ class Battle(Scene):
             METRICS.inc("matches_started_total", mode=self.mode_label)
             for f in self.fighters:
                 METRICS.inc("fighter_picks_total", fighter=f.stats.name)
+        self.cam = 0.0
         self.slowmo = 0
         self._slow_tick = 0
         self.banners: list[list] = []  # [text, color, frames left]
@@ -310,7 +311,10 @@ class Battle(Scene):
 
     # --- drawing -------------------------------------------------------------------------
     def draw(self, canvas: pygame.Surface) -> None:
-        draw_backdrop(canvas, self.stage.theme, self.frame)
+        live = [f for f in self.fighters if f.alive]
+        cam = (sum(f.x for f in live) / len(live) - CANVAS_W / 2) if live else 0.0
+        self.cam += (cam - self.cam) * 0.05  # ease, so the scenery drifts rather than snaps
+        draw_backdrop(canvas, self.stage.theme, self.frame, self.cam)
         for plat in self.stage.platforms:
             draw_platform(canvas, plat, self.stage.theme)
         for item in self.spawner.items:

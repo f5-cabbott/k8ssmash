@@ -60,7 +60,7 @@ def layer_mask(layer: Layer, size: int) -> np.ndarray:
 
 def shade(mask: np.ndarray, shiny: bool, flat: bool = False) -> np.ndarray:
     """Tone index (0..LEVELS-1) for every pixel of the part, -1 outside it."""
-    size = mask.shape[0]
+    h_, w_ = mask.shape
     depth = np.zeros(mask.shape)
     cur = mask.copy()
     for _ in range(12):
@@ -78,12 +78,12 @@ def shade(mask: np.ndarray, shiny: bool, flat: bool = False) -> np.ndarray:
     normal = np.dstack([-gx * 1.1, -gy * 1.1, np.ones_like(height)])
     normal /= np.linalg.norm(normal, axis=2, keepdims=True)
     diffuse = np.clip(normal @ LIGHT, 0, 1)
-    ys = np.arange(size)[:, None] * np.ones((1, size))
+    ys = np.arange(h_)[:, None] * np.ones((1, w_))
     rows = np.where(mask.any(axis=1))[0]
     y0, y1 = (rows.min(), rows.max()) if len(rows) else (0, 1)
     vertical = 0.5 - (ys - y0) / max(1, y1 - y0)  # +0.5 at the top of the part, -0.5 at the bottom
     t = 0.22 + 0.74 * diffuse + 0.16 * vertical
-    bayer = np.tile(BAYER, (size // 4 + 1, size // 4 + 1))[:size, :size]
+    bayer = np.tile(BAYER, (h_ // 4 + 1, w_ // 4 + 1))[:h_, :w_]
     idx = np.floor(np.clip(t * LEVELS + bayer * DITHER, 0, LEVELS - 0.001)).astype(int)
     if shiny:
         spec = np.clip(normal @ HALF, 0, 1) ** 28
@@ -101,7 +101,7 @@ def paint_part(frame: np.ndarray, mask: np.ndarray, ramp: np.ndarray, shiny: boo
     for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
         ring |= shift(mask, dy, dx)
     ring &= ~mask
-    outline = tuple(int(v * 0.55) for v in _mix(ramp[0], (10, 6, 34), 0.35))
+    outline = tuple(int(v * 0.55) for v in _mix(tuple(float(x) for x in ramp[0]), (10, 6, 34), 0.35))
     frame[ring, :3] = outline
     frame[ring, 3] = 255
     sel = mask
