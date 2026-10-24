@@ -15,6 +15,7 @@ from k8ssmash.fighter import (BUFF_ARMOR, BUFF_GUARD, BUFF_HASTE, BUFF_POWER, CA
 from k8ssmash.fx import draw_effect, draw_projectile
 from k8ssmash.items import ItemSpawner, draw_item
 from k8ssmash.metrics import METRICS
+from k8ssmash.particles import Particles
 from k8ssmash.input import PlayerInput
 from k8ssmash.palette import damage_color, player_colors
 from k8ssmash.scenes.base import Scene
@@ -82,6 +83,8 @@ class Battle(Scene):
             for f in self.fighters:
                 METRICS.inc("fighter_picks_total", fighter=f.stats.name)
         self.cam = 0.0
+        self.fx = Particles()
+        self.ghosts: list[list] = [[] for _ in self.fighters]  # dash afterimages: [surface, x, y, logic frame]
         self.slowmo = 0
         self._slow_tick = 0
         self.banners: list[list] = []  # [text, color, frames left]
@@ -164,6 +167,7 @@ class Battle(Scene):
                 return  # the final KO plays out at quarter speed
 
         self.hud_pulse = [max(0, p - 1) for p in self.hud_pulse]
+        self.fx.update()
         self.banners = [[t, c, n - 1] for t, c, n in self.banners if n > 1]
         self.time_left -= 1
         self.stage.tick(self.frame)
@@ -174,6 +178,7 @@ class Battle(Scene):
                 if ev == "special" and f.move is not None and not self.demo:
                     METRICS.inc("specials_used_total", fighter=f.stats.name, move=f.move.name)
             f.events.clear()
+            self._fighter_fx(f)
             for proj in f.spawn_queue:
                 if proj.defn.replace_existing:
                     self.projectiles = [q for q in self.projectiles
@@ -183,6 +188,8 @@ class Battle(Scene):
         self.effects = [(k, x, y, t - 1) for k, x, y, t in self.effects if t > 1]
         for f, item in self.spawner.update(self.stage, self.fighters):
             self.effects.append(("pickup", f.x, f.y - f.stats.height / 2, 24))
+            self.fx.sparkle(f.x, f.y - 24, (255, 245, 170), 9, 16)
+            self.fx.ring(f.x, f.y - 22, item.defn.color, 26, 24)
             self.app.audio.play("pickup", pan=self.pan_of(f))
             if not self.demo:
                 METRICS.inc("items_picked_total", item=item.defn.key)
@@ -196,6 +203,7 @@ class Battle(Scene):
                     if not self.demo:
                         METRICS.inc("fighter_kos_total", fighter=f.last_hit_by.stats.name)
                 f.last_hit_by = None
+                self._ko_burst(f)
                 f.knock_out()
                 self.app.audio.play("ko", pan=self.pan_of(f), fighter=f.stats.name)
                 self.announce(f"{f.stats.name}: {self.rng.choice(KO_REASONS)}", self.colors[f.slot])
@@ -204,6 +212,45 @@ class Battle(Scene):
         if self.slowmo == 0:
             self._check_end()
             self._report_result()
+
+    def _fighter_fx(self, f: Fighter) -> None:
+        """Visual juice from what a fighter just did: landing dust, jump rings, run puffs, buff sparkles, launch streaks."""
+        for kind, k in f.fx:
+            if kind == "land":
+                self.fx.dust(f.x, f.y, k)
+            elif kind == "jump":
+                self.fx.dust(f.x, f.y, 0.25)
+            elif kind == "djump":
+                self.fx.ring(f.x, f.y - 6, (210, 238, 255), 24, 18)
+                self.fx.burst(f.x, f.y - 4, (225, 242, 255), 4, 1.8, angle=math.pi / 2, spread=1.5)
+        f.fx.clear()
+        if f.state == "run" and f.on_ground and f.anim_frame % 9 == 0:
+            self.fx.dust(f.x - f.facing * 9, f.y, 0.12)
+        if f.buffs and self.frame % 8 == 0:
+            color = (255, 130, 90) if f.has("power") else (120, 255, 160) if f.has("guard") else (255, 190, 80) if f.has("armor") else (255, 240, 120)
+            self.fx.sparkle(f.x, f.y - 22, color, 1, 12)
+        if f.state == "hurt" and math.hypot(f.vx, f.vy) > 7 and self.frame % 2 == 0:
+            self.fx.streak(f.x, f.y - 22, f.vx, f.vy, self.colors[f.slot])
+
+    def _hit_burst(self, victim: Fighter, attacker: Fighter, damage: float, angle: float, direction: int) -> None:
+        cx, cy = victim.hurtbox.center
+        rad = math.radians(angle)
+        aim = math.atan2(-math.sin(rad), math.cos(rad) * direction)  # the way the victim is being launched
+        warm = tuple(int(a * 0.5 + b * 0.5) for a, b in zip(self.colors[attacker.slot], (255, 240, 170)))
+        self.fx.burst(cx, cy, warm, 5 + int(damage * 1.2), 3.0 + damage * 0.18, angle=aim, spread=1.5)
+        self.fx.ring(cx, cy, (255, 250, 220), min(42, 14 + damage * 2.0), 14)
+        if damage >= 9:  # heavy hits get a second, wider ring and a shower of embers
+            self.fx.ring(cx, cy, warm, min(54, 22 + damage * 2.4), 20)
+            self.fx.burst(cx, cy, (255, 200, 100), 8, 2.4, kind="square", life=(16, 28))
+
+    def _ko_burst(self, f: Fighter) -> None:
+        """The KO star: it bursts at the screen edge where the fighter flew out, with sparks fanning back inward."""
+        x = max(26.0, min(WORLD_W - 26.0, f.x))
+        y = max(26.0, min(WORLD_H - 100.0, f.y - f.stats.height / 2))
+        color = self.colors[f.slot]
+        self.fx.star(x, y, color, 38)
+        self.fx.ring(x, y, (255, 255, 255), 56, 30)
+        self.fx.burst(x, y, color, 18, 4.2, angle=math.atan2(WORLD_H / 2 - y, WORLD_W / 2 - x), spread=2.2, life=(18, 34))
 
     @staticmethod
     def pan_of(f: Fighter) -> float:
@@ -227,12 +274,17 @@ class Battle(Scene):
             self.hitstop = 8
             self.effects.append(("counter", victim.x, victim.y - 24, 18))
             self.app.audio.play("counter", pan=self.pan_of(victim))
+            self.fx.ring(victim.x, victim.y - 24, (255, 224, 120), 34, 22)
+            self.fx.burst(victim.x, victim.y - 24, (255, 224, 120), 12, 3.6)
             return True
         result = victim.apply_hit(damage, base, growth, angle, direction)
         if result == "ignored":
             return False
         if result == "shield":
             self.app.audio.play("shield", pan=self.pan_of(victim))
+            self.fx.ring(victim.hurtbox.centerx, victim.hurtbox.centery, (150, 235, 255), 26, 14)
+            self.fx.burst(victim.hurtbox.centerx + direction * 10, victim.hurtbox.centery, (190, 240, 255), 5, 2.2,
+                          angle=0.0 if direction > 0 else math.pi, spread=1.2)
         if result == "hit":
             # the attacker's own impact sound, placed where the victim is
             self.app.audio.play("hit_heavy" if damage >= 7 else "hit_light", pan=self.pan_of(victim),
@@ -242,6 +294,7 @@ class Battle(Scene):
             self.hud_pulse[victim.slot] = 12
             self.hitstop = 3 + int(damage // 4)
             self.effects.append(("hit", victim.x, victim.y - victim.stats.height / 2, 10))
+            self._hit_burst(victim, attacker, damage, angle, direction)
         return True
 
     def _resolve_melee(self) -> None:
@@ -334,6 +387,7 @@ class Battle(Scene):
             draw_projectile(canvas, p)
         for kind, x, y, left in self.effects:
             draw_effect(canvas, kind, x, y, left)
+        self.fx.draw(canvas)
         self._draw_hud(canvas)
         if self.paused_for_pad:
             shade = pygame.Surface((WORLD_W, WORLD_H), pygame.SRCALPHA)
@@ -387,18 +441,23 @@ class Battle(Scene):
     def _draw_fighter(self, canvas: pygame.Surface, f: Fighter) -> None:
         if not f.alive:
             return
-        if f.invuln > 0 and (f.invuln // 4) % 2 == 0:
-            return
         box = f.hurtbox
-        sprites = sprite_set(f.stats.name)
+        alt = self.fighters[0].stats.name == self.fighters[1].stats.name and f.slot == 1  # mirror match: recolour P2
+        sprites = sprite_set(f.stats.name, alt)
         if sprites is not None:
             anim, idx = pick_frame(f)
             img = sprites.get(anim, idx, f.facing, f.scale)
-            if f.state == "hurt" and f.hitstun % 4 < 2:
-                img = img.copy()
-                img.fill((90, 90, 90), special_flags=pygame.BLEND_RGB_ADD)
             fx, fy = sprites.feet
-            canvas.blit(img, (round(f.x - fx * f.scale), round(f.y - fy * f.scale)))
+            pos = (round(f.x - fx * f.scale), round(f.y - fy * f.scale))
+            self._draw_ghosts(canvas, f, img, pos)
+            if f.state == "hurt" and f.anim_frame < 6:  # a brief steady brightening on impact that fades out (no flicker)
+                img = img.copy()
+                lift = max(0, 120 - f.anim_frame * 22)
+                img.fill((lift, lift, lift), special_flags=pygame.BLEND_RGB_ADD)
+            if f.invuln > 0:  # respawn protection: a slow shimmer rather than blinking out
+                img = img.copy()
+                img.set_alpha(int(200 + 55 * math.sin(self.frame * 0.18)))
+            canvas.blit(img, pos)
         else:
             pygame.draw.rect(canvas, f.stats.color, box)
         if f.shielding:
@@ -428,6 +487,23 @@ class Battle(Scene):
             pos = (box.centerx - text.get_width() // 2, box.top - 30 - (CALLOUT_FRAMES - f.callout_timer) // 10)
             canvas.blit(shadow, (pos[0] + 1, pos[1] + 1))
             canvas.blit(text, pos)
+
+    def _draw_ghosts(self, canvas: pygame.Surface, f: Fighter, img: pygame.Surface, pos: tuple[int, int]) -> None:
+        """Fading afterimages behind a fighter who is dashing, blinking, rising or flying: smooth, not strobing."""
+        ghosts = self.ghosts[f.slot]
+        m = f.move
+        fast = (m is not None and (m.dash or m.blink or m.rise) and f.state == "attack") or \
+            (f.state == "hurt" and math.hypot(f.vx, f.vy) > 9)
+        if fast and self.frame % 2 == 0 and (not ghosts or ghosts[-1][3] != self.frame):
+            tint = img.copy()
+            c = self.colors[f.slot]
+            tint.fill((c[0] // 3, c[1] // 3, c[2] // 3), special_flags=pygame.BLEND_RGB_ADD)
+            ghosts.append([tint, pos[0], pos[1], self.frame])
+            del ghosts[:-4]
+        ghosts[:] = [g for g in ghosts if self.frame - g[3] < 14]
+        for surf, gx, gy, born in ghosts:
+            surf.set_alpha(max(0, 120 - (self.frame - born) * 9))
+            canvas.blit(surf, (gx, gy))
 
     def _draw_tag(self, canvas: pygame.Surface, f: Fighter) -> None:
         """A small marker over the fighter; its shape differs per player so color is never the only cue."""
