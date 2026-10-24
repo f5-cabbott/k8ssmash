@@ -230,11 +230,22 @@ BUTTON_COLORS = {"A": (214, 64, 64), "B": (232, 190, 56), "X": (74, 114, 224), "
 _glyph_font: Font | None = None
 
 
+def _gfont() -> Font:
+    """The glyph label font, rebuilt if pygame was shut down and restarted since it was made."""
+    global _glyph_font
+    try:
+        if _glyph_font is None:
+            raise pygame.error("not built yet")
+        _glyph_font._font.get_height()
+    except pygame.error:
+        _glyph_font = Font(round(14 * SCALE))
+    return _glyph_font
+
+
 def button_glyph(canvas: pygame.Surface, x: int, y: int, label: str) -> int:
     """A tiny SNES-style button (colored face button or shoulder) at a design-unit (x, y). Returns its design width."""
-    global _glyph_font
     k = SCALE
-    _glyph_font = _glyph_font or Font(round(14 * k))
+    font = _gfont()
     X, Y = round(x * k), round(y * k)
     if label in BUTTON_COLORS:
         c = BUTTON_COLORS[label]
@@ -242,13 +253,13 @@ def button_glyph(canvas: pygame.Surface, x: int, y: int, label: str) -> int:
         pygame.draw.circle(canvas, (14, 10, 30), (X + r, Y + r), r + 2)
         pygame.draw.circle(canvas, c, (X + r, Y + r), r)
         pygame.draw.circle(canvas, _mix(c, (255, 255, 255), 0.45), (X + r - 2, Y + r - 2), round(2 * k))
-        t = _glyph_font.flat(label, (255, 255, 255))
+        t = font.flat(label, (255, 255, 255))
         canvas.blit(t, (X + r - t.get_width() // 2, Y + r - t.get_height() // 2 + 1))
         return 16
     w, h = round(18 * k), round(12 * k)
     pygame.draw.rect(canvas, (14, 10, 30), (X, Y + 1, w, h), border_radius=5)
     pygame.draw.rect(canvas, (176, 182, 206), (X + 2, Y + 3, w - 4, h - 4), border_radius=4)
-    t = _glyph_font.flat(label, (30, 34, 70))
+    t = font.flat(label, (30, 34, 70))
     canvas.blit(t, (X + w // 2 - t.get_width() // 2, Y + h // 2 - t.get_height() // 2 + 2))
     return 19
 
