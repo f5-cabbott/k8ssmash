@@ -171,3 +171,36 @@ def test_kos_credited_to_last_attacker(app):
     battle.frame = 1000
     battle.update()
     assert a.kos == 1 and b.stocks == 2
+
+
+# --- character select: backing out and the move list ---------------------------------------------
+def test_select_a_button_backs_out_to_the_title(app):
+    tap(app, {"START"})
+    assert isinstance(app.scene, CharacterSelect)
+    tap(app, {"SPECIAL"})  # nobody has joined yet: A leaves
+    assert isinstance(app.scene, Title)
+
+
+def test_select_back_out_steps_lock_then_join_then_leave(app):
+    tap(app, {"START"})
+    tap(app, {"START"})  # P1 joins
+    tap(app, {"ATTACK"})  # P1 locks in
+    assert app.scene.locked[0]
+    tap(app, {"SPECIAL"})
+    assert not app.scene.locked[0] and app.scene.joined[0]
+    tap(app, {"SPECIAL"})
+    assert not app.scene.joined[0] and isinstance(app.scene, CharacterSelect)
+    tap(app, {"SPECIAL"})
+    assert isinstance(app.scene, Title)
+
+
+def test_every_special_is_named_and_shown(app):
+    from k8ssmash.roster import roster
+    from k8ssmash.scenes.select import MOVE_ROWS
+    for st in roster():
+        for _, key, _ in MOVE_ROWS:
+            move = st.moves[key]
+            assert (move.announce or move.name).strip(), (st.name, key)
+    sel = CharacterSelect(app)
+    sel.joined, sel.cursor = [True, True], [0, 7]
+    sel.draw(app.display.canvas)  # renders every panel without error

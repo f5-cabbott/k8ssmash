@@ -25,6 +25,10 @@ class Font:
         self._font = pygame.font.Font(None, size)
         self.outline = 1 if size < 44 else 2
 
+    def flat(self, text: str, color: Color) -> pygame.Surface:
+        """Plain anti-aliased text with no outline (for tiny labels inside glyphs)."""
+        return self._font.render(text, True, color)
+
     def get_height(self) -> int:
         return self._font.get_height()
 
@@ -90,3 +94,37 @@ def window(canvas: pygame.Surface, rect: pygame.Rect, accent: Color | None = Non
     shadow.fill((0, 0, 12, 90))
     canvas.blit(shadow, (rect.x + 2, rect.y + 3))
     canvas.blit(surf, rect.topleft)
+
+
+BUTTON_COLORS = {"A": (214, 64, 64), "B": (232, 190, 56), "X": (74, 114, 224), "Y": (72, 190, 96)}
+_glyph_font: Font | None = None
+
+
+def button_glyph(canvas: pygame.Surface, x: int, y: int, label: str) -> int:
+    """A tiny SNES-style button (colored face button or shoulder) at (x, y). Returns its width."""
+    global _glyph_font
+    _glyph_font = _glyph_font or Font(14)
+    if label in BUTTON_COLORS:
+        c = BUTTON_COLORS[label]
+        pygame.draw.circle(canvas, (14, 10, 30), (x + 7, y + 7), 8)
+        pygame.draw.circle(canvas, c, (x + 7, y + 7), 7)
+        pygame.draw.circle(canvas, _mix(c, (255, 255, 255), 0.45), (x + 5, y + 5), 2)
+        t = _glyph_font.flat(label, (255, 255, 255))
+        canvas.blit(t, (x + 7 - t.get_width() // 2, y + 7 - t.get_height() // 2 + 1))
+        return 16
+    pygame.draw.rect(canvas, (14, 10, 30), (x, y + 1, 18, 12), border_radius=4)
+    pygame.draw.rect(canvas, (176, 182, 206), (x + 1, y + 2, 16, 10), border_radius=3)
+    t = _glyph_font.flat(label, (30, 34, 70))
+    canvas.blit(t, (x + 9 - t.get_width() // 2, y + 7 - t.get_height() // 2 + 1))
+    return 19
+
+
+def dpad_glyph(canvas: pygame.Surface, x: int, y: int, direction: str | None = None) -> int:
+    """A tiny D-pad; the arm for `direction` ('up'/'down'/'left'/'right') lights up. Returns its width."""
+    arms = {"up": (5, 0, 4, 5), "down": (5, 9, 4, 5), "left": (0, 5, 5, 4), "right": (9, 5, 5, 4)}
+    pygame.draw.rect(canvas, (14, 10, 30), (x - 1, y - 1, 16, 16), border_radius=3)
+    for name, (ax, ay, aw, ah) in arms.items():
+        lit = name == direction
+        pygame.draw.rect(canvas, (255, 236, 130) if lit else (110, 118, 156), (x + ax, y + ay, aw, ah))
+    pygame.draw.rect(canvas, (150, 158, 196), (x + 5, y + 5, 4, 4))
+    return 17
