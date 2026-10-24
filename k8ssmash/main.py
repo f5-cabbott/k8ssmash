@@ -30,7 +30,7 @@ class App:
         self.cfg = cfg
         self.display = Display(cfg)
         self.input = InputManager(cfg)
-        self.audio = Audio(cfg.sfx_volume, cfg.music_volume, cfg.muted)
+        self.audio = Audio(cfg.sfx_volume, cfg.music_volume, cfg.muted, cfg.master_volume)
         self.scores = ScoreBoard()
         self.runs = RunTracker(self.scores)
         self.running = True

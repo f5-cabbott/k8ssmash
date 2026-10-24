@@ -90,6 +90,7 @@ class Title(Scene):
         self.frame = 0
         self._select_since: int | None = None
         self._select_clean = True
+        self._shield_held = 0
         app.audio.music("splash")
         self.huge = ui.Font(92)
         self.big = ui.Font(36)
@@ -112,7 +113,13 @@ class Title(Scene):
         # START with SELECT held is the controller-test combo, not "start game".
         starting = any("START" in p.pressed and "SELECT" not in p.held for p in self.app.input.players)
         self._check_leaderboard_tap()
-        if starting:
+        self._shield_held = self._shield_held + 1 if any("SHIELD" in p.held for p in self.app.input.players) else 0
+        if self._shield_held >= 40:  # a deliberate hold of L/R, so nobody opens it by accident
+            from k8ssmash.scenes.settings import Settings
+
+            self.app.audio.play("menu_select")
+            self.app.set_scene(Settings(self.app))
+        elif starting:
             self.app.audio.play("menu_select")
             self.app.set_scene(CharacterSelect(self.app))
         elif any("SPECIAL" in p.pressed for p in self.app.input.players):
@@ -183,5 +190,5 @@ class Title(Scene):
         press = self.big.render("PRESS START", False, (255, 224, 90))
         press = pygame.transform.smoothscale(press, (int(press.get_width() * pulse), int(press.get_height() * pulse)))
         canvas.blit(press, ((CANVAS_W - press.get_width()) // 2, 266 - press.get_height() // 2))
-        hint = self.font.render("A: training      SELECT: leaderboard", False, (130, 146, 210))
+        hint = self.font.render("A: training     SELECT: leaderboard     hold L/R: settings", False, (130, 146, 210))
         canvas.blit(hint, ((CANVAS_W - hint.get_width()) // 2, 336))

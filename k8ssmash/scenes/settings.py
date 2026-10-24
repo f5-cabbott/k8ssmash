@@ -1,0 +1,132 @@
+"""The settings screen: master, effects and music volume, plus a few switches. Hold L/R on the title to open it."""
+from __future__ import annotations
+
+import pygame
+
+from k8ssmash import ui
+from k8ssmash.config import CANVAS_W, FPS
+from k8ssmash.scenes.base import Scene
+
+STEP = 0.05
+REPEAT_DELAY, REPEAT_EVERY = 18, 3  # holding left/right keeps adjusting
+
+ROWS = [
+    ("master", "Master volume", "slider"),
+    ("sfx", "Effects volume", "slider"),
+    ("music", "Music volume", "slider"),
+    ("mute", "Mute everything", "toggle"),
+    ("colorblind", "Colorblind-safe colors", "toggle"),
+    ("items", "Power-ups", "toggle"),
+]
+
+
+class Settings(Scene):
+    def __init__(self, app):
+        super().__init__(app)
+        self.row = 0
+        self.frame = 0
+        self.held_for = 0
+        self.big = ui.Font(40)
+        self.font = ui.Font(26)
+        self.small = ui.Font(18)
+        app.audio.music("select")
+
+    # --- values --------------------------------------------------------------------------------
+    def value(self, key: str):
+        cfg = self.app.cfg
+        return {"master": cfg.master_volume, "sfx": cfg.sfx_volume, "music": cfg.music_volume, "mute": cfg.muted,
+                "colorblind": cfg.colorblind, "items": cfg.items}[key]
+
+    def adjust(self, key: str, direction: int) -> None:
+        cfg, audio = self.app.cfg, self.app.audio
+        if key in ("master", "sfx", "music"):
+            new = round(max(0.0, min(1.0, self.value(key) + direction * STEP)), 2)
+            setattr(cfg, {"master": "master_volume", "sfx": "sfx_volume", "music": "music_volume"}[key], new)
+            audio.set_volumes(master=cfg.master_volume, sfx=cfg.sfx_volume, music=cfg.music_volume)
+            if key in ("master", "sfx") and self.frame % 3 == 0:
+                audio.play("hit_light")  # a sample so you can hear the level you are choosing
+        elif key == "mute":
+            if (direction > 0) != cfg.muted:
+                audio.toggle_mute()
+                cfg.muted = audio.muted
+        elif key == "colorblind":
+            cfg.colorblind = direction > 0
+        elif key == "items":
+            cfg.items = direction > 0
+
+    # --- logic ---------------------------------------------------------------------------------
+    def update(self) -> None:
+        self.frame += 1
+        players = self.app.input.players
+        for inp in players:
+            if "UP" in inp.pressed:
+                self.row = (self.row - 1) % len(ROWS)
+                self.app.audio.play("menu_move")
+            if "DOWN" in inp.pressed:
+                self.row = (self.row + 1) % len(ROWS)
+                self.app.audio.play("menu_move")
+        key, _, kind = ROWS[self.row]
+        direction = 0
+        for inp in players:
+            if "RIGHT" in inp.pressed or "ATTACK" in inp.pressed and kind == "toggle":
+                direction = 1 if "RIGHT" in inp.pressed else (-1 if self.value(key) else 1)
+            elif "LEFT" in inp.pressed:
+                direction = -1
+        held = any(inp.axis_x for inp in players)
+        self.held_for = self.held_for + 1 if held else 0
+        if not direction and kind == "slider" and self.held_for > REPEAT_DELAY and self.held_for % REPEAT_EVERY == 0:
+            direction = next(inp.axis_x for inp in players if inp.axis_x)
+        if direction:
+            self.adjust(key, direction)
+        if any(inp.pressed & {"START", "SPECIAL"} for inp in players) and self.frame > 10:
+            self.app.audio.play("menu_select")
+            self.app.cfg.save()
+            self.app.go_title()
+
+    # --- drawing -------------------------------------------------------------------------------
+    def draw(self, canvas: pygame.Surface) -> None:
+        canvas.blit(_background(), (0, 0))
+        head = self.big.render("SETTINGS", False, (255, 224, 90))
+        canvas.blit(head, ((CANVAS_W - head.get_width()) // 2, 18))
+        panel = pygame.Rect(60, 70, 520, 236)
+        ui.window(canvas, panel)
+        for i, (key, label, kind) in enumerate(ROWS):
+            y = panel.y + 16 + i * 36
+            active = i == self.row
+            if active:
+                pygame.draw.rect(canvas, (60, 90, 200), (panel.x + 8, y - 4, panel.w - 16, 32), border_radius=4)
+                pygame.draw.polygon(canvas, (255, 224, 90), [(panel.x + 16, y + 4), (panel.x + 16, y + 20), (panel.x + 28, y + 12)])
+            canvas.blit(self.font.render(label, False, (255, 255, 255) if active else (190, 200, 235)), (panel.x + 40, y))
+            value = self.value(key)
+            if kind == "slider":
+                bar = pygame.Rect(panel.x + 270, y + 4, 170, 18)
+                pygame.draw.rect(canvas, (8, 12, 40), bar, border_radius=3)
+                filled = int(bar.w * value)
+                for sx in range(0, filled - 2, 8):  # segmented neon bar
+                    pygame.draw.rect(canvas, _hue(sx / bar.w), (bar.x + 2 + sx, bar.y + 2, 6, bar.h - 4))
+                pygame.draw.rect(canvas, (150, 170, 230), bar, 1, border_radius=3)
+                pct = self.font.render(f"{int(round(value * 100))}%", False, (255, 255, 255))
+                canvas.blit(pct, (bar.right + 12, y))
+            else:
+                on = bool(value)
+                text = self.font.render("ON" if on else "OFF", False, (120, 255, 160) if on else (150, 156, 190))
+                canvas.blit(text, (panel.x + 290, y))
+        hint = self.small.render("UP / DOWN choose     LEFT / RIGHT change     START or A: save and go back", False, (150, 166, 220))
+        canvas.blit(hint, ((CANVAS_W - hint.get_width()) // 2, 326))
+
+
+_bg: pygame.Surface | None = None
+
+
+def _background() -> pygame.Surface:
+    global _bg
+    if _bg is None:
+        from k8ssmash.backdrops import dither_gradient
+        from k8ssmash.config import CANVAS_H
+        _bg = dither_gradient(CANVAS_W, CANVAS_H, [(0, (4, 6, 22)), (0.5, (10, 24, 80)), (1, (3, 6, 24))], bands=20)
+    return _bg
+
+
+def _hue(t: float) -> tuple[int, int, int]:
+    """Slider colour: cool cyan at the quiet end, warm amber toward loud."""
+    return (int(40 + 215 * t), int(220 - 80 * t), int(255 - 200 * t))

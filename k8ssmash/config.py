@@ -53,7 +53,7 @@ def config_path() -> Path:
     return base / "k8ssmash" / "config.json"
 
 
-MIX_VERSION = 2  # bump when default volumes change; older saved volumes are then ignored
+MIX_VERSION = 3  # bump when default volumes change; older saved volumes are then ignored
 
 
 def data_dir() -> Path:
@@ -66,7 +66,8 @@ class Config:
     width: int = 1920
     height: int = 1080
     fullscreen: bool = False
-    sfx_volume: float = 0.9
+    master_volume: float = 0.8  # scales both of the below
+    sfx_volume: float = 0.55
     music_volume: float = 0.4  # music sits well under the effects
     mix_version: int = MIX_VERSION
     muted: bool = False
@@ -93,7 +94,7 @@ class Config:
             return cfg
         names = ["width", "height", "fullscreen", "pad_name_filter", "items", "muted", "swap_pads", "colorblind", "event_name", "metrics_port", "metrics_host"]
         if data.get("mix_version", 1) >= MIX_VERSION:
-            names += ["sfx_volume", "music_volume"]
+            names += ["master_volume", "sfx_volume", "music_volume"]
         for name in names:
             if name in data:
                 setattr(cfg, name, data[name])

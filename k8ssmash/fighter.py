@@ -33,17 +33,22 @@ class FighterStats:
     color: tuple[int, int, int]
     width: int = 24
     height: int = 46
-    run_speed: float = 2.6
-    air_speed: float = 2.3
-    air_accel: float = 0.22
-    jump_vel: float = -8.4
-    djump_vel: float = -7.7
+    run_speed: float = 3.4
+    air_speed: float = 3.0
+    air_accel: float = 0.3
+    jump_vel: float = -9.0
+    djump_ratio: float = 0.65  # the double jump reaches this fraction of the first jump's height
     gravity: float = 0.38
-    max_fall: float = 7.5
-    fast_fall: float = 11.0
+    max_fall: float = 8.6
+    fast_fall: float = 12.5
     weight: float = 100.0
     blurb: str = ""
     moves: dict[str, Move] = field(default_factory=default_moveset)
+
+    @property
+    def djump_vel(self) -> float:
+        """Height goes with velocity squared, so a 65%-height second jump needs sqrt(0.65) of the launch speed."""
+        return self.jump_vel * math.sqrt(self.djump_ratio)
 
 
 @dataclass

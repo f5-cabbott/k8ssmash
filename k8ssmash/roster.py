@@ -34,7 +34,7 @@ def pod() -> FighterStats:
 def statefulset() -> FighterStats:
     """Heavy keeper. Slow and sturdy, carries a storage drum, hits like a loaded pallet."""
     return FighterStats(
-        "StatefulSet", (240, 204, 58), weight=122, run_speed=2.2, air_speed=2.0, jump_vel=-7.9, djump_vel=-7.3,
+        "StatefulSet", (240, 204, 58), weight=122, run_speed=2.86, air_speed=2.6, jump_vel=-8.45,
         gravity=0.4, width=28, height=50, blurb="Heavy keeper. Slow, sturdy, hits hard.",
         moves=moveset(**{
             "jab": Move("jab", 4, 3, 11, (8, -34, 26, 16), 4, 2.4, 0.02, 35, anim="jab"),
@@ -56,7 +56,7 @@ def statefulset() -> FighterStats:
 def kubectl() -> FighterStats:
     """Fast technical fighter: command-line combos."""
     return FighterStats(
-        "Kubectl", (110, 235, 170), weight=92, run_speed=3.0, air_speed=2.6, air_accel=0.26,
+        "Kubectl", (110, 235, 170), weight=92, run_speed=3.9, air_speed=3.38, air_accel=0.34,
         blurb="Fast and technical. Fires commands.",
         moves=moveset(**{
             "jab": Move("jab", 2, 3, 7, (6, -32, 22, 14), 3, 2.2, 0.018, 38, anim="jab"),
@@ -74,8 +74,8 @@ def kubectl() -> FighterStats:
 def monkey() -> FighterStats:
     """Chaos Monkey: light and slippery, with trap-laying."""
     return FighterStats(
-        "Chaos Monkey", (230, 130, 70), weight=84, width=22, height=42, run_speed=3.0, air_speed=2.7,
-        jump_vel=-8.8, djump_vel=-8.4, gravity=0.37, blurb="Light trickster. Lays traps.",
+        "Chaos Monkey", (230, 130, 70), weight=84, width=22, height=42, run_speed=3.9, air_speed=3.51,
+        jump_vel=-9.4, gravity=0.37, blurb="Light trickster. Lays traps.",
         moves=moveset(**{
             "special": Move("banana toss", 9, 1, 16, anim="cast", announce="Banana Toss", projectile=ProjectileDef(
                 speed=3.2, width=12, height=10, damage=7, base_kb=3.0, kb_growth=0.035, angle=60, life=420,
@@ -113,7 +113,7 @@ def sidecar() -> FighterStats:
 def ingress() -> FighterStats:
     """Gatekeeper: zoning with ports, routes and a firewall wall."""
     return FighterStats(
-        "Ingress", (90, 215, 220), weight=108, run_speed=2.4, width=26, height=48,
+        "Ingress", (90, 215, 220), weight=108, run_speed=3.12, width=26, height=48,
         blurb="Gatekeeper. Ports and walls.",
         moves=moveset(**{
             "special": Move("open port", 14, 1, 20, anim="cast", announce="Open Port", projectile=ProjectileDef(
@@ -149,7 +149,7 @@ def operator() -> FighterStats:
 def oomkiller() -> FighterStats:
     """Heavy glass cannon. Huge damage, short reach, big recoveries."""
     return FighterStats(
-        "OOMKiller", (205, 60, 70), weight=110, run_speed=2.3, width=28, height=50, jump_vel=-7.7,
+        "OOMKiller", (205, 60, 70), weight=110, run_speed=2.99, width=28, height=50, jump_vel=-8.2,
         blurb="Glass cannon. Huge damage.",
         moves=moveset(**{
             "jab": Move("jab", 5, 3, 12, (8, -36, 28, 16), 4, 2.6, 0.022, 38, anim="jab"),

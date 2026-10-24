@@ -132,20 +132,20 @@ def test_effects_are_louder_than_music():
     music = np.mean([rms(ASSETS / f"{n}.ogg") for n in MUSIC]) * Config().music_volume
     for fighter in VOICES:
         sfx = rms(ASSETS / f"{slug(fighter)}__hit_heavy.wav") * Config().sfx_volume
-        assert sfx > music * 2.5, (fighter, sfx, music)  # ~8 dB over the music
+        assert sfx > music * 2.0, (fighter, sfx, music)  # at least 6 dB over the music
 
 
 def test_default_mix_and_old_saved_volumes_are_migrated(tmp_path, monkeypatch):
     cfg = Config()
-    assert cfg.music_volume <= 0.45 and cfg.sfx_volume >= 0.85
+    assert cfg.music_volume <= 0.45 and 0.4 <= cfg.sfx_volume <= 0.7 and 0.5 <= cfg.master_volume <= 1.0
     old = tmp_path / "old.json"
-    old.write_text(json.dumps({"sfx_volume": 0.8, "music_volume": 0.5, "width": 2560, "height": 1440}))
+    old.write_text(json.dumps({"mix_version": 2, "sfx_volume": 0.9, "music_volume": 0.5, "width": 2560, "height": 1440}))
     monkeypatch.setenv("K8SSMASH_CONFIG", str(old))
     loaded = Config.load()
     assert (loaded.music_volume, loaded.sfx_volume) == (cfg.music_volume, cfg.sfx_volume)  # old mix ignored
     assert loaded.width == 2560  # everything else is kept
     new = tmp_path / "new.json"
-    new.write_text(json.dumps({"mix_version": 2, "music_volume": 0.2}))
+    new.write_text(json.dumps({"mix_version": 3, "music_volume": 0.2}))
     monkeypatch.setenv("K8SSMASH_CONFIG", str(new))
     assert Config.load().music_volume == 0.2  # a volume chosen under the new mix is respected
 

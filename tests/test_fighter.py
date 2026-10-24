@@ -300,3 +300,35 @@ def test_air_jump_launches_in_the_held_direction(stage):
     f.aerial_jumps = 1
     tick(f, stage, {"JUMP", "LEFT"})
     assert f.vx < -2 and f.vy < 0  # a double jump steered back toward the stage
+
+
+def test_double_jump_is_65_percent_of_the_first_jump(stage):
+    """Height scales with velocity squared; the second jump should reach about 65% of the first."""
+    f = make(stage)
+    tick(f, stage, frames=3)
+    first = apex(f, stage, {"JUMP"})
+    g = make(stage)
+    g.y -= 200
+    g.on_ground, g.aerial_jumps, g.vy = False, 1, 0.0
+    start = g.y
+    tick(g, stage, {"JUMP"})
+    top = g.y
+    for _ in range(80):
+        tick(g, stage)
+        top = min(top, g.y)
+    second = start - top
+    assert 0.58 <= second / first <= 0.72, (first, second)
+
+
+def test_every_fighter_double_jumps_lower_than_it_jumps():
+    from k8ssmash.roster import roster
+    for st in roster():
+        assert abs(st.djump_vel) < abs(st.jump_vel)
+        assert abs(abs(st.djump_vel) / abs(st.jump_vel) - 0.65 ** 0.5) < 1e-6
+
+
+def test_running_is_snappy(stage):
+    f = make(stage)
+    tick(f, stage, frames=3)
+    tick(f, stage, {"RIGHT"}, frames=3)
+    assert f.vx >= 3.0  # Smash-like pace: no slow ramp-up

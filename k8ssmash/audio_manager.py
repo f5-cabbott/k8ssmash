@@ -18,8 +18,9 @@ def slug(name: str) -> str:
 
 
 class Audio:
-    def __init__(self, sfx_volume: float = 0.9, music_volume: float = 0.4, muted: bool = False):
-        self.sfx_volume, self.music_volume, self.muted = sfx_volume, music_volume, muted
+    def __init__(self, sfx_volume: float = 0.55, music_volume: float = 0.4, muted: bool = False,
+                 master_volume: float = 1.0):
+        self.sfx_volume, self.music_volume, self.muted, self.master = sfx_volume, music_volume, muted, master_volume
         self.ok = False
         self.current: str | None = None
         self.played: list[str] = []  # last sounds requested, handy for tests
@@ -63,16 +64,26 @@ class Audio:
         snd.set_volume(1.0)
         channel = snd.play()
         if channel is not None:
-            vol = self.sfx_volume * volume
+            vol = self.sfx_volume * self.master * volume
             pan = max(-1.0, min(1.0, pan))
             channel.set_volume(vol * min(1.0, 1.0 - pan * 0.9 if pan > 0 else 1.0),
                                vol * min(1.0, 1.0 + pan * 0.9 if pan < 0 else 1.0))
+
+    def set_volumes(self, master: float | None = None, sfx: float | None = None, music: float | None = None) -> None:
+        """Change volumes live (the settings screen): the music follows immediately."""
+        if master is not None:
+            self.master = max(0.0, min(1.0, master))
+        if sfx is not None:
+            self.sfx_volume = max(0.0, min(1.0, sfx))
+        if music is not None:
+            self.music_volume = max(0.0, min(1.0, music))
+        self._applied = -1.0  # force the next update to re-apply the music volume
 
     def update(self) -> None:
         """Call once per logic frame: eases the music back up after a duck."""
         self._duck += (1.0 - self._duck) * DUCK_RECOVERY
         if self.ok and not self.muted and abs(self._duck - self._applied) > 0.01:
-            pygame.mixer.music.set_volume(self.music_volume * self._duck)
+            pygame.mixer.music.set_volume(self.music_volume * self.master * self._duck)
             self._applied = self._duck
 
     def music(self, name: str | None, loop: bool = True) -> None:
@@ -86,7 +97,7 @@ class Audio:
             return
         try:
             pygame.mixer.music.load(str(ASSETS / f"{name}.ogg"))
-            pygame.mixer.music.set_volume(self.music_volume * self._duck)
+            pygame.mixer.music.set_volume(self.music_volume * self.master * self._duck)
             pygame.mixer.music.play(-1 if loop else 0)
         except (pygame.error, FileNotFoundError):
             pass
