@@ -91,6 +91,7 @@ class Battle(Scene):
         self.big = ui.Font(44)
         self.huge = ui.Font(80)
         self.callout_font = ui.Font(15)
+        self.tag_font = ui.Font(13)
         self.finale_font = ui.Font(30)
         self.pct_font = ui.Font(58)
         self.pct_pulse = ui.Font(72)
@@ -428,19 +429,19 @@ class Battle(Scene):
             canvas.blit(text, pos)
 
     def _draw_tag(self, canvas: pygame.Surface, f: Fighter) -> None:
-        """Marker over the fighter: shape differs per player so color is never the only cue."""
+        """A small marker over the fighter; its shape differs per player so color is never the only cue."""
         color = self.colors[f.slot]
         label = "CPU" if not self.human[f.slot] else f"P{f.slot + 1}"
-        text = self.font.render(label, False, color)
-        total = text.get_width() + 4 + 10
+        text = self.tag_font.render(label, False, color)
+        total = text.get_width() + 3 + 7
         x = f.hurtbox.centerx - total // 2
-        y = f.hurtbox.top - 18
+        y = f.hurtbox.top - 12
         canvas.blit(text, (x, y))
-        mx, my = x + text.get_width() + 4, y + 3
+        mx, my = x + text.get_width() + 3, y + 3
         if f.slot == 0:
-            pygame.draw.polygon(canvas, color, [(mx, my), (mx + 10, my), (mx + 5, my + 8)])
+            pygame.draw.polygon(canvas, color, [(mx, my), (mx + 7, my), (mx + 3, my + 6)])
         else:
-            pygame.draw.rect(canvas, color, (mx, my, 9, 8))
+            pygame.draw.rect(canvas, color, (mx, my, 6, 6))
 
     def _draw_hud(self, canvas: pygame.Surface) -> None:
         for f in self.fighters:

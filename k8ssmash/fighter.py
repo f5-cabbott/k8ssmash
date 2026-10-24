@@ -16,6 +16,8 @@ KO_DELAY = 50
 RESPAWN_INVULN = 120
 CALLOUT_FRAMES = 50
 DUCK_HEIGHT = 0.55
+LEDGE_REACH = 30  # how far below a platform's top you can be and still be pulled up onto it
+LEDGE_GRAB = 12  # how far out from the edge counts as 'at the ledge'
 
 # Buff names -> what they do. Durations are in frames and live in Fighter.buffs.
 BUFF_HASTE = "haste"  # +35% move speed
@@ -34,8 +36,8 @@ class FighterStats:
     run_speed: float = 2.6
     air_speed: float = 2.3
     air_accel: float = 0.22
-    jump_vel: float = -7.6
-    djump_vel: float = -7.0
+    jump_vel: float = -8.4
+    djump_vel: float = -7.7
     gravity: float = 0.38
     max_fall: float = 7.5
     fast_fall: float = 11.0
@@ -305,6 +307,8 @@ class Fighter:
             fast = inp.axis_y > 0 and self.vy > 0 and not stunned and self.move is None
             self.vy = min(self.vy + s.gravity, s.fast_fall if fast else s.max_fall)
         self._move_and_collide(stage)
+        if not stunned:
+            self._ledge_assist(stage, inp)
 
         if self.on_ground:
             self.aerial_jumps = 1
@@ -350,7 +354,8 @@ class Fighter:
             elif self.aerial_jumps > 0:
                 self.aerial_jumps -= 1
                 self.vy = s.djump_vel
-                self.vx *= 0.5
+                # steer the jump: pushing a direction launches you that way, which is what gets you back to the stage
+                self.vx = ax * air * 1.1 if ax else self.vx * 0.5
                 self.state = "djump"
                 self.events.append("djump")
         if "DOWN" in inp.pressed and self.on_ground and self.standing_on is not None \
@@ -459,6 +464,27 @@ class Fighter:
                 x=self.x + self.facing * d.spawn_dx, y=self.y + d.spawn_dy,
                 vx=math.cos(a) * d.speed * self.facing, vy=math.sin(a) * d.speed + d.vy,
                 facing=self.facing, life=d.life, orbit_angle=self.slot * math.pi))
+
+    def _ledge_assist(self, stage: Stage, inp: PlayerInput) -> None:
+        """Forgiving recovery: drift down beside a solid platform edge, push toward it (or up), and you are pulled
+        up onto the platform instead of sliding past. Thin planks are left alone."""
+        if self.on_ground or self.move is not None or self.vy < -3.0:
+            return
+        half = self.stats.width * self.scale / 2
+        for plat in stage.platforms:
+            if plat.dropthrough:
+                continue
+            r = plat.rect
+            if not (0 < self.y - r.top <= LEDGE_REACH):
+                continue
+            for edge, inward in ((r.left, 1), (r.right, -1)):  # inward: the direction that points onto the platform
+                gap = (edge - self.x) * inward  # positive while still outside the edge
+                if -half * 0.5 <= gap <= half + LEDGE_GRAB and (inp.axis_x == inward or "UP" in inp):
+                    self.x = edge + inward * half * 0.5
+                    self.y = float(r.top)
+                    self.vx = self.vy = 0.0
+                    self.on_ground, self.standing_on = True, plat
+                    return
 
     # --- movement --------------------------------------------------------------------------
     def _move_and_collide(self, stage: Stage) -> None:

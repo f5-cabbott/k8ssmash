@@ -22,7 +22,7 @@ def pod() -> FighterStats:
                 color=(130, 205, 255), shape="bolt")),
             "special_side": Move("rolling update", 9, 14, 16, (4, -38, 24, 32), 10, 4.2, 0.065, 35, dash=4.4,
                                  anim="dash", announce="Rolling Update"),
-            "special_up": Move("restart", 7, 8, 14, (-10, -62, 24, 40), 8, 3.8, 0.06, 80, rise=8.6,
+            "special_up": Move("restart", 7, 8, 14, (-10, -62, 24, 40), 8, 3.8, 0.06, 80, rise=9.6,
                                once_per_air=True, anim="rise", announce="Restart"),
             "special_down": Move("replica", 12, 1, 18, anim="cast", announce="Replica!", projectile=ProjectileDef(
                 speed=0, width=14, height=14, damage=0, base_kb=0, kb_growth=0, angle=0, life=100,
@@ -34,7 +34,7 @@ def pod() -> FighterStats:
 def helm() -> FighterStats:
     """Heavy captain. Slow, hits like a tugboat, wheel boomerang."""
     return FighterStats(
-        "Helm", (232, 190, 70), weight=122, run_speed=2.2, air_speed=2.0, jump_vel=-7.2, djump_vel=-6.6,
+        "Helm", (232, 190, 70), weight=122, run_speed=2.2, air_speed=2.0, jump_vel=-7.9, djump_vel=-8.0,
         gravity=0.4, width=28, height=50, blurb="Heavy captain. Slow, hits hard.",
         moves=moveset(**{
             "jab": Move("jab", 4, 3, 11, (8, -34, 26, 16), 4, 2.4, 0.02, 35, anim="jab"),
@@ -45,7 +45,7 @@ def helm() -> FighterStats:
                 hit_interval=30)),
             "special_side": Move("chart charge", 14, 16, 22, (6, -42, 32, 38), 13, 4.6, 0.075, 30, dash=3.2,
                                  anim="dash", announce="Chart Charge"),
-            "special_up": Move("anchors aweigh", 10, 10, 16, (-14, -70, 30, 52), 10, 4.2, 0.065, 82, rise=7.2,
+            "special_up": Move("anchors aweigh", 10, 10, 16, (-14, -70, 30, 52), 10, 4.2, 0.065, 82, rise=8.1,
                                once_per_air=True, anim="rise", announce="Anchors Aweigh"),
             "special_down": Move("release lock", 16, 5, 22, (-40, -26, 80, 26), 12, 4.0, 0.07, 55,
                                  anim="down", announce="Release Lock"),
@@ -64,7 +64,7 @@ def kubectl() -> FighterStats:
                 spread=22, color=(130, 255, 190), shape="bolt")),
             "special_side": Move("exec", 5, 9, 14, (2, -36, 22, 22), 8, 3.6, 0.055, 30, dash=6.0,
                                  anim="dash", announce="kubectl exec"),
-            "special_up": Move("port-forward", 6, 8, 14, (-8, -64, 20, 36), 6, 3.2, 0.05, 85, rise=9.6,
+            "special_up": Move("port-forward", 6, 8, 14, (-8, -64, 20, 36), 6, 3.2, 0.05, 85, rise=10.8,
                                once_per_air=True, anim="rise", announce="port-forward"),
             "special_down": Move("watch", 8, 1, 16, anim="buff", announce="--watch", buff=(BUFF_HASTE, 240)),
         }))
@@ -74,7 +74,7 @@ def monkey() -> FighterStats:
     """Chaos Monkey: light and slippery, with trap-laying."""
     return FighterStats(
         "Chaos Monkey", (230, 130, 70), weight=84, width=22, height=42, run_speed=3.0, air_speed=2.7,
-        jump_vel=-8.0, djump_vel=-7.6, gravity=0.37, blurb="Light trickster. Lays traps.",
+        jump_vel=-8.8, djump_vel=-9.2, gravity=0.37, blurb="Light trickster. Lays traps.",
         moves=moveset(**{
             "special": Move("banana toss", 9, 1, 16, anim="cast", announce="Banana Toss", projectile=ProjectileDef(
                 speed=3.2, width=12, height=10, damage=7, base_kb=3.0, kb_growth=0.035, angle=60, life=420,
@@ -82,7 +82,7 @@ def monkey() -> FighterStats:
                 replace_existing=True)),
             "special_side": Move("vine swing", 7, 6, 12, (6, -34, 26, 22), 6, 3.4, 0.05, 40, blink=70,
                                  anim="dash", announce="Vine Swing"),
-            "special_up": Move("tree hop", 5, 8, 12, (-10, -62, 22, 40), 6, 3.0, 0.05, 82, rise=9.0,
+            "special_up": Move("tree hop", 5, 8, 12, (-10, -62, 22, 40), 6, 3.0, 0.05, 82, rise=10.1,
                                once_per_air=True, anim="rise", announce="Tree Hop"),
             "special_down": Move("chaos!", 14, 1, 22, anim="cast", announce="CHAOS!", projectile=ProjectileDef(
                 speed=0, width=14, height=14, damage=0, base_kb=0, kb_growth=0, angle=0, life=70,
@@ -102,7 +102,7 @@ def sidecar() -> FighterStats:
             "special_side": Move("injected", 10, 1, 18, anim="cast", announce="Sidecar Shot", projectile=ProjectileDef(
                 speed=6.2, width=14, height=8, damage=8, base_kb=3.4, kb_growth=0.05, angle=30, life=70,
                 pierce=True, hit_interval=999, color=(220, 180, 255), shape="bolt")),
-            "special_up": Move("hover boost", 6, 9, 16, (-10, -60, 22, 38), 5, 3.0, 0.04, 85, rise=8.8,
+            "special_up": Move("hover boost", 6, 9, 16, (-10, -60, 22, 38), 5, 3.0, 0.04, 85, rise=9.9,
                                once_per_air=True, anim="rise", announce="Hover Boost"),
             "special_down": Move("shield drone", 10, 1, 18, anim="buff", announce="Mesh Shield",
                                  buff=(BUFF_ARMOR, 180)),
@@ -120,7 +120,7 @@ def ingress() -> FighterStats:
                 pierce=True, hit_interval=999, color=(90, 215, 220), shape="ring")),
             "special_side": Move("route", 8, 6, 14, (6, -40, 28, 30), 8, 3.6, 0.055, 35, blink=64,
                                  anim="dash", announce="Route"),
-            "special_up": Move("gateway", 8, 10, 16, (-12, -66, 26, 44), 8, 3.6, 0.06, 80, rise=8.2,
+            "special_up": Move("gateway", 8, 10, 16, (-12, -66, 26, 44), 8, 3.6, 0.06, 80, rise=9.2,
                                once_per_air=True, anim="rise", announce="Gateway"),
             "special_down": Move("firewall", 14, 1, 24, anim="cast", announce="Firewall", projectile=ProjectileDef(
                 speed=0, width=10, height=46, damage=4, base_kb=3.0, kb_growth=0.03, angle=75, life=200,
@@ -139,7 +139,7 @@ def operator() -> FighterStats:
             "special_side": Move("watch loop", 11, 1, 18, anim="cast", announce="Watch Loop", projectile=ProjectileDef(
                 speed=4.4, width=14, height=14, damage=4, base_kb=2.4, kb_growth=0.03, angle=40, life=70,
                 color=(255, 170, 205), shape="wheel", boomerang=True, pierce=True, hit_interval=28)),
-            "special_up": Move("reschedule", 6, 8, 14, (-10, -62, 22, 40), 6, 3.2, 0.05, 82, rise=8.8,
+            "special_up": Move("reschedule", 6, 8, 14, (-10, -62, 22, 40), 6, 3.2, 0.05, 82, rise=9.9,
                                once_per_air=True, anim="rise", announce="Reschedule"),
             "special_down": Move("self-heal", 18, 1, 20, anim="buff", announce="Self-Heal", heal=14),
         }))
@@ -148,7 +148,7 @@ def operator() -> FighterStats:
 def oomkiller() -> FighterStats:
     """Heavy glass cannon. Huge damage, short reach, big recoveries."""
     return FighterStats(
-        "OOMKiller", (205, 60, 70), weight=110, run_speed=2.3, width=28, height=50, jump_vel=-7.0,
+        "OOMKiller", (205, 60, 70), weight=110, run_speed=2.3, width=28, height=50, jump_vel=-7.7,
         blurb="Glass cannon. Huge damage.",
         moves=moveset(**{
             "jab": Move("jab", 5, 3, 12, (8, -36, 28, 16), 4, 2.6, 0.022, 38, anim="jab"),
@@ -158,7 +158,7 @@ def oomkiller() -> FighterStats:
                 color=(235, 70, 80), shape="skull")),
             "special_side": Move("reap", 14, 14, 26, (4, -44, 40, 40), 13, 4.8, 0.08, 28, dash=3.0,
                                  anim="dash", announce="Reap"),
-            "special_up": Move("memory leak", 10, 10, 20, (-14, -72, 32, 56), 11, 4.4, 0.07, 82, rise=7.0,
+            "special_up": Move("memory leak", 10, 10, 20, (-14, -72, 32, 56), 11, 4.4, 0.07, 82, rise=7.8,
                                once_per_air=True, anim="rise", announce="Memory Leak"),
             "special_down": Move("oom!", 20, 6, 26, (-46, -40, 92, 40), 14, 4.8, 0.08, 50,
                                  anim="down", announce="OOM!"),

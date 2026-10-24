@@ -233,3 +233,69 @@ def test_can_jump_out_of_a_duck_and_attack_low(stage):
     tick(g, stage, {"DOWN"}, frames=3)
     tick(g, stage, {"DOWN", "ATTACK"})
     assert g.move is not None and g.move.name == "down" and g.ducking
+
+
+# --- jump height and off-stage recovery -------------------------------------------------------
+def apex(f, stage, held):
+    start = f.y
+    tick(f, stage, held)
+    top = f.y
+    for _ in range(80):
+        tick(f, stage)
+        top = min(top, f.y)
+    return start - top
+
+
+def test_jumps_are_high_enough(stage):
+    f = make(stage)
+    tick(f, stage, frames=3)
+    assert apex(f, stage, {"JUMP"}) >= 85  # about two body heights; it was ~70 px before the retune
+
+
+def test_ledge_assist_pulls_you_onto_the_stage(stage):
+    main = stage.platforms[0].rect
+    f = make(stage)
+    f.x, f.y = main.left - 8, main.top + 14  # just below and outside the left edge
+    f.vy, f.on_ground = 1.0, False
+    tick(f, stage, {"RIGHT"})
+    assert f.on_ground and f.y == main.top and f.x > main.left
+
+
+def test_ledge_assist_needs_you_to_push_toward_the_stage(stage):
+    main = stage.platforms[0].rect
+    f = make(stage)
+    f.x, f.y = main.left - 8, main.top + 14
+    f.vy, f.on_ground = 1.0, False
+    tick(f, stage, {"LEFT"})
+    assert not f.on_ground
+    g = make(stage)
+    g.x, g.y = main.right + 8, main.top + 14
+    g.vy, g.on_ground = 1.0, False
+    tick(g, stage, {"LEFT"})
+    assert g.on_ground and g.x < main.right  # the same works on the right edge
+
+
+def test_ledge_assist_ignores_deep_or_far_positions_and_thin_planks(stage):
+    main = stage.platforms[0].rect
+    deep = make(stage)
+    deep.x, deep.y, deep.vy, deep.on_ground = main.left - 8, main.top + 90, 1.0, False
+    tick(deep, stage, {"RIGHT"})
+    assert not deep.on_ground
+    far = make(stage)
+    far.x, far.y, far.vy, far.on_ground = main.left - 70, main.top + 14, 1.0, False
+    tick(far, stage, {"RIGHT"})
+    assert not far.on_ground
+    thin = stage.platforms[1].rect
+    plank = make(stage)
+    plank.x, plank.y, plank.vy, plank.on_ground = thin.left - 8, thin.top + 14, 1.0, False
+    tick(plank, stage, {"RIGHT"})
+    assert not plank.on_ground
+
+
+def test_air_jump_launches_in_the_held_direction(stage):
+    f = make(stage)
+    f.y -= 150
+    f.on_ground = False
+    f.aerial_jumps = 1
+    tick(f, stage, {"JUMP", "LEFT"})
+    assert f.vx < -2 and f.vy < 0  # a double jump steered back toward the stage
