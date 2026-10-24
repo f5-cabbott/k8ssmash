@@ -135,13 +135,13 @@ def grid_floor(canvas: pygame.Surface, frame: int, cam: float, horizon: int, col
         t = abs(k) / 26
         pd.line(canvas, _scale(color, (0.5 - 0.35 * t) * fade), (vp + (bx - vp) * 0.03, horizon), (bx, H), 1)
     n = 16
-    pulse = (frame * 0.0065) % 1.3  # a bright wave that rolls toward the viewer every few seconds
+    pulse = (frame * 0.0045) % 1.4  # a faint ripple that drifts toward the viewer every few seconds
     for i in range(n):  # cross lines, nearer ones farther apart
         u = ((i + (frame * speed) % 1.0) / n) ** 2.1
         y = horizon + depth * u
         k = 0.25 + 0.75 * u
         boost = max(0.0, 1 - abs(u - pulse) / 0.09)
-        pd.line(canvas, _scale(color, (0.22 + 0.5 * k) * fade + boost * 1.3), (0, int(y)), (W, int(y)), 1 if u < 0.6 else 2)
+        pd.line(canvas, _scale(color, (0.22 + 0.5 * k) * fade + boost * 0.35), (0, int(y)), (W, int(y)), 1 if u < 0.6 else 2)
     pd.line(canvas, _scale(color, 1.0 * fade), (0, horizon), (W, horizon), 1)  # bright horizon seam
 
 
@@ -170,6 +170,16 @@ def light_cycle(canvas: pygame.Surface, frame: int, cam: float, horizon: int, co
         pd.line(canvas, _scale(color, 1.0 - k * 0.11), (tx, y), (tx - direction * (10 + depth_t * 8), y), size)
     pd.rect(canvas, (255, 255, 255), (int(x) - 3 * size, y - 2 * size, 6 * size, 3 * size))
     pd.rect(canvas, color, (int(x) - 4 * size, y - 3 * size, 8 * size, size))
+
+
+def _mute(surf: pygame.Surface, k: float, tint: Color = (8, 14, 36), desat: float = 0.3) -> None:
+    """Push a scenery layer back: lower its contrast, drain some colour and blend it toward the dark ambient tint.
+    Background art in 16-bit games sits in a hazy mid-value range so the fighters and platforms always read first."""
+    rgb = pygame.surfarray.pixels3d(surf)
+    live = (pygame.surfarray.pixels_alpha(surf) > 0)[..., None]
+    gray = rgb.mean(axis=2, keepdims=True)
+    out = (rgb * (1 - desat) + gray * desat) * k + np.array(tint) * (1 - k)
+    rgb[:] = np.where(live, out, rgb).astype(rgb.dtype)
 
 
 def _tower(surf, x, top, w, ground, accent, rng, led_out=None, leds=True, dark=(8, 12, 28)):
@@ -238,55 +248,33 @@ def build_datacenter() -> Backdrop:
         neon(near, (WIDE // 2 + k * 60, 0), (WIDE // 2 + k * 18, 18), _scale(accent, 0.8), 1)
     neon(near, (0, 18), (WIDE, 18), _scale(accent, 0.6), 1)
 
-    motes = [(rng.uniform(0, W), rng.uniform(0, H), rng.uniform(0.2, 0.55)) for _ in range(30)]
+    _mute(far, 0.5)
+    _mute(mid, 0.62)
+    _mute(near, 0.74)
 
-    def led_fn(canvas, frame, cam):
+    def led_fn(canvas, frame, cam):  # status lights: dim, and they change rarely
         ox = -MARGIN - cam * 0.09
         for x, y, ph, col in leds:
-            if ((frame // 18) + ph) % 4 != 0:
-                pd.fill(canvas, col, (int(x + ox), y, 2, 1))
-        for i, pts in enumerate(cables):  # packets sliding along the cables
-            px, py = pts[int((frame * 0.5 + i * 7) % 21)]
-            pd.fill(canvas, (255, 255, 255), (int(px + ox), int(py) - 1, 2, 2))
+            if ((frame + ph * 9) // 50 + ph) % 5 != 0:  # staggered, so they never flip in unison
+                pd.fill(canvas, _scale(col, 0.55), (int(x + ox), y, 2, 1))
 
     def floor_fn(canvas, frame, cam):
-        grid_floor(canvas, frame, cam, horizon, accent)
-        light_cycle(canvas, frame, cam, horizon, accent, 0.30, 3.4, 40)
-        light_cycle(canvas, frame, cam, horizon, SECOND["datacenter"], 0.42, -4.4, 300, -1)
-        light_cycle(canvas, frame, cam, horizon, accent, 0.55, 5.2, 120)
-
-    def mote_fn(canvas, frame, cam):
-        for x, y, sp in motes:
-            yy = (y - frame * sp) % H
-            xx = (x + math.sin(frame * 0.02 + y) * 5 - cam * 0.14) % W
-            pd.fill(canvas, accent if int(y) % 3 else (255, 255, 255), (int(xx), int(yy), 1, 1 + int(y) % 2))
-
-    rain = [(rng.uniform(0, W), rng.uniform(0.5, 1.7), rng.randint(0, 200)) for _ in range(48)]
-
-    def rain_fn(canvas, frame, cam):  # code falling down the back wall, seen through the gaps between the towers
-        ox = -cam * 0.05
-        for x, sp, ph in rain:
-            head = (frame * sp * 2 + ph * 7) % (horizon + 90) - 40
-            for k in range(7):
-                y = head - k * 7
-                if 12 < y < horizon - 2:
-                    pd.fill(canvas, (220, 255, 255) if k == 0 else _scale(accent, 0.8 - k * 0.1), (x + ox, y, 2, 4))
+        grid_floor(canvas, frame, cam, horizon, accent, speed=0.005, fade=0.55)
 
     panels = [(92, 44, 86, 50, 0.0), (468, 58, 92, 52, 2.1)]
 
-    def holo_fn(canvas, frame, cam):  # floating dashboards with bar charts that breathe
+    def holo_fn(canvas, frame, cam):  # wall displays: dim, with slowly drifting bars
         ox = -cam * 0.07
         for x, y, w, h, seed in panels:
-            pd.rect(canvas, (4, 18, 44), (x + ox, y, w, h))
-            neon_rect(canvas, (x + ox, y, w, h), _scale(accent, 0.8))
+            pd.rect(canvas, (4, 12, 30), (x + ox, y, w, h))
+            neon_rect(canvas, (x + ox, y, w, h), _scale(accent, 0.38))
             bars = 7
             for i in range(bars):
-                bh = (0.25 + 0.75 * abs(math.sin(frame * 0.035 + i * 1.3 + seed))) * (h - 16)
-                pd.fill(canvas, _scale(accent, 0.95), (x + ox + 5 + i * (w - 10) / bars, y + h - 5 - bh, (w - 10) / bars - 2, bh))
-            pd.line(canvas, (255, 255, 255), (x + ox + 4, y + 6), (x + ox + w - 4, y + 6 + math.sin(frame * 0.05 + seed) * 3), 1)
+                bh = (0.3 + 0.7 * abs(math.sin(frame * 0.008 + i * 1.3 + seed))) * (h - 16)
+                pd.fill(canvas, _scale(accent, 0.4), (x + ox + 5 + i * (w - 10) / bars, y + h - 5 - bh, (w - 10) / bars - 2, bh))
 
-    items = [Layer(far, 0.03, 0), Animated(rain_fn), Animated(floor_fn), Layer(reflection(mid, horizon + 6), 0.09, horizon + 6),
-             Layer(mid, 0.09, 0), Animated(holo_fn), Animated(led_fn), Animated(mote_fn), Layer(near, 0.22, 0)]
+    items = [Layer(far, 0.03, 0), Animated(floor_fn), Layer(reflection(mid, horizon + 6, strength=70), 0.09, horizon + 6),
+             Layer(mid, 0.09, 0), Animated(holo_fn), Animated(led_fn), Layer(near, 0.22, 0)]
     return Backdrop(sky, items)
 
 
@@ -335,79 +323,39 @@ def build_controlplane() -> Backdrop:
     pd.rect(near, (3, 6, 20), (0, 0, WIDE, 12))
     neon(near, (0, 12), (WIDE, 12), gold, 1)
 
-    def holo_fn(canvas, frame, cam):
+    _mute(far, 0.5)
+    _mute(mid, 0.62)
+    _mute(near, 0.74)
+
+    def holo_fn(canvas, frame, cam):  # the big slow hologram wheel: the one large moving shape in the room
         hx, hy, r = int(320 - cam * 0.03), 128, 78
         beam = pd.surface((r * 2, 130))  # projector cone down to the floor
         for yy in range(130):
             half = int(r * (0.35 + yy / 130 * 0.5))
-            pd.line(beam, accent + (int(26 * (1 - yy / 130)),), (r - half, yy), (r + half, yy))
+            pd.line(beam, accent + (int(14 * (1 - yy / 130)),), (r - half, yy), (r + half, yy))
         pd.blit(canvas, beam, (hx - r, hy + 56))
-        for k, rr in enumerate((r, r - 5)):
-            pd.circle(canvas, _scale(accent, 0.35 + 0.35 * (k == 0)), (hx, hy), rr, 1 if k else 2)
-        pd.circle(canvas, gold, (hx, hy), 13, 2)
-        pd.circle(canvas, (255, 255, 255), (hx, hy), 4)
+        pd.circle(canvas, _scale(accent, 0.34), (hx, hy), r, 2)
+        pd.circle(canvas, _scale(accent, 0.2), (hx, hy), r - 5, 1)
+        pd.circle(canvas, _scale(gold, 0.5), (hx, hy), 13, 2)
         for i in range(8):
-            a = frame * 0.006 + i * math.pi / 4
-            ex, ey = hx + math.cos(a) * (r + 10), hy + math.sin(a) * (r + 10)
-            neon(canvas, (hx + math.cos(a) * 13, hy + math.sin(a) * 13), (hx + math.cos(a) * r, hy + math.sin(a) * r), accent, 1)
-            pd.circle(canvas, gold, (int(ex), int(ey)), 4, 1)
-            pd.circle(canvas, (255, 255, 255), (int(ex), int(ey)), 1)
-        tilt = pygame.Rect(hx - 106, hy - 22, 212, 44)  # an orbiting data ring
-        pd.ellipse(canvas, _scale(accent, 0.5), tilt, 1)
-        ang = frame * 0.02
-        pd.circle(canvas, (255, 255, 255), (int(hx + math.cos(ang) * 106), int(hy + math.sin(ang) * 22)), 2)
-        scan = int((frame * 1.6) % (r * 2))
-        pd.line(canvas, _scale(accent, 0.6), (hx - int(math.sqrt(max(0, r * r - (scan - r) ** 2))), hy - r + scan),
-                         (hx + int(math.sqrt(max(0, r * r - (scan - r) ** 2))), hy - r + scan), 1)
+            a = frame * 0.0025 + i * math.pi / 4
+            pd.line(canvas, _scale(accent, 0.34), (hx + math.cos(a) * 13, hy + math.sin(a) * 13),
+                    (hx + math.cos(a) * r, hy + math.sin(a) * r), 1)
+            pd.circle(canvas, _scale(gold, 0.45), (hx + math.cos(a) * (r + 10), hy + math.sin(a) * (r + 10)), 4, 1)
 
-    def stream_fn(canvas, frame, cam):
-        ox = -MARGIN - cam * 0.08
-        for i, tx in enumerate(tubes):
-            for k in range(5):
-                y = horizon - ((frame * (1.2 + 0.2 * i) + k * 52) % (horizon - 40))
-                pd.fill(canvas, (255, 255, 255) if k % 2 else accent, (int(tx + ox) + 11, int(y), 4, 5))
-
-    def floor_fn(canvas, frame, cam):
-        grid_floor(canvas, frame, cam, horizon, accent, speed=0.009, fade=0.9)
-        light_cycle(canvas, frame, cam, horizon, gold, 0.32, 3.0, 220)
-        light_cycle(canvas, frame, cam, horizon, accent, 0.5, -3.8, 60, -1)
-
-    def spark_fn(canvas, frame, cam):
-        for i in range(8):
-            if (frame // 9 + i * 5) % 11 == 0:
-                x = int((i * 83 + 40 - cam * 0.1) % W)
-                y = 40 + (i * 37) % 150
-                pd.line(canvas, (255, 255, 255), (x - 3, y), (x + 3, y))
-                pd.line(canvas, (255, 255, 255), (x, y - 3), (x, y + 3))
-
-    def orbit_fn(canvas, frame, cam):  # tilted rings with nodes riding them around the core
+    def orbit_fn(canvas, frame, cam):  # faint tilted rings, nothing riding on them
         hx, hy = 320 - cam * 0.03, 128
-        for rx, ry, tilt, speed, color in ((128, 36, 0.32, 0.012, accent), (100, 28, -0.55, -0.017, gold), (160, 52, 0.95, 0.008, accent)):
+        for rx, ry, tilt, color in ((128, 36, 0.32, accent), (100, 28, -0.55, gold), (160, 52, 0.95, accent)):
             ct, st = math.cos(tilt), math.sin(tilt)
             pts = [(hx + math.cos(a) * rx * ct - math.sin(a) * ry * st, hy + math.cos(a) * rx * st + math.sin(a) * ry * ct)
                    for a in (i / 72 * math.tau for i in range(72))]
-            pd.lines(canvas, _scale(color, 0.42), True, pts, 1)
-            ang = frame * speed * 2
-            nx = hx + math.cos(ang) * rx * ct - math.sin(ang) * ry * st
-            ny = hy + math.cos(ang) * rx * st + math.sin(ang) * ry * ct
-            pd.circle(canvas, (255, 255, 255), (nx, ny), 3)
-            pd.circle(canvas, color, (nx, ny), 3, 1)
+            pd.lines(canvas, _scale(color, 0.22), True, pts, 1)
 
-    def flow_fn(canvas, frame, cam):  # data streaming from the glass conduits into the core
-        ox = -MARGIN - cam * 0.08
-        hx, hy = 320 - cam * 0.03, 128
-        for i, tx in enumerate(tubes):
-            sx, sy = tx + 13 + ox, 36
-            pd.line(canvas, _scale(accent, 0.22), (sx, sy), (hx, hy), 1)
-            for k in range(3):
-                u = ((frame * (0.006 + 0.0012 * i) + k / 3 + i * 0.17) % 1.0)
-                px, py = sx + (hx - sx) * u, sy + (hy - sy) * u
-                pd.circle(canvas, (255, 255, 255), (px, py), 2)
-                pd.circle(canvas, _scale(accent, 0.7), (px - (hx - sx) * 0.03, py - (hy - sy) * 0.03), 2)
+    def floor_fn(canvas, frame, cam):
+        grid_floor(canvas, frame, cam, horizon, accent, speed=0.004, fade=0.5)
 
     items = [Layer(far, 0.02, 0), Animated(holo_fn), Animated(orbit_fn), Animated(floor_fn),
-             Layer(reflection(mid, horizon + 6), 0.08, horizon + 6), Layer(mid, 0.08, 0), Animated(flow_fn),
-             Animated(stream_fn), Animated(spark_fn), Layer(near, 0.22, 0)]
+             Layer(reflection(mid, horizon + 6, strength=70), 0.08, horizon + 6), Layer(mid, 0.08, 0), Layer(near, 0.22, 0)]
     return Backdrop(sky, items)
 
 
@@ -465,68 +413,45 @@ def build_nodepool() -> Backdrop:
     for k in range(0, WIDE, 44):  # hanging cable swags
         pd.lines(near, (20, 8, 8), False, [(k + i * 4, 14 + math.sin(i / 11 * math.pi) * 9) for i in range(12)], 2)
 
-    def pod_fn(canvas, frame, cam):
-        ox = -MARGIN - cam * 0.04
-        for x, y, ph in pods:
-            if ((frame // 24) + ph) % 5 == 0:
-                pd.fill(canvas, (255, 255, 255), (int(x + ox) - 1, y - 2, 2, 3))
+    _mute(far, 0.5)
+    _mute(mid, 0.62)
+    _mute(near, 0.74)
+
+    def led_fn(canvas, frame, cam):  # status lights: dim, and they change rarely
         for x, y, ph, col in leds:
-            if ((frame // 16) + ph) % 4 != 0:
-                pd.fill(canvas, col, (int(x - MARGIN - cam * 0.09), y, 2, 1))
-
-    steam = [(rng.uniform(0, W), rng.uniform(0, 80), rng.uniform(0.3, 0.7)) for _ in range(14)]
-
-    def steam_fn(canvas, frame, cam):
-        for i, (x, y0, sp) in enumerate(steam):
-            t = (frame * sp + y0 * 3) % 120
-            yy, rr = horizon + 6 - t * 1.6, 3 + t * 0.07
-            puff = pd.surface((24, 24))
-            pd.circle(puff, (255, 200, 150, int(46 * (1 - t / 120))), (12, 12), int(rr))
-            pd.blit(canvas, puff, (int(x - cam * 0.1 + math.sin(t * 0.07 + i) * 5) - 12, int(yy) - 12))
-
-    def floor_fn(canvas, frame, cam):
-        grid_floor(canvas, frame, cam, horizon, accent, speed=0.01)
-        light_cycle(canvas, frame, cam, horizon, accent, 0.3, 3.6, 150)
-        light_cycle(canvas, frame, cam, horizon, cyan, 0.48, -4.2, 400, -1)
-
-    belts = [(176, 1.1, 0), (146, -0.8, 40)]
-
-    def belt_fn(canvas, frame, cam):  # conveyor belts shuttling pods across the back of the bay
-        ox = -cam * 0.05
-        for y, sp, ph in belts:
-            pd.fill(canvas, (26, 10, 8), (0, y, W, 5))
-            pd.line(canvas, _scale(accent, 0.6), (0, y), (W, y), 1)
-            for i in range(9):
-                x = (i * 76 + frame * sp + ph) % (W + 80) - 40 + ox
-                lit = _scale(accent, 0.9) if i % 3 else _scale(cyan, 0.85)
-                pd.ellipse(canvas, (30, 10, 8), (x - 1, y - 15, 16, 15))
-                pd.ellipse(canvas, lit, (x + 1, y - 13, 12, 11))
-                pd.fill(canvas, (255, 255, 255), (x + 3, y - 11, 3, 2))
+            if ((frame + ph * 9) // 50 + ph) % 5 != 0:  # staggered, so they never flip in unison
+                pd.fill(canvas, _scale(col, 0.55), (int(x - MARGIN - cam * 0.09), y, 2, 1))
 
     fans = [(110, 78), (320, 62), (530, 84)]
 
-    def fan_fn(canvas, frame, cam):  # big slow exhaust fans in the honeycomb wall
+    def fan_fn(canvas, frame, cam):  # big, slow exhaust fans in the honeycomb wall
         ox = -cam * 0.035
         for i, (fx, fy) in enumerate(fans):
             cx = fx + ox
-            pd.circle(canvas, (14, 6, 6), (cx, fy), 27)
-            pd.circle(canvas, _scale(accent, 0.55), (cx, fy), 27, 2)
+            pd.circle(canvas, (10, 5, 6), (cx, fy), 27)
+            pd.circle(canvas, _scale(accent, 0.34), (cx, fy), 27, 2)
             for b in range(5):
-                a = frame * (0.05 if i % 2 else -0.045) + b * math.tau / 5
-                pd.polygon(canvas, _scale(accent, 0.45), [(cx, fy), (cx + math.cos(a - 0.3) * 24, fy + math.sin(a - 0.3) * 24),
+                a = frame * (0.018 if i % 2 else -0.016) + b * math.tau / 5
+                pd.polygon(canvas, _scale(accent, 0.26), [(cx, fy), (cx + math.cos(a - 0.3) * 24, fy + math.sin(a - 0.3) * 24),
                                                           (cx + math.cos(a + 0.28) * 24, fy + math.sin(a + 0.28) * 24)])
-            pd.circle(canvas, _scale(accent, 0.9), (cx, fy), 5)
+            pd.circle(canvas, _scale(accent, 0.5), (cx, fy), 5)
 
-    def bubble_fn(canvas, frame, cam):  # coolant bubbles racing along the pipes
-        ox = -MARGIN - cam * 0.09
-        for j, ((px, py), (nx, _)) in enumerate(zip(pipes, pipes[1:])):
-            for k in range(3):
-                x = px + ((frame * (0.9 + 0.2 * j) + k * 34 + j * 11) % max(1, nx - px))
-                pd.fill(canvas, (255, 235, 200), (x + ox, py + 3, 3, 2))
+    steam = [(rng.uniform(0, W), rng.uniform(0, 80), rng.uniform(0.25, 0.5)) for _ in range(8)]
 
-    items = [Layer(far, 0.03, 0), Animated(fan_fn), Animated(belt_fn), Animated(floor_fn),
-             Layer(reflection(mid, horizon + 6), 0.09, horizon + 6), Layer(mid, 0.09, 0), Animated(bubble_fn),
-             Animated(pod_fn), Animated(steam_fn), Layer(near, 0.22, 0)]
+    def steam_fn(canvas, frame, cam):  # soft, slow, low-contrast vapour
+        for i, (x, y0, sp) in enumerate(steam):
+            t = (frame * sp + y0 * 3) % 150
+            yy, rr = horizon + 6 - t * 1.2, 4 + t * 0.07
+            puff = pd.surface((28, 28))
+            pd.circle(puff, (200, 140, 100, int(20 * (1 - t / 150))), (14, 14), int(rr))
+            pd.blit(canvas, puff, (int(x - cam * 0.1 + math.sin(t * 0.05 + i) * 5) - 14, int(yy) - 14))
+
+    def floor_fn(canvas, frame, cam):
+        grid_floor(canvas, frame, cam, horizon, accent, speed=0.005, fade=0.55)
+
+    items = [Layer(far, 0.03, 0), Animated(fan_fn), Animated(floor_fn),
+             Layer(reflection(mid, horizon + 6, strength=70), 0.09, horizon + 6), Layer(mid, 0.09, 0),
+             Animated(led_fn), Animated(steam_fn), Layer(near, 0.22, 0)]
     return Backdrop(sky, items)
 
 
@@ -560,15 +485,16 @@ def _platform_surface(w: int, h: int, theme: str, thin: bool) -> pygame.Surface:
     c2 = SECOND.get(theme, SECOND["datacenter"])
     s = pygame.Surface((w, h + 6), pygame.SRCALPHA)
     rng = random.Random(w * 31 + h)
-    if thin:  # a hologram plank: translucent, scanlined, bright-edged
+    if thin:  # a hologram plank: solid enough to never get lost against the scenery
         for y in range(h):
-            pygame.draw.line(s, _scale(c, 0.35) + (96 if y % 2 == 0 else 60,), (0, y), (w, y))
-        pygame.draw.line(s, c, (0, 0), (w, 0), 2)
-        pygame.draw.line(s, _scale(c, 0.5), (0, h - 1), (w, h - 1), 1)
-        for x in (0, w - 3):
-            pygame.draw.rect(s, c, (x, 0, 3, h))
-        for x in range(8, w - 8, 18):
-            pygame.draw.line(s, _scale(c, 0.8), (x, 2), (x + 6, 2), 1)
+            pygame.draw.line(s, _scale(c, 0.4) + (170 if y % 2 == 0 else 120,), (0, y), (w, y))
+        pygame.draw.rect(s, c, (0, 0, w, 3))
+        pygame.draw.line(s, (255, 255, 255), (2, 0), (w - 3, 0), 1)  # a hot white core along the top edge
+        pygame.draw.line(s, _scale(c, 0.6), (0, h - 1), (w, h - 1), 2)
+        for x in (0, w - 4):
+            pygame.draw.rect(s, c, (x, 0, 4, h))
+        for x in range(10, w - 10, 20):  # tick marks so it reads as a surface, not a line
+            pygame.draw.line(s, _scale(c, 0.9), (x, 3), (x + 7, 3), 1)
         return s
     for y in range(h):  # the slab: near-black glass gradient
         pygame.draw.line(s, _lerp((16, 24, 54), (3, 5, 16), y / max(1, h - 1)) + (255,), (0, y), (w, y))

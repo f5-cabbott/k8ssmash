@@ -78,3 +78,59 @@ def test_platforms_render_for_every_size(theme):
     canvas = pygame.Surface((CANVAS_W, CANVAS_H))
     for rect, thin in ((pygame.Rect(100, 250, 400, 40), False), (pygame.Rect(170, 185, 120, 8), True)):
         backdrops.draw_platform(canvas, Platform(rect, dropthrough=thin), theme)
+
+
+# --- calm backgrounds: the fighters and platforms must read first -------------------------------------
+def _luma(surf):
+    a = pygame.surfarray.array3d(surf).astype(float)
+    return 0.3 * a[..., 0] + 0.59 * a[..., 1] + 0.11 * a[..., 2]
+
+
+def blob_motion(a, b, jump=45):
+    """Share of the screen covered by *small* sharp changes between two frames. Full-width lines (the floor grid rolling a
+    pixel) are not counted: they cannot be mistaken for a projectile, small bright movers can."""
+    changed = abs(b - a) > jump
+    row_total = changed.sum(axis=0)  # changed pixels per screen row
+    changed[:, row_total > a.shape[0] * 0.4] = False
+    return float(changed.mean())
+
+
+@pytest.mark.parametrize("theme", THEMES)
+def test_backdrops_are_dim_and_have_no_bright_specks(theme):
+    canvas = pygame.Surface((CANVAS_W, CANVAS_H))
+    backdrops.get_backdrop(theme).draw(canvas, 300, 0)
+    luma = _luma(canvas)
+    assert (luma > 150).mean() < 0.03, "too much of the background is brightly lit"
+    assert (luma > 215).mean() < 0.006, "near-white specks in the background steal attention"
+    assert luma.mean() < 40  # a low-value scene: the fighters (and the HUD) are the brightest things on screen
+
+
+@pytest.mark.parametrize("theme", THEMES)
+def test_background_has_no_small_fast_movers(theme):
+    """Small bright things moving quickly look like projectiles. Only slow, large motion is allowed."""
+    canvas = pygame.Surface((CANVAS_W, CANVAS_H))
+    bd = backdrops.get_backdrop(theme)
+    changed = []
+    for start in range(400, 472, 9):  # many frame pairs, so one unlucky frame can't decide it
+        bd.draw(canvas, start, 0)
+        a = _luma(canvas)
+        bd.draw(canvas, start + 1, 0)
+        changed.append(blob_motion(a, _luma(canvas)))
+    assert sum(changed) / len(changed) < 0.0008 and max(changed) < 0.002  # the old busy stages measured 0.4-0.6%
+    bd.draw(canvas, 400, 0)
+    a = _luma(canvas)
+    bd.draw(canvas, 640, 0)
+    assert (abs(_luma(canvas) - a) > 5).any()  # but it is not frozen: something slow and large still moves
+
+
+@pytest.mark.parametrize("theme", THEMES)
+def test_platforms_outshine_the_scenery(theme):
+    """A platform's top edge must be brighter than anything the backdrop itself draws around it."""
+    from k8ssmash.stage import Platform
+    canvas = pygame.Surface((CANVAS_W, CANVAS_H))
+    backdrops.get_backdrop(theme).draw(canvas, 300, 0)
+    backdrop_peak = float(_luma(canvas).max())
+    for rect, thin in ((pygame.Rect(100, 250, 400, 40), False), (pygame.Rect(170, 185, 120, 8), True)):
+        canvas.fill((0, 0, 0))
+        backdrops.draw_platform(canvas, Platform(rect, dropthrough=thin), theme)
+        assert float(_luma(canvas).max()) >= min(backdrop_peak, 235), (theme, thin)
