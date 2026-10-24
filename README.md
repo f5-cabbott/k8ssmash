@@ -31,6 +31,7 @@ Grab the heptagon power-ups: **HPA** (bigger + stronger), **Sidecar** (drone), *
 ### Modes and screens
 - **Versus / vs CPU**: press START to join; a lone player presses SELECT to add a CPU. Shoulder buttons change the stage.
 - **Training**: press A on the title screen. Dummy modes (SELECT): stand, shield, jump, CPU. START resets, hold START leaves.
+- **Leaving**: press A to back out of character select (un-lock, un-join, then leave) and on the results screen to return to the main menu.
 - **Leaderboard**: longest win streak and most KOs in a run (rematches continue a run; a loss ends it).
   Tap SELECT on the title screen. Winners enter a 3-letter name.
 - **Attract mode**: idle on the title and a CPU demo plays, then the leaderboard.

@@ -204,3 +204,44 @@ def test_every_special_is_named_and_shown(app):
     sel = CharacterSelect(app)
     sel.joined, sel.cursor = [True, True], [0, 7]
     sel.draw(app.display.canvas)  # renders every panel without error
+
+
+# --- the results screen and the splash ---------------------------------------------------------------
+def test_results_a_button_returns_to_the_main_menu(app):
+    from k8ssmash.scenes.results import LOCK, Results
+    app.set_scene(Results(app, 0, [{"name": "Pod", "kos": 1, "damage": 20, "stocks": 1},
+                                   {"name": "Kubectl", "kos": 0, "damage": 5, "stocks": 0}], [True, True]))
+    tap(app, {"SPECIAL"})  # too early: the screen is still locked so a mashed button can't skip it
+    assert not isinstance(app.scene, Title)
+    for _ in range(LOCK + 5):
+        frame(app)
+    tap(app, {"SPECIAL"})
+    assert isinstance(app.scene, Title)
+
+
+def test_results_draws_winner_loser_draw_and_mirror_match(app):
+    from k8ssmash.scenes.results import Results
+    rows = lambda a, b: [{"name": a, "kos": 1, "damage": 20, "stocks": 1}, {"name": b, "kos": 0, "damage": 5, "stocks": 0}]
+    for winner, names in ((0, ("Pod", "Kubectl")), (1, ("Pod", "Kubectl")), (-1, ("Pod", "Kubectl")), (0, ("Pod", "Pod"))):
+        scene = Results(app, winner, rows(*names), [True, True])
+        for _ in range(40):
+            scene.update()
+        scene.draw(pygame.Surface((640, 360)))
+
+
+def test_splash_runs_the_whole_roster_and_stays_responsive(app):
+    t = Title(app)
+    app.set_scene(t)
+    for _ in range(600):
+        frame(app)
+    assert len(t.parade) == 8 and len(t.fx) > 0
+    t.draw(pygame.Surface((640, 360)))
+    tap(app, {"START"})
+    assert isinstance(app.scene, CharacterSelect)
+
+
+def test_splash_has_its_own_fast_happy_track(app):
+    from k8ssmash.audio.songs import SONGS
+    assert "splash" in SONGS and SONGS["splash"]().bpm >= 140
+    Title(app)
+    assert app.audio.current == "splash"
