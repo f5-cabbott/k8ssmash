@@ -17,7 +17,7 @@ For the Pi, see [`deploy/README.md`](deploy/README.md).
 | SNES pad | Action | Keyboard P1 / P2 |
 |---|---|---|
 | D-pad | move and aim attacks. **Hold down to duck** (high attacks and shots pass over you); **tap down** on a thin platform to drop through; hold down in the air to fast-fall | `WASD` / arrows |
-| Y or X | jump (press again in the air to double jump) | `L` / `.` |
+| Y or X | jump (press again in the air to double jump: the second jump reaches 65% of the first, and steers where you push) | `L` / `.` |
 | B | attack: tap = jab, hold a direction + B = side / up / down | `J` / `N` |
 | A | special: neutral, or with a direction (side / up = recovery / down) | `K` / `M` |
 | L or R | shield (hold) | `I` / `,` |
@@ -31,6 +31,7 @@ Grab the heptagon power-ups: **HPA** (bigger + stronger), **Sidecar** (drone), *
 ### Modes and screens
 - **Versus / vs CPU**: press START to join; a lone player presses SELECT to add a CPU. Shoulder buttons change the stage.
 - **Training**: press A on the title screen. Dummy modes (SELECT): stand, shield, jump, CPU. START resets, hold START leaves.
+- **Settings**: hold L or R on the title screen for master / effects / music volume, mute, colorblind colors and power-ups.
 - **Leaving**: press A to back out of character select (un-lock, un-join, then leave) and on the results screen to return to the main menu.
 - **Leaderboard**: longest win streak and most KOs in a run (rematches continue a run; a loss ends it).
   Tap SELECT on the title screen. Winners enter a 3-letter name.

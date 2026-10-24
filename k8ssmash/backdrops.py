@@ -184,12 +184,27 @@ def grid_floor(canvas: pygame.Surface, frame: int, cam: float, horizon: int, col
         t = abs(k) / 26
         pd.line(canvas, _scale(color, (0.5 - 0.35 * t) * fade), (vp + (bx - vp) * 0.03, horizon), (bx, H), 1)
     n = 16
+    pulse = (frame * 0.0065) % 1.3  # a bright wave that rolls toward the viewer every few seconds
     for i in range(n):  # cross lines, nearer ones farther apart
         u = ((i + (frame * speed) % 1.0) / n) ** 2.1
         y = horizon + depth * u
         k = 0.25 + 0.75 * u
-        pd.line(canvas, _scale(color, (0.22 + 0.5 * k) * fade), (0, int(y)), (W, int(y)), 1 if u < 0.6 else 2)
+        boost = max(0.0, 1 - abs(u - pulse) / 0.09)
+        pd.line(canvas, _scale(color, (0.22 + 0.5 * k) * fade + boost * 1.3), (0, int(y)), (W, int(y)), 1 if u < 0.6 else 2)
     pd.line(canvas, _scale(color, 1.0 * fade), (0, horizon), (W, horizon), 1)  # bright horizon seam
+
+
+def reflection(layer: pygame.Surface, ground: int, depth: int = 64, strength: int = 110) -> pygame.Surface:
+    """A faded, upside-down copy of a scenery layer for the shiny floor under it. `ground` is in design px."""
+    gy, dh = round(ground * U), round(depth * U)
+    w = layer.get_width()
+    ref = pygame.transform.flip(layer.subsurface((0, max(0, gy - dh), w, min(dh, gy))).copy(), False, True)
+    fade = pygame.Surface(ref.get_size(), pygame.SRCALPHA)
+    for y in range(ref.get_height()):
+        a = int(strength * (1 - y / ref.get_height()) ** 1.5)
+        pygame.draw.line(fade, (255, 255, 255, a), (0, y), (w, y))
+    ref.blit(fade, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    return ref
 
 
 def light_cycle(canvas: pygame.Surface, frame: int, cam: float, horizon: int, color: Color, depth_t: float,
@@ -295,8 +310,32 @@ def build_datacenter() -> Backdrop:
             xx = (x + math.sin(frame * 0.02 + y) * 5 - cam * 0.14) % W
             pd.fill(canvas, accent if int(y) % 3 else (255, 255, 255), (int(xx), int(yy), 1, 1 + int(y) % 2))
 
-    items = [Layer(far, 0.03, 0), Animated(floor_fn), Layer(mid, 0.09, 0), Animated(led_fn), Animated(mote_fn),
-             Layer(near, 0.22, 0)]
+    rain = [(rng.uniform(0, W), rng.uniform(0.5, 1.7), rng.randint(0, 200)) for _ in range(48)]
+
+    def rain_fn(canvas, frame, cam):  # code falling down the back wall, seen through the gaps between the towers
+        ox = -cam * 0.05
+        for x, sp, ph in rain:
+            head = (frame * sp * 2 + ph * 7) % (horizon + 90) - 40
+            for k in range(7):
+                y = head - k * 7
+                if 12 < y < horizon - 2:
+                    pd.fill(canvas, (220, 255, 255) if k == 0 else _scale(accent, 0.8 - k * 0.1), (x + ox, y, 2, 4))
+
+    panels = [(92, 44, 86, 50, 0.0), (468, 58, 92, 52, 2.1)]
+
+    def holo_fn(canvas, frame, cam):  # floating dashboards with bar charts that breathe
+        ox = -cam * 0.07
+        for x, y, w, h, seed in panels:
+            pd.rect(canvas, (4, 18, 44), (x + ox, y, w, h))
+            neon_rect(canvas, (x + ox, y, w, h), _scale(accent, 0.8))
+            bars = 7
+            for i in range(bars):
+                bh = (0.25 + 0.75 * abs(math.sin(frame * 0.035 + i * 1.3 + seed))) * (h - 16)
+                pd.fill(canvas, _scale(accent, 0.95), (x + ox + 5 + i * (w - 10) / bars, y + h - 5 - bh, (w - 10) / bars - 2, bh))
+            pd.line(canvas, (255, 255, 255), (x + ox + 4, y + 6), (x + ox + w - 4, y + 6 + math.sin(frame * 0.05 + seed) * 3), 1)
+
+    items = [Layer(far, 0.03, 0), Animated(rain_fn), Animated(floor_fn), Layer(reflection(mid, horizon + 6), 0.09, horizon + 6),
+             Layer(mid, 0.09, 0), Animated(holo_fn), Animated(led_fn), Animated(mote_fn), Layer(near, 0.22, 0)]
     return Backdrop(sky, items)
 
 
@@ -390,8 +429,34 @@ def build_controlplane() -> Backdrop:
                 pd.line(canvas, (255, 255, 255), (x - 3, y), (x + 3, y))
                 pd.line(canvas, (255, 255, 255), (x, y - 3), (x, y + 3))
 
-    items = [Layer(far, 0.02, 0), Animated(holo_fn), Animated(floor_fn), Layer(mid, 0.08, 0), Animated(stream_fn),
-             Animated(spark_fn), Layer(near, 0.22, 0)]
+    def orbit_fn(canvas, frame, cam):  # tilted rings with nodes riding them around the core
+        hx, hy = 320 - cam * 0.03, 128
+        for rx, ry, tilt, speed, color in ((128, 36, 0.32, 0.012, accent), (100, 28, -0.55, -0.017, gold), (160, 52, 0.95, 0.008, accent)):
+            ct, st = math.cos(tilt), math.sin(tilt)
+            pts = [(hx + math.cos(a) * rx * ct - math.sin(a) * ry * st, hy + math.cos(a) * rx * st + math.sin(a) * ry * ct)
+                   for a in (i / 72 * math.tau for i in range(72))]
+            pd.lines(canvas, _scale(color, 0.42), True, pts, 1)
+            ang = frame * speed * 2
+            nx = hx + math.cos(ang) * rx * ct - math.sin(ang) * ry * st
+            ny = hy + math.cos(ang) * rx * st + math.sin(ang) * ry * ct
+            pd.circle(canvas, (255, 255, 255), (nx, ny), 3)
+            pd.circle(canvas, color, (nx, ny), 3, 1)
+
+    def flow_fn(canvas, frame, cam):  # data streaming from the glass conduits into the core
+        ox = -MARGIN - cam * 0.08
+        hx, hy = 320 - cam * 0.03, 128
+        for i, tx in enumerate(tubes):
+            sx, sy = tx + 13 + ox, 36
+            pd.line(canvas, _scale(accent, 0.22), (sx, sy), (hx, hy), 1)
+            for k in range(3):
+                u = ((frame * (0.006 + 0.0012 * i) + k / 3 + i * 0.17) % 1.0)
+                px, py = sx + (hx - sx) * u, sy + (hy - sy) * u
+                pd.circle(canvas, (255, 255, 255), (px, py), 2)
+                pd.circle(canvas, _scale(accent, 0.7), (px - (hx - sx) * 0.03, py - (hy - sy) * 0.03), 2)
+
+    items = [Layer(far, 0.02, 0), Animated(holo_fn), Animated(orbit_fn), Animated(floor_fn),
+             Layer(reflection(mid, horizon + 6), 0.08, horizon + 6), Layer(mid, 0.08, 0), Animated(flow_fn),
+             Animated(stream_fn), Animated(spark_fn), Layer(near, 0.22, 0)]
     return Backdrop(sky, items)
 
 
@@ -473,8 +538,44 @@ def build_nodepool() -> Backdrop:
         light_cycle(canvas, frame, cam, horizon, accent, 0.3, 3.6, 150)
         light_cycle(canvas, frame, cam, horizon, cyan, 0.48, -4.2, 400, -1)
 
-    items = [Layer(far, 0.03, 0), Animated(floor_fn), Layer(mid, 0.09, 0), Animated(pod_fn), Animated(steam_fn),
-             Layer(near, 0.22, 0)]
+    belts = [(176, 1.1, 0), (146, -0.8, 40)]
+
+    def belt_fn(canvas, frame, cam):  # conveyor belts shuttling pods across the back of the bay
+        ox = -cam * 0.05
+        for y, sp, ph in belts:
+            pd.fill(canvas, (26, 10, 8), (0, y, W, 5))
+            pd.line(canvas, _scale(accent, 0.6), (0, y), (W, y), 1)
+            for i in range(9):
+                x = (i * 76 + frame * sp + ph) % (W + 80) - 40 + ox
+                lit = _scale(accent, 0.9) if i % 3 else _scale(cyan, 0.85)
+                pd.ellipse(canvas, (30, 10, 8), (x - 1, y - 15, 16, 15))
+                pd.ellipse(canvas, lit, (x + 1, y - 13, 12, 11))
+                pd.fill(canvas, (255, 255, 255), (x + 3, y - 11, 3, 2))
+
+    fans = [(110, 78), (320, 62), (530, 84)]
+
+    def fan_fn(canvas, frame, cam):  # big slow exhaust fans in the honeycomb wall
+        ox = -cam * 0.035
+        for i, (fx, fy) in enumerate(fans):
+            cx = fx + ox
+            pd.circle(canvas, (14, 6, 6), (cx, fy), 27)
+            pd.circle(canvas, _scale(accent, 0.55), (cx, fy), 27, 2)
+            for b in range(5):
+                a = frame * (0.05 if i % 2 else -0.045) + b * math.tau / 5
+                pd.polygon(canvas, _scale(accent, 0.45), [(cx, fy), (cx + math.cos(a - 0.3) * 24, fy + math.sin(a - 0.3) * 24),
+                                                          (cx + math.cos(a + 0.28) * 24, fy + math.sin(a + 0.28) * 24)])
+            pd.circle(canvas, _scale(accent, 0.9), (cx, fy), 5)
+
+    def bubble_fn(canvas, frame, cam):  # coolant bubbles racing along the pipes
+        ox = -MARGIN - cam * 0.09
+        for j, ((px, py), (nx, _)) in enumerate(zip(pipes, pipes[1:])):
+            for k in range(3):
+                x = px + ((frame * (0.9 + 0.2 * j) + k * 34 + j * 11) % max(1, nx - px))
+                pd.fill(canvas, (255, 235, 200), (x + ox, py + 3, 3, 2))
+
+    items = [Layer(far, 0.03, 0), Animated(fan_fn), Animated(belt_fn), Animated(floor_fn),
+             Layer(reflection(mid, horizon + 6), 0.09, horizon + 6), Layer(mid, 0.09, 0), Animated(bubble_fn),
+             Animated(pod_fn), Animated(steam_fn), Layer(near, 0.22, 0)]
     return Backdrop(sky, items)
 
 
