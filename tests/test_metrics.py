@@ -160,3 +160,21 @@ def test_dashboard_only_queries_metrics_that_exist():
         for t in panel["targets"]:
             used |= set(re.findall(r"k8ssmash_[a-z_]+", t["expr"]))
     assert used and used <= known, used - known
+
+
+def test_monitoring_stack_files_are_consistent():
+    import yaml
+    mon = ROOT / "deploy" / "monitoring"
+    compose = yaml.safe_load((mon / "docker-compose.yml").read_text())
+    assert {"prometheus", "grafana"} <= set(compose["services"])
+    prom = yaml.safe_load((mon / "prometheus.yml").read_text())
+    job = prom["scrape_configs"][0]
+    assert job["job_name"] == "k8ssmash" and job["static_configs"][0]["targets"][0].endswith(":9877")
+    ds = yaml.safe_load((mon / "grafana/provisioning/datasources/prometheus.yml").read_text())["datasources"][0]
+    assert ds["type"] == "prometheus" and ds["url"] == "http://prometheus:9090"
+    # the provisioned copy of the dashboard is identical to the importable one and uses a datasource variable
+    a = (ROOT / "deploy/grafana/k8ssmash-dashboard.json").read_text()
+    b = (mon / "grafana/dashboards/k8ssmash-dashboard.json").read_text()
+    assert a == b
+    dash = json.loads(a)
+    assert dash["templating"]["list"][0]["name"] == "DS_PROMETHEUS" and "__inputs" not in dash

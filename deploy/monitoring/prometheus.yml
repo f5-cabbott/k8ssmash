@@ -1,0 +1,9 @@
+# Scrapes the game's /metrics endpoint every 5 seconds.
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: k8ssmash
+    static_configs:
+      # The game runs on the host (or on the booth Pi). Change this to the Pi's address, e.g. "booth-pi.local:9877".
+      - targets: ["host.docker.internal:9877"]

@@ -6,7 +6,7 @@ requires-python = ">=3.11"
 dependencies = ["pygame-ce>=2.5"]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "pyyaml"]
 
 [project.scripts]
 k8ssmash = "k8ssmash.main:main"

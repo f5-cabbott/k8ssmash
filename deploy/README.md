@@ -132,7 +132,8 @@ scrape_configs:
       - targets: ["booth-pi.local:9877"]
 ```
 
-and import `deploy/grafana/k8ssmash-dashboard.json` into Grafana. The endpoint has no authentication and listens
+For a ready-made Prometheus + Grafana stack, see [`deploy/monitoring/`](monitoring/README.md) (one `docker compose up`).
+The endpoint has no authentication and listens
 on all interfaces, so only enable it on a network you trust (or set `metrics_host` to `127.0.0.1` in the config).
 If the port is taken the game just logs a warning and carries on.
 

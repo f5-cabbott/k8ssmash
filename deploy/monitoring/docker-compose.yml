@@ -1,0 +1,35 @@
+# Prometheus + Grafana for the K8s Smash booth stats.
+#
+#   docker compose up -d          (from this directory)
+#   Grafana:    http://localhost:3000   (login admin / admin; the dashboard is already loaded)
+#   Prometheus: http://localhost:9090
+#
+# Start the game with  --metrics-port 9877  so there is something to scrape.
+services:
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=30d"]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # lets the container reach the game on this machine (Linux)
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    depends_on: [prometheus]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/k8ssmash-dashboard.json
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+
+volumes:
+  prometheus-data:
+  grafana-data:
