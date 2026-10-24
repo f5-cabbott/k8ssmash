@@ -242,11 +242,11 @@ def _gfont() -> Font:
     return _glyph_font
 
 
-def button_glyph(canvas: pygame.Surface, x: int, y: int, label: str) -> int:
+def button_glyph(canvas: pygame.Surface, x: int, y: int, label: str, s: float = 1.0) -> int:
     """A tiny SNES-style button (colored face button or shoulder) at a design-unit (x, y). Returns its design width."""
-    k = SCALE
+    k = SCALE * s  # sizes scale with s; positions stay in design units
     font = _gfont()
-    X, Y = round(x * k), round(y * k)
+    X, Y = round(x * SCALE), round(y * SCALE)
     if label in BUTTON_COLORS:
         c = BUTTON_COLORS[label]
         r = round(7 * k)
@@ -255,23 +255,23 @@ def button_glyph(canvas: pygame.Surface, x: int, y: int, label: str) -> int:
         pygame.draw.circle(canvas, _mix(c, (255, 255, 255), 0.45), (X + r - 2, Y + r - 2), round(2 * k))
         t = font.flat(label, (255, 255, 255))
         canvas.blit(t, (X + r - t.get_width() // 2, Y + r - t.get_height() // 2 + 1))
-        return 16
+        return round(16 * s)
     w, h = round(18 * k), round(12 * k)
     pygame.draw.rect(canvas, (14, 10, 30), (X, Y + 1, w, h), border_radius=5)
     pygame.draw.rect(canvas, (176, 182, 206), (X + 2, Y + 3, w - 4, h - 4), border_radius=4)
     t = font.flat(label, (30, 34, 70))
     canvas.blit(t, (X + w // 2 - t.get_width() // 2, Y + h // 2 - t.get_height() // 2 + 2))
-    return 19
+    return round(19 * s)
 
 
-def dpad_glyph(canvas: pygame.Surface, x: int, y: int, direction: str | None = None) -> int:
+def dpad_glyph(canvas: pygame.Surface, x: int, y: int, direction: str | None = None, s: float = 1.0) -> int:
     """A tiny D-pad at a design-unit (x, y); the arm for `direction` lights up. Returns its design width."""
-    k = SCALE
-    X, Y = round(x * k), round(y * k)
+    k = SCALE * s
+    X, Y = round(x * SCALE), round(y * SCALE)
     arms = {"up": (5, 0, 4, 5), "down": (5, 9, 4, 5), "left": (0, 5, 5, 4), "right": (9, 5, 5, 4)}
     pygame.draw.rect(canvas, (14, 10, 30), (X - 2, Y - 2, round(16 * k), round(16 * k)), border_radius=4)
     for name, (ax, ay, aw, ah) in arms.items():
         pygame.draw.rect(canvas, (255, 236, 130) if name == direction else (110, 118, 156),
                          (X + round(ax * k), Y + round(ay * k), round(aw * k), round(ah * k)))
     pygame.draw.rect(canvas, (150, 158, 196), (X + round(5 * k), Y + round(5 * k), round(4 * k), round(4 * k)))
-    return 17
+    return round(17 * s)

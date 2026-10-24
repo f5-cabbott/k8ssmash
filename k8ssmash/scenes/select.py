@@ -31,10 +31,10 @@ class CharacterSelect(Scene):
         self.locked = [False, False]
         self.ready_frames = 0
         self.stage_idx = random.randrange(len(STAGES))
-        self.big = ui.UIFont(36)
-        self.font = ui.UIFont(22)
-        self.small = ui.UIFont(18)
-        self.tiny = ui.UIFont(15)
+        self.big = ui.UIFont(22)  # screen title
+        self.font = ui.UIFont(15)  # fighter name
+        self.small = ui.UIFont(12)  # blurb, move names, card labels
+        self.tiny = ui.UIFont(10)  # legend and hints
         self.frame = 0
         app.audio.music("select")
         self.rng = random.Random()
@@ -121,24 +121,23 @@ class CharacterSelect(Scene):
         canvas.fill(BG)
         colors = player_colors(self.app.cfg)
         head = self.big.render("TRAINING: CHOOSE YOUR POD" if self.training else "CHOOSE YOUR POD", False, (255, 255, 255))
-        ui.blit_c(canvas, head, 5)
+        ui.blit_c(canvas, head, 6)
         n = len(self.roster)
         cols = min(n, 4)
-        card_w, card_h, gap = 132, 78, 10
+        card_w, card_h, gap = 142, 84, 8
         x0 = (CANVAS_W - (cols * card_w + (cols - 1) * gap)) // 2
         for i, st in enumerate(self.roster):
             cx = x0 + (i % cols) * (card_w + gap)
-            cy = 36 + (i // cols) * (card_h + 8)
+            cy = 32 + (i // cols) * (card_h + 6)
             card = pygame.Rect(cx, cy, card_w, card_h)
             ui.window_d(canvas, card)
+            floor_y = cy + card_h - 22  # where the fighter stands: always fully inside the card
+            pd.line(canvas, _dim(st.color), (cx + 14, floor_y + 1), (cx + card_w - 14, floor_y + 1), 2)
             sprites = sprite_set(st.name)
-            if sprites is not None:  # a bust portrait: the sprite at a whole-number 2x so its pixels stay crisp
-                img = sprites.get("idle", (self.frame // 12) % 4, 1, 2.0)
-                fx, fy = sprites.feet
-                pd.set_clip(canvas, card.inflate(-4, -4))
-                ui.blit_sprite(canvas, img, cx + card_w // 2, cy + 6 + 132 / ui.SCALE, (fx * 2, fy * 2))
-                pd.set_clip(canvas, None)
-            pd.rect(canvas, _dim(st.color), (cx + 3, cy + card_h - 20, card_w - 6, 17))
+            if sprites is not None:  # the whole fighter at native pixel size, so it stays crisp and never gets cropped
+                img = sprites.get("idle", (self.frame // 12) % 4, 1)
+                ui.blit_sprite(canvas, img, cx + card_w // 2, floor_y, sprites.feet)
+            pd.rect(canvas, _dim(st.color), (cx + 3, cy + card_h - 19, card_w - 6, 16))
             label = self.small.render(st.name, False, (240, 240, 255))
             pd.blit(canvas, label, (cx + (card_w - label.get_width()) // 2, cy + card_h - 18))
             for slot in (0, 1):
@@ -147,15 +146,16 @@ class CharacterSelect(Scene):
                     width = 3 if not self.locked[slot] or (self.frame // 8) % 2 == 0 else 5
                     pd.rect(canvas, colors[slot], (cx - off - 2, cy - off - 2, card_w + 2 * off + 4, card_h + 2 * off + 4), width)
         for slot in (0, 1):
-            self._draw_panel(canvas, pygame.Rect(12 + slot * 312, 204, 304, 112), slot, colors[slot])
+            self._draw_panel(canvas, pygame.Rect(12 + slot * 316, 214, 304, 86), slot, colors[slot])
         self._draw_legend(canvas)
         stage = STAGES[self.stage_idx]().name
         hint = self.tiny.render(f"START join/ready    A back / leave    SELECT add CPU    L/R stage: {stage}", False, (126, 134, 176))
-        ui.blit_c(canvas, hint, 347)
+        ui.blit_c(canvas, hint, 335)
+
     def _draw_panel(self, canvas: pygame.Surface, rect: pygame.Rect, slot: int, color) -> None:
         ui.window_d(canvas, rect, accent=color)
-        tag = self.big.render(f"P{slot + 1}", False, color)
-        pd.blit(canvas, tag, (rect.x + 8, rect.y + 6))
+        tag = self.font.render(f"P{slot + 1}", False, color)
+        pd.blit(canvas, tag, (rect.x + 8, rect.y + 5))
         if self.training and slot == 1:
             self._center_text(canvas, rect, "Dummy: a random fighter", (170, 176, 205))
             return
@@ -164,37 +164,40 @@ class CharacterSelect(Scene):
             return
         st = self.roster[self.cursor[slot]]
         status = "CPU" if self.cpu[slot] else ("READY!" if self.locked[slot] else "")
-        name = self.font.render(st.name, False, (255, 255, 255))
-        pd.blit(canvas, name, (rect.x + 46, rect.y + 6))
+        pd.blit(canvas, self.font.render(st.name, False, (255, 255, 255)), (rect.x + 32, rect.y + 5))
         if status:
             s = self.small.render(status, False, (120, 230, 140) if status == "READY!" else (180, 184, 210))
-            pd.blit(canvas, s, (rect.right - s.get_width() - 10, rect.y + 8))
-        pd.blit(canvas, self.tiny.render(st.blurb, False, (170, 178, 214)), (rect.x + 46, rect.y + 24))
+            pd.blit(canvas, s, (rect.right - s.get_width() - 10, rect.y + 7))
+        pd.blit(canvas, self.small.render(st.blurb, False, (170, 178, 214)), (rect.x + 32, rect.y + 22))
         for i, (direction, key, tag_text) in enumerate(MOVE_ROWS):
-            self._move_row(canvas, rect.x + 12, rect.y + 44 + i * 16, direction, st, key, tag_text)
+            self._move_row(canvas, rect.x + 10, rect.y + 39 + i * 12, direction, st, key, tag_text)
 
     def _move_row(self, canvas, x: int, y: int, direction: str | None, st: FighterStats, key: str, tag_text: str) -> None:
         move = st.moves.get(key)
         if move is None:
             return
+        g = 0.72  # compact glyphs: the list is a reference, not the focus of the screen
         if direction:
-            x += ui.dpad_glyph(canvas, x, y, direction)
+            x += ui.dpad_glyph(canvas, x, y, direction, g)
             plus = self.tiny.render("+", False, (200, 206, 235))
-            pd.blit(canvas, plus, (x, y))
-            x += plus.get_width() + 3
-        x += ui.button_glyph(canvas, x, y, "A") + 6
+            pd.blit(canvas, plus, (x, y + 1))
+            x += plus.get_width() + 2
+        x += ui.button_glyph(canvas, x, y, "A", g) + 4
         text = move.announce or move.name
         t = self.small.render(text[0].upper() + text[1:], False, (240, 242, 255))
-        pd.blit(canvas, t, (x, y - 1))
+        pd.blit(canvas, t, (x, y))
         if tag_text:
-            pd.blit(canvas, self.tiny.render(tag_text, False, (255, 214, 120)), (x + t.get_width() + 8, y + 1))
+            pd.blit(canvas, self.tiny.render(tag_text, False, (255, 214, 120)), (x + t.get_width() + 6, y + 1))
+
     def _center_text(self, canvas, rect: pygame.Rect, text: str, color) -> None:
         t = self.small.render(text, False, color)
-        pd.blit(canvas, t, (rect.centerx - t.get_width() // 2, rect.centery - t.get_height() // 2 + 8))
+        pd.blit(canvas, t, (rect.centerx - t.get_width() // 2, rect.centery - t.get_height() // 2 + 6))
+
     def _draw_legend(self, canvas: pygame.Surface) -> None:
-        bar = pygame.Rect(12, 320, 616, 24)
+        bar = pygame.Rect(12, 306, 616, 22)
         ui.window_d(canvas, bar)
-        x, y = bar.x + 10, bar.y + 4
+        x, y = bar.x + 10, bar.y + 5
+        g = 0.72
         parts: list[tuple[str, tuple]] = [
             ("Move", ("dpad", None)), ("Jump x2", ("btn", "Y", "X")), ("Attack", ("btn", "B")),
             ("Special", ("btn", "A")), ("+ dir = more moves", ("dpad", "right")), ("Shield", ("btn", "L", "R")),
@@ -202,10 +205,10 @@ class CharacterSelect(Scene):
         ]
         for label, spec in parts:
             if spec[0] == "dpad":
-                x += ui.dpad_glyph(canvas, x, y, spec[1]) + 2
+                x += ui.dpad_glyph(canvas, x, y, spec[1], g) + 2
             else:
                 for b in spec[1:]:
-                    x += ui.button_glyph(canvas, x, y, b) + 1
+                    x += ui.button_glyph(canvas, x, y, b, g) + 1
             t = self.tiny.render(label, False, (226, 230, 250))
             pd.blit(canvas, t, (x + 2, y + 1))
             x += t.get_width() + 14
