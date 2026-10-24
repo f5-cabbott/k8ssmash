@@ -26,6 +26,17 @@ def draw_projectile(canvas: pygame.Surface, p: Projectile) -> None:
         pygame.draw.line(canvas, _dark(c), tail, (x, y), d.height + 2)
         pygame.draw.line(canvas, c, tail, (x, y), d.height - 1)
         pygame.draw.circle(canvas, (255, 255, 255), (x, y), max(2, d.height // 2 - 1))
+    elif shape == "drum":  # a storage drum rolling through the air: banded barrel, hoops that scroll with the spin
+        w, h = d.width, d.height
+        body = pygame.Rect(x - w // 2, y - h // 2 + 3, w, h - 6)
+        pygame.draw.rect(canvas, OUTLINE, body.inflate(2, 2), border_radius=3)
+        pygame.draw.rect(canvas, c, body, border_radius=3)
+        pygame.draw.rect(canvas, tuple(min(255, v + 60) for v in c), (body.x + 2, body.y + 1, body.w - 4, 3), border_radius=2)
+        for k in range(3):
+            hx = body.x + (k * 7 + t * 2) % (body.w - 2) + 1
+            pygame.draw.line(canvas, _dark(c, 0.55), (hx, body.y + 1), (hx, body.bottom - 2), 2)
+        pygame.draw.ellipse(canvas, tuple(min(255, v + 80) for v in c), (body.x - 2, body.y - 1, 6, body.h + 2))
+        pygame.draw.ellipse(canvas, OUTLINE, (body.x - 2, body.y - 1, 6, body.h + 2), 1)
     elif shape == "wheel":
         r = d.width // 2
         pygame.draw.circle(canvas, _dark(c), (x, y), r + 1, 4)

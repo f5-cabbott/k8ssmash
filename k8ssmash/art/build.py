@@ -11,7 +11,7 @@ import pygame
 
 from k8ssmash.art.looks import LOOKS
 from k8ssmash.art.poses import ANIMS, pose_for
-from k8ssmash.art.rig import FEET, FRAME, render
+from k8ssmash.art.rig import FEET, FRAME, alternate_look, render
 
 OUT = Path(__file__).resolve().parents[2] / "assets" / "sprites"
 
@@ -20,8 +20,10 @@ def slug(name: str) -> str:
     return name.lower().replace(" ", "_")
 
 
-def build(name: str) -> pygame.Surface:
+def build(name: str, alt: bool = False) -> pygame.Surface:
     look = LOOKS[name]()
+    if alt:
+        look = alternate_look(look)  # the mirror-match colour scheme
     cols = max(n for n, _, _ in ANIMS.values())
     sheet = pygame.Surface((cols * FRAME, len(ANIMS) * FRAME), pygame.SRCALPHA)
     meta = {"frame": FRAME, "feet": list(FEET), "anims": {}}
@@ -30,8 +32,9 @@ def build(name: str) -> pygame.Surface:
             sheet.blit(render(look, pose_for(anim, i)), (i * FRAME, row * FRAME))
         meta["anims"][anim] = {"row": row, "frames": count, "fps": fps, "loop": loop}
     OUT.mkdir(parents=True, exist_ok=True)
-    pygame.image.save(sheet, str(OUT / f"{slug(name)}.png"))
-    (OUT / f"{slug(name)}.json").write_text(json.dumps(meta, indent=1))
+    tag = "_alt" if alt else ""
+    pygame.image.save(sheet, str(OUT / f"{slug(name)}{tag}.png"))
+    (OUT / f"{slug(name)}{tag}.json").write_text(json.dumps(meta, indent=1))
     return sheet
 
 
@@ -55,6 +58,8 @@ def main() -> None:
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     names = args or list(LOOKS)
     sheets = {n: build(n) for n in names}
+    for n in names:
+        build(n, alt=True)
     if "--contact" in sys.argv:
         path = Path("screenshots/contact.png")
         path.parent.mkdir(exist_ok=True)

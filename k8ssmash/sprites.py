@@ -16,9 +16,10 @@ def slug(name: str) -> str:
 
 
 class SpriteSet:
-    def __init__(self, name: str):
-        meta = json.loads((ASSETS / f"{slug(name)}.json").read_text())
-        sheet = pygame.image.load(str(ASSETS / f"{slug(name)}.png")).convert_alpha()
+    def __init__(self, name: str, alt: bool = False):
+        tag = f"{slug(name)}{'_alt' if alt else ''}"
+        meta = json.loads((ASSETS / f"{tag}.json").read_text())
+        sheet = pygame.image.load(str(ASSETS / f"{tag}.png")).convert_alpha()
         self.size = meta["frame"]
         self.feet = tuple(meta["feet"])
         self.anims = meta["anims"]
@@ -47,16 +48,18 @@ class SpriteSet:
         return surf
 
 
-_cache: dict[str, SpriteSet | None] = {}
+_cache: dict[tuple[str, bool], SpriteSet | None] = {}
 
 
-def sprite_set(name: str) -> SpriteSet | None:
-    if name not in _cache:
+def sprite_set(name: str, alt: bool = False) -> SpriteSet | None:
+    """A fighter's sprites. `alt` is the hue-rotated colour scheme used so a mirror match is readable."""
+    key = (name, alt)
+    if key not in _cache:
         try:
-            _cache[name] = SpriteSet(name)
+            _cache[key] = SpriteSet(name, alt)
         except (OSError, ValueError, KeyError, pygame.error):
-            _cache[name] = None
-    return _cache[name]
+            _cache[key] = None if not alt else sprite_set(name)
+    return _cache[key]
 
 
 def pick_frame(f: Fighter) -> tuple[str, int]:
@@ -67,13 +70,21 @@ def pick_frame(f: Fighter) -> tuple[str, int]:
         phase = 0 if f.move_frame < m.startup else 1 if f.move_frame < m.startup + m.active else 2
         return (m.anim or "jab"), phase
     if state == "run":
-        return "run", (n * 14 // 60) % 6
+        return "run", (n * 16 // 60) % 8
     if state == "idle":
-        return "idle", (n * 5 // 60) % 4
+        if f.land_timer > 0:  # the squash after a landing, easing back up
+            return "land", min(2, (6 - f.land_timer) // 2)
+        if n % 210 < 8:  # a blink every few seconds
+            return "idle", 6 + (n % 210) // 4
+        return "idle", (n * 6 // 60) % 6
+    if state == "djump":
+        return "djump", min(3, n // 4)
+    if state == "jump":
+        return "jump", 0 if f.vy < -3.5 else 1
+    if state == "fall":
+        return "fall", 0 if f.vy < 5.0 else 1
+    if state == "hurt":
+        return "hurt", 0 if n < 5 else (1 if f.hitstun > 12 else 2)
     if state == "duck":
         return "duck", 0
-    if state == "djump":
-        return "djump", min(2, n // 4)
-    if state == "hurt":
-        return "hurt", (n // 6) % 2
     return state, 0

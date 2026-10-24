@@ -10,7 +10,7 @@ SR = I.SR
 EVENTS = ("jump", "djump", "special", "hit_light", "hit_heavy", "ko")
 
 VOICES = {  # fighter -> (timbre, base frequency)
-    "Pod": ("bubble", 520), "Helm": ("horn", 130), "Kubectl": ("digital", 880), "Chaos Monkey": ("squeak", 900),
+    "Pod": ("bubble", 520), "StatefulSet": ("horn", 130), "Kubectl": ("digital", 880), "Chaos Monkey": ("squeak", 900),
     "Sidecar": ("servo", 300), "Ingress": ("portal", 440), "Operator": ("dtmf", 697), "OOMKiller": ("growl", 62),
 }
 

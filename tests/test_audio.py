@@ -14,7 +14,7 @@ def test_all_expected_assets_exist():
              "countdown", "go", "menu_move", "menu_select", "join", "counter", "explosion"}
     for n in names:
         assert (ASSETS / f"{n}.wav").stat().st_size > 500, n
-    for n in set(MUSIC_FOR_THEME.values()) | {"title", "results"}:
+    for n in set(MUSIC_FOR_THEME.values()) | {"splash", "results"}:
         assert (ASSETS / f"{n}.ogg").stat().st_size > 10_000, n
 
 
@@ -85,7 +85,7 @@ import numpy as np
 from k8ssmash.audio.sfx import EVENTS, VOICES
 from k8ssmash.audio_manager import DUCK, slug
 
-MUSIC = ["title", "select", "datacenter", "controlplane", "nodepool", "training", "leaderboard"]
+MUSIC = ["splash", "select", "datacenter", "controlplane", "nodepool", "training", "leaderboard"]
 
 
 def _pcm(path):
@@ -194,7 +194,7 @@ def test_music_names_for_each_screen(app):
     Training(app, roster()[:2])
     assert app.audio.current == "training"
     Title(app)
-    assert app.audio.current == "title"
+    assert app.audio.current == "splash"
 
 
 def test_battle_hits_use_the_attackers_sound_and_pan(app):

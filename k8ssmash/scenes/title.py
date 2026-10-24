@@ -30,7 +30,7 @@ class Title(Scene):
         self.frame = 0
         self._select_since: int | None = None
         self._select_clean = True
-        app.audio.music("title")
+        app.audio.music("splash")
         self.huge = ui.Font(96)
         self.big = ui.Font(36)
         self.font = ui.Font(22)

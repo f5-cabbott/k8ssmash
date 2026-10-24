@@ -120,7 +120,7 @@ def test_counter_window_flagged():
 
 def test_boomerang_returns_and_orbit_follows_owner():
     stage = datacenter_stage()
-    f = fighter("Helm")
+    f = fighter("StatefulSet")
     d = f.stats.moves["special"].projectile
     p = Projectile(f, d, f.x, f.y - 24, d.speed, 0, 1, d.life)
     xs = []

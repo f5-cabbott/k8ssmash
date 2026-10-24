@@ -50,9 +50,9 @@ def test_upsert_updates_same_run_without_duplicating(sb):
 
 
 def test_persistence_roundtrip_and_atomic_write(sb, tmp_path):
-    sb.upsert("kos", "r", "K8S", 7, "Helm")
+    sb.upsert("kos", "r", "K8S", 7, "StatefulSet")
     again = ScoreBoard(tmp_path / "scores.json")
-    assert again.top("kos")[0].name == "K8S" and again.top("kos")[0].fighter == "Helm"
+    assert again.top("kos")[0].name == "K8S" and again.top("kos")[0].fighter == "StatefulSet"
     assert not (tmp_path / "scores.tmp").exists()
 
 
@@ -76,13 +76,13 @@ def test_unwritable_location_does_not_crash(tmp_path):
 def test_run_tracker_streak_and_prompts(sb):
     rt = RunTracker(sb)
     human = [True, True]
-    assert rt.record(0, human, [1, 0], ["Pod", "Helm"]) == []  # first win: streak 1, kos 1: no entry yet
-    prompts = rt.record(0, human, [1, 1], ["Pod", "Helm"])  # streak 2, kos 2 -> streak board only
+    assert rt.record(0, human, [1, 0], ["Pod", "StatefulSet"]) == []  # first win: streak 1, kos 1: no entry yet
+    prompts = rt.record(0, human, [1, 1], ["Pod", "StatefulSet"])  # streak 2, kos 2 -> streak board only
     assert len(prompts) == 1 and prompts[0].slot == 0 and prompts[0].boards == ["streak"]
     ranks = rt.commit_name(0, "abc")
     assert ranks["streak"] == 1 and sb.top("streak")[0].name == "ABC" and ranks["kos"] is None
     # a named run updates its entry silently, with no further prompt
-    assert rt.record(0, human, [2, 0], ["Pod", "Helm"]) == []
+    assert rt.record(0, human, [2, 0], ["Pod", "StatefulSet"]) == []
     assert sb.top("streak")[0].value == 3 and sb.top("kos")[0].value == 4
     assert len(sb.top("streak")) == 1
 
@@ -90,11 +90,11 @@ def test_run_tracker_streak_and_prompts(sb):
 def test_loss_ends_run_and_next_run_gets_new_entry(sb):
     rt = RunTracker(sb)
     human = [True, True]
-    rt.record(0, human, [1, 0], ["Pod", "Helm"])
-    rt.record(0, human, [1, 0], ["Pod", "Helm"])
+    rt.record(0, human, [1, 0], ["Pod", "StatefulSet"])
+    rt.record(0, human, [1, 0], ["Pod", "StatefulSet"])
     rt.commit_name(0, "AAA")
     first = rt.runs[0].id
-    rt.record(1, human, [0, 2], ["Pod", "Helm"])  # slot 0 loses
+    rt.record(1, human, [0, 2], ["Pod", "StatefulSet"])  # slot 0 loses
     assert rt.runs[0].streak == 0 and rt.runs[0].id != first and rt.runs[0].name is None
     assert rt.runs[1].streak == 1
     assert len(sb.top("streak")) == 1  # the finished run's entry stays

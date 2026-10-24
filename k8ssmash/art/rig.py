@@ -2,8 +2,9 @@
 composited by art.shade into SNES-style pixel art (ramps, dithering, colored outlines)."""
 from __future__ import annotations
 
+import colorsys
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Callable
 
 import numpy as np
@@ -32,6 +33,9 @@ class Pose:
     arm_f: tuple[float, float] = (10.0, 20.0)  # upper/forearm angles; 0 = down, 90 = forward, 180 = up
     arm_b: tuple[float, float] = (-10.0, 0.0)
     flash: bool = False  # extra effect lines (counter, buff)
+    squash: float = 1.0  # vertical scale of the body: <1 squashed (anticipation, landing), >1 stretched (strikes, leaps)
+    face: str = "neutral"  # expression: neutral blink happy angry hurt effort shock focus
+    smear: float = 0.0  # degrees of motion smear trailing the front arm (attack swings)
 
 
 @dataclass
@@ -53,6 +57,8 @@ class Look:
     torso_pal: str = "body"
     head_pal: str = "skin"
     flat: tuple[str, ...] = ()  # palette names shaded as hard flat surfaces (screens, plates)
+    textures: dict = field(default_factory=dict)  # palette name -> fur | cloth | metal | panel
+    no_hue_shift: tuple[str, ...] = ()  # palette names kept as-is in the alternate colour scheme (skin, steel...)
     back: list[Layer] = field(default_factory=list)  # accessories behind the body
     front: list[Layer] = field(default_factory=list)  # accessories over the body
     details: Callable[[pygame.Surface, "Rig"], None] | None = None  # flat face/chest details
@@ -152,7 +158,32 @@ def _ramp(c: Color) -> np.ndarray:
     return _ramps[c]
 
 
+def squashed(look: Look, k: float) -> Look:
+    """Squash-and-stretch: scale the body vertically and widen it the other way so the volume feels constant."""
+    if abs(k - 1.0) < 0.005:
+        return look
+    w = 1 / math.sqrt(k)
+    return replace(look, leg_len=look.leg_len * k, torso_h=look.torso_h * k, torso_w=look.torso_w * w,
+                   leg_w=look.leg_w * w, arm_w=look.arm_w * w, arm_len=look.arm_len * (1 + (k - 1) * 0.6),
+                   head_r=look.head_r * (1 + (k - 1) * 0.35))
+
+
+def alternate_look(look: Look) -> Look:
+    """The mirror-match colour scheme: rotate every hue except the materials listed in no_hue_shift."""
+    keep = set(look.no_hue_shift)
+    pal = {}
+    for name, c in look.pal.items():
+        base = name.removesuffix("_back")
+        if base in keep:
+            pal[name] = c
+            continue
+        h, sat, v = colorsys.rgb_to_hsv(*(x / 255 for x in c))
+        pal[name] = tuple(int(x * 255) for x in colorsys.hsv_to_rgb((h + 0.42) % 1.0, min(1.0, sat * 1.05), v))
+    return replace(look, pal=pal)
+
+
 def render(look: Look, pose: Pose) -> pygame.Surface:
+    look = squashed(look, pose.squash)
     r = solve(look, pose)
     arr = np.zeros((FRAME, FRAME, 4), dtype=np.uint8)
 
@@ -162,7 +193,8 @@ def render(look: Look, pose: Pose) -> pygame.Surface:
         mask = layer_mask(layer, FRAME)
         base = look.pal[pal]
         shiny = any(k in pal for k in SHINY)
-        paint_part(arr, mask, _ramp(base), shiny, flat=pal.split("_")[0] in look.flat)
+        paint_part(arr, mask, _ramp(base), shiny, flat=pal.removesuffix("_back") in look.flat,
+                   texture=look.textures.get(pal.removesuffix("_back"), ""))
 
     for fn, pal in look.back:
         part(fn, pal)
@@ -181,6 +213,17 @@ def render(look: Look, pose: Pose) -> pygame.Surface:
     pygame.surfarray.pixels_alpha(frame)[:] = arr[:, :, 3].T
     if look.details:
         look.details(frame, r)
+    if pose.smear:
+        sh = (r.shoulder[0] + 2, r.shoulder[1] + 2)
+        half = look.arm_len / 2
+        ghost = pygame.Surface((FRAME, FRAME), pygame.SRCALPHA)
+        for k in (3, 2, 1):  # oldest first, fading: the arm's recent path
+            a1, a2 = pose.arm_f[0] - pose.smear * k * 0.45, pose.arm_f[1] - pose.smear * k * 0.9
+            d1, d2 = _dir(a1), _dir(a2)
+            el = (sh[0] + d1[0] * half, sh[1] + d1[1] * half)
+            hd = (el[0] + d2[0] * half, el[1] + d2[1] * half)
+            pygame.draw.line(ghost, (255, 244, 214, 150 - k * 36), (round(el[0]), round(el[1])), (round(hd[0]), round(hd[1])), 3)
+        frame.blit(ghost, (0, 0))
     if pose.flash:
         for i in range(5):
             a = math.radians(-70 + i * 35)

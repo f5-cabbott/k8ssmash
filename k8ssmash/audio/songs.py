@@ -7,25 +7,28 @@ from k8ssmash.audio.arranger import Sec, Song
 FULL = ("lead", "counter", "pad", "comp", "arp", "bass", "drums")
 
 
-def title() -> Song:
-    inst = dict(lead="accordion", counter="flute", pad="strings", comp="honky", arp="toy_piano", bass="rubber_bass")
-    a_prog = [(0, "maj7"), (9, "m7"), (2, "m7"), (7, "7"), (0, "6"), (5, "maj7"), (2, "m7"), (7, "sus")]
+def splash() -> Song:
+    """The title-screen theme: fast, bouncy and cheerful, with a 5/4 detour and a key lift for the last chorus."""
+    inst = dict(lead="kazoo", counter="whistle", pad="strings", comp="honky", arp="toy_piano", bass="tuba")
+    a = [(0, "maj"), (5, "maj"), (0, "maj"), (7, "7"), (0, "maj"), (9, "min"), (5, "maj"), (7, "7")]
+    b = [(5, "maj"), (2, "m7"), (7, "7"), (0, "maj")] * 2
+    sw = dict(swing=0.1)
+    bounce = dict(comp="oompah", bass="bounce", drums="march")
     secs = [
-        Sec(4, [(0, "maj7"), (9, "m7"), (5, "maj7"), (7, "sus")], layers=("arp", "pad"), arp="up", crash=False, gain=0.9),
-        Sec(8, a_prog, layers=("lead", "counter", "pad", "arp", "bass", "drums"), mel="A", drums="calm",
-            bass="rootfifth", arp="broken"),
-        Sec(8, [(5, "maj"), (10, "maj"), (0, "6"), (8, "maj"), (5, "maj"), (5, "min"), (0, "6"), (7, "7")],
-            layers=("lead", "comp", "pad", "bass", "drums"), mel="B", inst={"lead": "kazoo"}, comp="charleston",
-            drums="calm", bass="bounce"),
-        Sec(6, [(0, "maj"), (7, "7"), (0, "maj"), (5, "maj"), (7, "7"), (0, "maj")], meter="3/4",
-            layers=("lead", "comp", "bass", "drums"), mel="W", inst={"lead": "whistle", "comp": "accordion", "bass": "tuba"},
-            comp="waltz", bass="waltz", drums="waltz"),
-        Sec(8, a_prog, layers=FULL, mel="A", drums="calm", bass="rootfifth", arp="broken", comp="sparse",
-            inst={"counter": "whistle"}, gain=1.05),
-        Sec(4, [(5, "maj7"), (2, "m7"), (7, "sus"), (0, "maj7")], layers=("arp", "pad", "bass"), arp="up",
-            bass="pedal", crash=False, gain=0.85),
+        Sec(2, [(0, "maj"), (7, "7")], layers=("arp", "drums", "bass"), arp="updown", drums="march", bass="bounce", crash=False, **sw),
+        Sec(8, a, layers=("lead", "counter", "comp", "arp", "bass", "drums"), mel="A", arp="broken", **bounce, **sw),
+        Sec(8, b, layers=FULL, mel="B", inst={"lead": "marimba", "counter": "kazoo", "arp": "steel"}, arp="updown",
+            comp="oompah", bass="bounce", drums="funk", gain=1.05, **sw),
+        Sec(4, [(0, "maj"), (3, "maj"), (8, "maj"), (7, "7")], meter="5/4", layers=("lead", "comp", "bass", "drums"),
+            mel="Z", inst={"lead": "whistle", "comp": "accordion"}, comp="five4", bass="five4", drums="odd54", busy=0.8),
+        Sec(8, a, layers=FULL, mel="A", arp="broken", inst={"counter": "steel"}, **bounce, **sw),
+        Sec(8, b, layers=FULL, mel="B", inst={"lead": "marimba", "counter": "kazoo", "arp": "steel"}, arp="updown",
+            comp="oompah", bass="bounce", drums="funk", gain=1.05, **sw),
+        Sec(8, a, layers=FULL, mel="A", transpose=2, arp="updown", inst={"lead": "brass", "counter": "kazoo"}, gain=1.1,
+            **bounce, **sw),
+        Sec(2, [(5, "maj"), (0, "maj")], layers=("arp", "bass", "drums"), arp="up", bass="pedal", drums="tag"),
     ]
-    return Song("title", 96, 53, "major", inst, secs, seed=11, reverb=2.4, wet=0.3, lead_center=72)
+    return Song("splash", 150, 55, "major", inst, secs, seed=97, reverb=1.7, wet=0.2, lead_center=76)
 
 
 def select() -> Song:
@@ -152,5 +155,5 @@ def results() -> Song:
     return Song("results", 120, 51, "major", inst, secs, seed=83, reverb=2.4, wet=0.3, lead_center=72, loop=False)
 
 
-SONGS = {"title": title, "select": select, "datacenter": datacenter, "controlplane": controlplane,
+SONGS = {"splash": splash, "select": select, "datacenter": datacenter, "controlplane": controlplane,
          "nodepool": nodepool, "training": training, "leaderboard": leaderboard, "results": results}

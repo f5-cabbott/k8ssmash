@@ -32,7 +32,7 @@ def tap(app, p0=(), p1=()):
 
 def summary(kos=(1, 0)):
     return [{"name": "Pod", "kos": kos[0], "damage": 10, "stocks": 1},
-            {"name": "Helm", "kos": kos[1], "damage": 5, "stocks": 0}]
+            {"name": "StatefulSet", "kos": kos[1], "damage": 5, "stocks": 0}]
 
 
 def test_tap_select_on_title_opens_leaderboard(app):
@@ -72,7 +72,7 @@ def test_attract_ends_on_leaderboard_then_title(app):
 
 def test_results_to_name_entry_to_leaderboard_and_back(app):
     app.last_match = ([0, 1], [True, True], 0)
-    app.runs.record(0, [True, True], [1, 0], ["Pod", "Helm"])  # already one win in the run
+    app.runs.record(0, [True, True], [1, 0], ["Pod", "StatefulSet"])  # already one win in the run
     res = Results(app, 0, summary((2, 0)), [True, True])
     app.set_scene(res)
     assert res.prompts and res.prompts[0].slot == 0

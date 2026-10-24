@@ -58,7 +58,7 @@ def layer_mask(layer: Layer, size: int) -> np.ndarray:
     return cover >= 0.5
 
 
-def shade(mask: np.ndarray, shiny: bool, flat: bool = False) -> np.ndarray:
+def shade(mask: np.ndarray, shiny: bool, flat: bool = False, texture: str = "") -> np.ndarray:
     """Tone index (0..LEVELS-1) for every pixel of the part, -1 outside it."""
     h_, w_ = mask.shape
     depth = np.zeros(mask.shape)
@@ -88,15 +88,41 @@ def shade(mask: np.ndarray, shiny: bool, flat: bool = False) -> np.ndarray:
     if shiny:
         spec = np.clip(normal @ HALF, 0, 1) ** 28
         idx = np.where(spec > 0.55, LEVELS - 1, idx)
+    if texture:
+        idx = _texture(idx, mask, texture)
     # bounce light: the bottom-right rim catches a little light from the ground
     rim = mask & ~shift(mask, -1, -1)
     idx = np.where(rim & (idx < 2), 2, idx)
     return np.where(mask, idx, -1)
 
 
-def paint_part(frame: np.ndarray, mask: np.ndarray, ramp: np.ndarray, shiny: bool, flat: bool = False) -> None:
+def _texture(idx: np.ndarray, mask: np.ndarray, kind: str) -> np.ndarray:
+    """Surface detail on top of the lighting: fur strokes, cloth folds, metal banding, panel seams."""
+    h, w = mask.shape
+    ys, xs = np.mgrid[0:h, 0:w]
+    out = idx.copy()
+    noise = ((xs * 73856093) ^ (ys * 19349663)) % 100  # a stable per-pixel hash, so frames don't shimmer
+    if kind == "fur":  # short vertical strokes, some dark and some light
+        stroke = (noise < 15) | (np.roll(noise, 1, 0) < 15) & (noise % 2 == 0)
+        out = np.where(stroke & mask & (idx > 0), np.where(noise % 3 == 0, idx + 1, idx - 1), out)
+    elif kind == "cloth":  # diagonal folds
+        fold = ((xs + 2 * ys) % 11 == 0) & (idx >= 2)
+        out = np.where(fold & mask, idx - 1, out)
+        crest = ((xs + 2 * ys) % 11 == 1) & (idx >= 2)
+        out = np.where(crest & mask, idx + 1, out)
+    elif kind == "metal":  # brushed horizontal banding with a bright edge
+        band = (ys % 6 == 0) & mask
+        out = np.where(band, idx + 1, out)
+    elif kind == "panel":  # plate seams
+        seam = ((xs % 7 == 0) | (ys % 8 == 0)) & mask & (idx > 0)
+        out = np.where(seam, idx - 1, out)
+    return np.clip(out, 0, LEVELS - 1)
+
+
+def paint_part(frame: np.ndarray, mask: np.ndarray, ramp: np.ndarray, shiny: bool, flat: bool = False,
+               texture: str = "") -> None:
     """Composite one shaded part (with a colored outline) onto the RGBA frame array."""
-    idx = shade(mask, shiny, flat)
+    idx = shade(mask, shiny, flat, texture)
     ring = np.zeros_like(mask)
     for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
         ring |= shift(mask, dy, dx)

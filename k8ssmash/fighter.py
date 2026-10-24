@@ -129,6 +129,8 @@ class Fighter:
         self.hit_targets: set[int] = set()
         self.spawn_queue: list[Projectile] = []
         self.events: list[str] = []  # sound cues for the battle scene to play
+        self.fx: list[tuple[str, float]] = []  # visual cues (landing dust, jump rings) for the battle scene
+        self.land_timer = 0  # frames of landing squash remaining
         self.buffs: dict[str, int] = {}
         self.kos = 0
         self.dealt_damage = 0.0
@@ -278,7 +280,7 @@ class Fighter:
                            RESPAWN_INVULN)
                 self.percent = 0.0
             return
-        for name in ("invuln", "hitstun", "drop_timer", "shield_break", "callout_timer"):
+        for name in ("invuln", "hitstun", "drop_timer", "shield_break", "callout_timer", "land_timer"):
             value = getattr(self, name)
             if value > 0:
                 setattr(self, name, value - 1)
@@ -306,9 +308,13 @@ class Fighter:
         if not self.on_ground:
             fast = inp.axis_y > 0 and self.vy > 0 and not stunned and self.move is None
             self.vy = min(self.vy + s.gravity, s.fast_fall if fast else s.max_fall)
+        was_airborne, impact = not self.on_ground, self.vy
         self._move_and_collide(stage)
         if not stunned:
             self._ledge_assist(stage, inp)
+        if self.on_ground and was_airborne and impact > 2.0:  # touchdown: squash and kick up dust
+            self.land_timer = 6 if impact > 4.5 else 4
+            self.fx.append(("land", min(1.0, impact / 8.0)))
 
         if self.on_ground:
             self.aerial_jumps = 1
@@ -351,6 +357,7 @@ class Fighter:
                 self.standing_on = None
                 self.state = "jump"
                 self.events.append("jump")
+                self.fx.append(("jump", 0.5))
             elif self.aerial_jumps > 0:
                 self.aerial_jumps -= 1
                 self.vy = s.djump_vel
@@ -358,6 +365,7 @@ class Fighter:
                 self.vx = ax * air * 1.1 if ax else self.vx * 0.5
                 self.state = "djump"
                 self.events.append("djump")
+                self.fx.append(("djump", 1.0))
         if "DOWN" in inp.pressed and self.on_ground and self.standing_on is not None \
                 and self.standing_on.dropthrough:
             self.drop_timer = 10  # a tap drops through a thin platform; holding just ducks

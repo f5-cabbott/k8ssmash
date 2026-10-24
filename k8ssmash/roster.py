@@ -31,24 +31,25 @@ def pod() -> FighterStats:
         }))
 
 
-def helm() -> FighterStats:
-    """Heavy captain. Slow, hits like a tugboat, wheel boomerang."""
+def statefulset() -> FighterStats:
+    """Heavy keeper. Slow and sturdy, carries a storage drum, hits like a loaded pallet."""
     return FighterStats(
-        "Helm", (232, 190, 70), weight=122, run_speed=2.2, air_speed=2.0, jump_vel=-7.9, djump_vel=-8.0,
-        gravity=0.4, width=28, height=50, blurb="Heavy captain. Slow, hits hard.",
+        "StatefulSet", (240, 204, 58), weight=122, run_speed=2.2, air_speed=2.0, jump_vel=-7.9, djump_vel=-7.3,
+        gravity=0.4, width=28, height=50, blurb="Heavy keeper. Slow, sturdy, hits hard.",
         moves=moveset(**{
             "jab": Move("jab", 4, 3, 11, (8, -34, 26, 16), 4, 2.4, 0.02, 35, anim="jab"),
             "side": Move("side", 11, 4, 20, (8, -40, 38, 22), 12, 4.4, 0.07, 30, lunge=1.2, anim="side"),
-            "special": Move("helm install", 14, 1, 20, anim="cast", announce="helm install", projectile=ProjectileDef(
-                speed=4.0, width=20, height=20, damage=7, base_kb=3.0, kb_growth=0.04, angle=40, life=80,
-                spawn_dy=-30, color=(232, 190, 70), shape="wheel", boomerang=True, pierce=True,
-                hit_interval=30)),
-            "special_side": Move("chart charge", 14, 16, 22, (6, -42, 32, 38), 13, 4.6, 0.075, 30, dash=3.2,
-                                 anim="dash", announce="Chart Charge"),
-            "special_up": Move("anchors aweigh", 10, 10, 16, (-14, -70, 30, 52), 10, 4.2, 0.065, 82, rise=8.1,
-                               once_per_air=True, anim="rise", announce="Anchors Aweigh"),
-            "special_down": Move("release lock", 16, 5, 22, (-40, -26, 80, 26), 12, 4.0, 0.07, 55,
-                                 anim="down", announce="Release Lock"),
+            "special": Move("persistent volume", 14, 1, 20, anim="cast", announce="Persistent Volume",
+                            projectile=ProjectileDef(
+                                speed=4.0, width=20, height=20, damage=7, base_kb=3.0, kb_growth=0.04, angle=40, life=80,
+                                spawn_dy=-30, color=(110, 150, 210), shape="drum", boomerang=True, pierce=True,
+                                hit_interval=30)),
+            "special_side": Move("ordered rollout", 14, 16, 22, (6, -42, 32, 38), 13, 4.6, 0.075, 30, dash=3.2,
+                                 anim="dash", announce="Ordered Rollout"),
+            "special_up": Move("scale up", 10, 10, 16, (-14, -70, 30, 52), 10, 4.2, 0.065, 82, rise=8.1,
+                               once_per_air=True, anim="rise", announce="Scale Up"),
+            "special_down": Move("volume claim", 16, 5, 22, (-40, -26, 80, 26), 12, 4.0, 0.07, 55,
+                                 anim="down", announce="Volume Claim"),
         }))
 
 
@@ -74,7 +75,7 @@ def monkey() -> FighterStats:
     """Chaos Monkey: light and slippery, with trap-laying."""
     return FighterStats(
         "Chaos Monkey", (230, 130, 70), weight=84, width=22, height=42, run_speed=3.0, air_speed=2.7,
-        jump_vel=-8.8, djump_vel=-9.2, gravity=0.37, blurb="Light trickster. Lays traps.",
+        jump_vel=-8.8, djump_vel=-8.4, gravity=0.37, blurb="Light trickster. Lays traps.",
         moves=moveset(**{
             "special": Move("banana toss", 9, 1, 16, anim="cast", announce="Banana Toss", projectile=ProjectileDef(
                 speed=3.2, width=12, height=10, damage=7, base_kb=3.0, kb_growth=0.035, angle=60, life=420,
@@ -166,4 +167,4 @@ def oomkiller() -> FighterStats:
 
 
 def roster() -> list[FighterStats]:
-    return [pod(), helm(), kubectl(), monkey(), sidecar(), ingress(), operator(), oomkiller()]
+    return [pod(), statefulset(), kubectl(), monkey(), sidecar(), ingress(), operator(), oomkiller()]

@@ -7,102 +7,120 @@
  "anims": {
   "idle": {
    "row": 0,
-   "frames": 4,
-   "fps": 5,
+   "frames": 8,
+   "fps": 6,
    "loop": true
   },
   "run": {
    "row": 1,
-   "frames": 6,
-   "fps": 14,
+   "frames": 8,
+   "fps": 16,
    "loop": true
   },
   "jump": {
    "row": 2,
-   "frames": 1,
+   "frames": 3,
    "fps": 1,
    "loop": false
   },
   "fall": {
    "row": 3,
-   "frames": 1,
+   "frames": 2,
    "fps": 1,
    "loop": false
   },
   "djump": {
    "row": 4,
+   "frames": 4,
+   "fps": 18,
+   "loop": false
+  },
+  "land": {
+   "row": 5,
    "frames": 3,
-   "fps": 16,
+   "fps": 14,
    "loop": false
   },
   "shield": {
-   "row": 5,
-   "frames": 1,
-   "fps": 1,
-   "loop": false
-  },
-  "duck": {
    "row": 6,
    "frames": 1,
    "fps": 1,
    "loop": false
   },
-  "hurt": {
+  "duck": {
    "row": 7,
-   "frames": 2,
+   "frames": 1,
+   "fps": 1,
+   "loop": false
+  },
+  "hurt": {
+   "row": 8,
+   "frames": 3,
    "fps": 8,
    "loop": true
   },
-  "jab": {
-   "row": 8,
-   "frames": 3,
-   "fps": 0,
-   "loop": false
-  },
-  "side": {
+  "win": {
    "row": 9,
-   "frames": 3,
-   "fps": 0,
-   "loop": false
+   "frames": 4,
+   "fps": 7,
+   "loop": true
   },
-  "up": {
+  "lose": {
    "row": 10,
-   "frames": 3,
-   "fps": 0,
+   "frames": 1,
+   "fps": 1,
    "loop": false
   },
-  "down": {
+  "jab": {
    "row": 11,
    "frames": 3,
    "fps": 0,
    "loop": false
   },
-  "cast": {
+  "side": {
    "row": 12,
    "frames": 3,
    "fps": 0,
    "loop": false
   },
-  "dash": {
+  "up": {
    "row": 13,
    "frames": 3,
    "fps": 0,
    "loop": false
   },
-  "rise": {
+  "down": {
    "row": 14,
    "frames": 3,
    "fps": 0,
    "loop": false
   },
-  "counter": {
+  "cast": {
    "row": 15,
    "frames": 3,
    "fps": 0,
    "loop": false
   },
-  "buff": {
+  "dash": {
    "row": 16,
+   "frames": 3,
+   "fps": 0,
+   "loop": false
+  },
+  "rise": {
+   "row": 17,
+   "frames": 3,
+   "fps": 0,
+   "loop": false
+  },
+  "counter": {
+   "row": 18,
+   "frames": 3,
+   "fps": 0,
+   "loop": false
+  },
+  "buff": {
+   "row": 19,
    "frames": 3,
    "fps": 0,
    "loop": false
