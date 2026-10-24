@@ -12,6 +12,7 @@ CANVAS_W = 640
 CANVAS_H = 360
 WORLD_W = 960
 WORLD_H = 540
+MAX_CANVAS_W = 1296  # the widest play canvas (2.4:1); wider screens get pillarboxed beyond this
 FPS = 60
 
 RESOLUTIONS = [(1280, 720), (1920, 1080), (2560, 1440)]
@@ -66,6 +67,7 @@ class Config:
     width: int = 1920
     height: int = 1080
     fullscreen: bool = False
+    aspect: str = "auto"  # auto | 16:9 | 21:9: how wide the picture is (ultrawide screens show more of the stage)
     master_volume: float = 0.8  # scales both of the below
     sfx_volume: float = 0.55
     music_volume: float = 0.4  # music sits well under the effects
@@ -92,7 +94,7 @@ class Config:
             data = json.loads(path.read_text())
         except (OSError, ValueError):
             return cfg
-        names = ["width", "height", "fullscreen", "pad_name_filter", "items", "muted", "swap_pads", "colorblind", "event_name", "metrics_port", "metrics_host"]
+        names = ["width", "height", "fullscreen", "aspect", "pad_name_filter", "items", "muted", "swap_pads", "colorblind", "event_name", "metrics_port", "metrics_host"]
         if data.get("mix_version", 1) >= MIX_VERSION:
             names += ["master_volume", "sfx_volume", "music_volume"]
         for name in names:

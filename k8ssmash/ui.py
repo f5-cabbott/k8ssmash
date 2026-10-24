@@ -107,16 +107,17 @@ class ScaledDraw:
 
     def __init__(self, u: float):
         self.u = u
+        self.ox = 0  # world-px x offset, so scenery can be drawn centred on a wider canvas
 
     def _p(self, pt) -> tuple[int, int]:
-        return round(pt[0] * self.u), round(pt[1] * self.u)
+        return round(pt[0] * self.u) + self.ox, round(pt[1] * self.u)
 
     def _w(self, w: float) -> int:
         return int(w) if w <= 1 else max(1, round(w * self.u))  # hairlines stay hairlines
 
     def _r(self, rect) -> tuple[int, int, int, int]:
         x, y, w, h = rect
-        return round(x * self.u), round(y * self.u), max(1, round(w * self.u)), max(1, round(h * self.u))
+        return round(x * self.u) + self.ox, round(y * self.u), max(1, round(w * self.u)), max(1, round(h * self.u))
 
     def rect(self, surf, color, rect, width=0, border_radius=0):
         pygame.draw.rect(surf, color, self._r(rect), self._w(width) if width else 0,

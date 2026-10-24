@@ -103,6 +103,6 @@ class Training(Battle):
         ]
         for i, text in enumerate(lines):
             surf = self.font.render(text, False, (255, 235, 120) if i == 0 else (225, 230, 250), (10, 12, 28))
-            canvas.blit(surf, ((WORLD_W - surf.get_width()) // 2, 44 + i * 20))
+            canvas.blit(surf, ((canvas.get_width() - surf.get_width()) // 2, 44 + i * 20))
         hint = self.font.render("SELECT: dummy mode    START: reset    hold START: leave", False, (150, 160, 205))
-        canvas.blit(hint, ((WORLD_W - hint.get_width()) // 2, WORLD_H - 20))
+        canvas.blit(hint, ((canvas.get_width() - hint.get_width()) // 2, WORLD_H - 20))

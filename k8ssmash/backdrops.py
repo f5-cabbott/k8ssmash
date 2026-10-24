@@ -17,9 +17,10 @@ from k8ssmash.ui import ScaledDraw
 
 W, H = CANVAS_W, CANVAS_H  # design grid
 U = WORLD_W / CANVAS_W  # design -> world scale (1.5)
-MARGIN = 64  # layers are wider than the screen so they can slide with the camera (design px)
+MARGIN = 160  # layers extend this far past each side so they cover an ultrawide canvas and can slide with the camera
 CAM_LIMIT = 150
 WIDE = W + 2 * MARGIN  # width of a parallax layer in design px
+EXTRA = 170  # how far the floor grid runs past the play area on each side (design px)
 
 Color = tuple[int, int, int]
 
@@ -69,7 +70,7 @@ class Layer:
         self.surf, self.factor, self.y, self.drift, self.wrap, self.x = surf, factor, y, drift, wrap, x
 
     def draw(self, canvas: pygame.Surface, frame: int, cam: float) -> None:
-        ox = (self.x - MARGIN - cam * self.factor + frame * self.drift) * U
+        ox = (self.x - MARGIN - cam * self.factor + frame * self.drift) * U + (canvas.get_width() - WORLD_W) // 2
         oy = self.y * U
         if self.wrap:
             w = self.surf.get_width()
@@ -95,8 +96,16 @@ class Backdrop:
     def draw(self, canvas: pygame.Surface, frame: int, cam: float = 0.0) -> None:
         canvas.blit(self.sky, (0, 0))
         cam = max(-CAM_LIMIT, min(CAM_LIMIT, cam / U))  # the camera arrives in world px; scenery thinks in design px
+        off = (canvas.get_width() - WORLD_W) // 2  # on a wide canvas the arena sits in the middle
         for item in self.items:
-            item.draw(canvas, frame, cam)
+            if isinstance(item, Animated):
+                pd.ox = off
+                try:
+                    item.draw(canvas, frame, cam)
+                finally:
+                    pd.ox = 0
+            else:
+                item.draw(canvas, frame, cam)
 
 
 def _wide() -> pygame.Surface:
@@ -141,8 +150,8 @@ def grid_floor(canvas: pygame.Surface, frame: int, cam: float, horizon: int, col
         y = horizon + depth * u
         k = 0.25 + 0.75 * u
         boost = max(0.0, 1 - abs(u - pulse) / 0.09)
-        pd.line(canvas, _scale(color, (0.22 + 0.5 * k) * fade + boost * 0.35), (0, int(y)), (W, int(y)), 1 if u < 0.6 else 2)
-    pd.line(canvas, _scale(color, 1.0 * fade), (0, horizon), (W, horizon), 1)  # bright horizon seam
+        pd.line(canvas, _scale(color, (0.22 + 0.5 * k) * fade + boost * 0.35), (-EXTRA, int(y)), (W + EXTRA, int(y)), 1 if u < 0.6 else 2)
+    pd.line(canvas, _scale(color, 1.0 * fade), (-EXTRA, horizon), (W + EXTRA, horizon), 1)  # bright horizon seam
 
 
 def reflection(layer: pygame.Surface, ground: int, depth: int = 64, strength: int = 110) -> pygame.Surface:
@@ -199,11 +208,11 @@ def _tower(surf, x, top, w, ground, accent, rng, led_out=None, leds=True, dark=(
 
 
 # --- Datacenter: the server hall, lit like the Grid ---------------------------------------------
-def build_datacenter() -> Backdrop:
+def build_datacenter(canvas_w: int = WORLD_W) -> Backdrop:
     rng = random.Random(7)
     accent = ACCENT["datacenter"]
     horizon = 214
-    sky = dither_gradient(WORLD_W, WORLD_H, [(0, (2, 4, 14)), (0.35, (4, 10, 36)), (0.56, (8, 36, 92)), (0.595, (34, 150, 210)),
+    sky = dither_gradient(canvas_w, WORLD_H, [(0, (2, 4, 14)), (0.35, (4, 10, 36)), (0.56, (8, 36, 92)), (0.595, (34, 150, 210)),
                                  (0.6, (4, 10, 30)), (1.0, (1, 3, 12))], bands=26)
 
     far = _wide()
@@ -279,11 +288,11 @@ def build_datacenter() -> Backdrop:
 
 
 # --- Control Plane: the core chamber with a hologram of the helm wheel -----------------------------
-def build_controlplane() -> Backdrop:
+def build_controlplane(canvas_w: int = WORLD_W) -> Backdrop:
     rng = random.Random(11)
     accent, gold = ACCENT["controlplane"], SECOND["controlplane"]
     horizon = 236
-    sky = dither_gradient(WORLD_W, WORLD_H, [(0, (3, 6, 24)), (0.4, (8, 18, 62)), (0.62, (22, 58, 140)), (0.655, (110, 190, 255)),
+    sky = dither_gradient(canvas_w, WORLD_H, [(0, (3, 6, 24)), (0.4, (8, 18, 62)), (0.62, (22, 58, 140)), (0.655, (110, 190, 255)),
                                  (0.66, (4, 8, 28)), (1.0, (1, 3, 12))], bands=26)
 
     far = _wide()
@@ -360,11 +369,11 @@ def build_controlplane() -> Backdrop:
 
 
 # --- Node Pool: an amber hot-aisle pod bay with honeycomb pod cells --------------------------------
-def build_nodepool() -> Backdrop:
+def build_nodepool(canvas_w: int = WORLD_W) -> Backdrop:
     rng = random.Random(23)
     accent, cyan = ACCENT["nodepool"], SECOND["nodepool"]
     horizon = 222
-    sky = dither_gradient(WORLD_W, WORLD_H, [(0, (6, 2, 4)), (0.35, (22, 6, 8)), (0.56, (74, 22, 10)), (0.605, (255, 140, 34)),
+    sky = dither_gradient(canvas_w, WORLD_H, [(0, (6, 2, 4)), (0.35, (22, 6, 8)), (0.56, (74, 22, 10)), (0.605, (255, 140, 34)),
                                  (0.61, (10, 4, 6)), (1.0, (3, 1, 2))], bands=26)
 
     far = _wide()
@@ -456,17 +465,18 @@ def build_nodepool() -> Backdrop:
 
 
 BUILDERS = {"datacenter": build_datacenter, "controlplane": build_controlplane, "nodepool": build_nodepool}
-_backdrops: dict[str, Backdrop] = {}
+_backdrops: dict[tuple[str, int], Backdrop] = {}
 
 
-def get_backdrop(theme: str) -> Backdrop:
-    if theme not in _backdrops:
-        _backdrops[theme] = BUILDERS.get(theme, build_datacenter)()
-    return _backdrops[theme]
+def get_backdrop(theme: str, canvas_w: int = WORLD_W) -> Backdrop:
+    key = (theme, canvas_w)
+    if key not in _backdrops:
+        _backdrops[key] = BUILDERS.get(theme, build_datacenter)(canvas_w)
+    return _backdrops[key]
 
 
 def draw_backdrop(canvas: pygame.Surface, theme: str, frame: int, cam: float = 0.0) -> None:
-    get_backdrop(theme).draw(canvas, frame, cam)
+    get_backdrop(theme, canvas.get_width()).draw(canvas, frame, cam)
 
 
 def neon_px(surf: pygame.Surface, a, b, color: Color, w: int = 1) -> None:

@@ -10,6 +10,7 @@ from k8ssmash.stage import STAGES
 
 
 class Attract(Scene):
+    wide = True  # it shows a battle, which fills the whole canvas
     def __init__(self, app):
         super().__init__(app)
         stats = random.sample(roster(), 2)

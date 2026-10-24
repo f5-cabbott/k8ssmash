@@ -48,9 +48,10 @@ def test_display_gpu_path_and_screenshot(tmp_path):
     assert (cfg.width, cfg.height) == (2560, 1440)
 
 
-def test_display_software_fallback(tmp_path):
+def test_display_software_fallback(tmp_path, monkeypatch):
     from k8ssmash.render import Display
     pygame.init()
+    monkeypatch.setattr(Display, "desktop_size", staticmethod(lambda: (3440, 1440)))
     d = Display(Config(), prefer_gpu=False)
     assert not d.gpu and d.scale == 2
     d.present()

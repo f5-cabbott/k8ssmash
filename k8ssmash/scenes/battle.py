@@ -34,13 +34,12 @@ KO_REASONS = ["OOMKilled", "Evicted", "CrashLoopBackOff", "ImagePullBackOff", "T
 READY_STATUS = ["Pending...", "ContainerCreating...", "RUNNING!"]
 
 
-_VIGNETTE: pygame.Surface | None = None
+_VIGNETTES: dict[int, pygame.Surface] = {}
 
 
-def vignette() -> pygame.Surface:
-    """A soft dark-edged overlay, built once from a tiny gradient and smooth-scaled up."""
-    global _VIGNETTE
-    if _VIGNETTE is None:
+def vignette(width: int = WORLD_W) -> pygame.Surface:
+    """A soft dark-edged overlay, built once per canvas width from a tiny gradient and smooth-scaled up."""
+    if width not in _VIGNETTES:
         w, h = 64, 36
         small = pygame.Surface((w, h), pygame.SRCALPHA)
         for yy in range(h):
@@ -48,12 +47,13 @@ def vignette() -> pygame.Surface:
                 d = math.hypot((xx - w / 2) / (w / 2), (yy - h / 2) / (h / 2))
                 a = max(0.0, min(1.0, (d - 0.55) / 0.8)) ** 1.4
                 small.set_at((xx, yy), (0, 0, 8, int(255 * a)))
-        _VIGNETTE = pygame.transform.smoothscale(small, (WORLD_W, WORLD_H))
-    return _VIGNETTE
+        _VIGNETTES[width] = pygame.transform.smoothscale(small, (width, WORLD_H))
+    return _VIGNETTES[width]
 
 
 class Battle(Scene):
     native = (WORLD_W, WORLD_H)
+    wide = True  # takes the whole (possibly ultrawide) canvas: scenery fills it, the arena sits in the middle
     metrics_mode: str | None = None  # None: derived from who is human
 
     def __init__(self, app, stats: list[FighterStats], stage: Stage | None = None, stocks: int = 3,
@@ -373,10 +373,13 @@ class Battle(Scene):
 
     # --- drawing -------------------------------------------------------------------------
     def draw(self, canvas: pygame.Surface) -> None:
+        full = canvas
+        off = (full.get_width() - WORLD_W) // 2
+        canvas = full.subsurface((off, 0, WORLD_W, WORLD_H)) if off > 0 else full  # the 960x540 arena area
         live = [f for f in self.fighters if f.alive]
         cam = (sum(f.x for f in live) / len(live) - WORLD_W / 2) if live else 0.0
         self.cam += (cam - self.cam) * 0.05  # ease, so the scenery drifts rather than snaps
-        draw_backdrop(canvas, self.stage.theme, self.frame, self.cam)
+        draw_backdrop(full, self.stage.theme, self.frame, self.cam)
         for plat in self.stage.platforms:
             draw_platform(canvas, plat, self.stage.theme)
         for item in self.spawner.items:
@@ -390,9 +393,9 @@ class Battle(Scene):
         self.fx.draw(canvas)
         self._draw_hud(canvas)
         if self.paused_for_pad:
-            shade = pygame.Surface((WORLD_W, WORLD_H), pygame.SRCALPHA)
+            shade = pygame.Surface(full.get_size(), pygame.SRCALPHA)
             shade.fill((0, 0, 0, 180))
-            canvas.blit(shade, (0, 0))
+            full.blit(shade, (0, 0))
             who = " & ".join(f"P{s + 1}" for s in sorted(self.app.input.lost))
             self._center(canvas, "CONTROLLER DISCONNECTED", self.big, WORLD_H // 2 - 50)
             self._center(canvas, f"Reconnect {who} controller to resume", self.font, WORLD_H // 2 - 4)
@@ -403,23 +406,23 @@ class Battle(Scene):
         elif self.phase == "finished":
             self._center(canvas, "GAME!", self.huge, int(WORLD_H * 0.32), shadow=True)
         elif self.slowmo > 0:
-            self._draw_finale(canvas)
+            self._draw_finale(canvas, full)
         for i, (text, color, left) in enumerate(self.banners):
             slide = min(1.0, (BANNER_FRAMES - left) / 8)
             y = int(-30 + (84 + i * 34) * slide)
             self._center(canvas, text, self.big, y, color=color, shadow=True)
 
-    def _draw_finale(self, canvas: pygame.Surface) -> None:
+    def _draw_finale(self, canvas: pygame.Surface, full: pygame.Surface) -> None:
         """Final-KO beat: a soft vignette, cinematic bars and a fading title. Nothing flashes."""
         t = 1 - self.slowmo / SLOWMO_FRAMES
         k = min(1.0, t * 4) * min(1.0, self.slowmo / 24)  # ease in quickly, ease out gently
         k = k * k * (3 - 2 * k)  # smoothstep
-        veil = vignette()
+        veil = vignette(full.get_width())
         veil.set_alpha(int(200 * k))
-        canvas.blit(veil, (0, 0))
+        full.blit(veil, (0, 0))
         bar = int(20 * k)
-        pygame.draw.rect(canvas, (6, 6, 14), (0, 0, WORLD_W, bar))
-        pygame.draw.rect(canvas, (6, 6, 14), (0, WORLD_H - bar, WORLD_W, bar))
+        pygame.draw.rect(full, (6, 6, 14), (0, 0, full.get_width(), bar))
+        pygame.draw.rect(full, (6, 6, 14), (0, WORLD_H - bar, full.get_width(), bar))
         text = "TERMINATED"
         glyphs = [self.finale_font.render(c, False, (255, 232, 176)) for c in text]
         width = sum(g.get_width() for g in glyphs) + 5 * (len(text) - 1)
