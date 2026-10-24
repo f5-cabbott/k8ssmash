@@ -28,9 +28,9 @@ DEFAULT_KEYS = [
     },
 ]
 
-# Generic USB SNES clone (0079:0011) as seen by SDL on Linux: X=0 A=1 B=2 Y=3 L=4 R=5
-# Select=8 Start=9, D-pad on axes 0/1. Confirm with tools/padtest.py and override in config.
-# SNES layout -> B attack, A special, Y/X jump, L/R shield.
+# Generic USB SNES clone (0079:0011, SDL name 'USB Gamepad'). Verified on the real pads with tools/padtest.py:
+# X=0 A=1 B=2 Y=3 L=4 R=5 Select=8 Start=9, D-pad on axis 0 (left/right) and axis 1 (up/down).
+# SNES layout -> B attack, A special, Y/X jump, L/R shield. Override in config.json or with --rebind.
 DEFAULT_PAD = {
     "JUMP": [3, 0],
     "ATTACK": [2],

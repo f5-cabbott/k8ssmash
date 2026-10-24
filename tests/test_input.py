@@ -68,3 +68,9 @@ def test_swap_pads_exchanges_slots_and_persists():
     assert mgr.pads == ["B", "A"] and mgr.lost == {1} and cfg.swap_pads
     mgr.swap_pads()
     assert mgr.pads == ["A", "B"] and not cfg.swap_pads
+
+
+def test_default_pad_mapping_matches_the_real_snes_clones():
+    """Measured with tools/padtest.py on the booth pads: B=2 A=1 Y=3 X=0 L=4 R=5 Select=8 Start=9."""
+    from k8ssmash.config import DEFAULT_PAD
+    assert DEFAULT_PAD == {"JUMP": [3, 0], "ATTACK": [2], "SPECIAL": [1], "SHIELD": [4, 5], "START": [9], "SELECT": [8]}
