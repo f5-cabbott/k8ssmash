@@ -423,9 +423,9 @@ class Fighter:
             self.facing = inp.axis_x
         else:
             key = "special"
-        self._begin(self._pick(key))
+        self._begin(self._pick(key), special=True)
 
-    def _begin(self, move: Move | None) -> None:
+    def _begin(self, move: Move | None, special: bool = False) -> None:
         if move is None:
             return
         if move.once_per_air and not self.on_ground:
@@ -438,7 +438,8 @@ class Fighter:
         self.state = "attack"
         if move.announce:
             self.say(move.announce)
-            self.events.append("special")
+        # a swing and a shout: light normals grunt, heavy ones bark, specials yell
+        self.events.append("special" if special else ("attack_heavy" if move.damage >= 8 else "attack_light"))
 
     def _advance_move(self, inp: PlayerInput) -> None:
         m = self.move

@@ -131,20 +131,31 @@ def training() -> Song:
 
 
 def leaderboard() -> Song:
-    inst = dict(lead="brass", counter="strings", pad="strings", comp="toy_piano", arp="toy_piano", bass="bass_synth")
-    a = [(0, "maj"), (5, "maj"), (7, "maj"), (0, "maj"), (0, "maj"), (9, "min"), (5, "maj"), (7, "7")]
+    """Hall of Fame: a bouncy game-show romp with a polka detour and two key lifts to a big finish."""
+    inst = dict(lead="kazoo", counter="brass", pad="organ", comp="honky", arp="vibes", bass="rubber_bass")
+    a = [(0, "maj"), (0, "6"), (5, "maj"), (5, "min"), (0, "maj"), (9, "m7"), (2, "m7"), (7, "7")]
+    b = [(10, "maj"), (0, "maj"), (10, "maj"), (7, "7")] * 2
+    sw = dict(swing=0.14)
+    funk = dict(bass="funk", drums="funk", comp="stabs")
     secs = [
-        Sec(2, [(0, "maj"), (5, "maj")], layers=("pad", "drums"), drums="heroic", crash=False, gain=0.9),
-        Sec(8, a, layers=("lead", "counter", "pad", "arp", "bass", "drums"), mel="A", arp="up", bass="rootfifth", drums="march"),
-        Sec(8, [(5, "maj"), (10, "maj"), (0, "maj"), (7, "7")] * 2, layers=FULL, mel="B",
-            inst={"lead": "kazoo", "counter": "brass", "comp": "honky"}, comp="oompah", arp="broken", bass="oompah", drums="march"),
-        Sec(8, a, layers=FULL, mel="A", arp="updown", bass="rootfifth", drums="heroic", gain=1.06),
-        Sec(8, [(5, "maj"), (10, "maj"), (0, "maj"), (7, "7")] * 2, layers=FULL, mel="B", transpose=2,
-            inst={"lead": "brass", "counter": "kazoo", "comp": "honky"}, comp="oompah", arp="updown", bass="oompah",
-            drums="heroic", gain=1.08),
-        Sec(2, [(5, "maj7"), (0, "maj7")], layers=("pad", "arp"), arp="up", crash=False, gain=0.85),
+        Sec(2, [(0, "maj"), (7, "7")], layers=("lead", "pad", "bass", "drums"), mel="F", inst={"lead": "brass"},
+            drums="tag", bass="rootfifth", crash=False),
+        Sec(8, a, layers=("lead", "counter", "comp", "arp", "bass", "drums"), mel="A", comp="charleston", arp="broken",
+            bass="bounce", drums="funk", **sw),
+        Sec(8, b, layers=FULL, mel="B", inst={"lead": "vibes", "counter": "kazoo", "comp": "organ", "arp": "marimba"},
+            arp="updown", gain=1.05, **funk, **sw),
+        Sec(4, [(0, "maj"), (5, "maj"), (7, "7"), (0, "maj")], meter="6/8", layers=("lead", "comp", "bass", "drums"),
+            mel="P", inst={"lead": "whistle", "comp": "accordion", "bass": "tuba"}, comp="six8", bass="six8", drums="six8"),
+        Sec(8, a, layers=FULL, mel="A", transpose=2, inst={"lead": "brass", "counter": "kazoo"}, comp="charleston",
+            arp="updown", bass="bounce", drums="funk", gain=1.08, **sw),
+        Sec(8, b, layers=FULL, mel="B", transpose=2, inst={"lead": "brass", "counter": "kazoo", "comp": "organ", "arp": "marimba"},
+            arp="updown", gain=1.1, **funk, **sw),
+        Sec(8, a, layers=FULL, mel="A", transpose=5, inst={"lead": "brass", "counter": "kazoo", "arp": "steel"},
+            comp="charleston", arp="updown", bass="bounce", drums="heroic", gain=1.14, **sw),
+        Sec(2, [(5, "maj"), (0, "maj")], layers=("lead", "pad", "bass", "drums"), mel="F", transpose=5, inst={"lead": "brass"},
+            drums="tag", bass="pedal", crash=True),
     ]
-    return Song("leaderboard", 108, 46, "major", inst, secs, seed=71, reverb=2.2, wet=0.28, lead_center=70)
+    return Song("leaderboard", 128, 53, "major", inst, secs, seed=71, reverb=1.9, wet=0.24, lead_center=72)
 
 
 def results() -> Song:

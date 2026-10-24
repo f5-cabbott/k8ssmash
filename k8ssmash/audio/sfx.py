@@ -7,7 +7,7 @@ import numpy as np
 from k8ssmash.audio import instruments as I
 
 SR = I.SR
-EVENTS = ("jump", "djump", "special", "hit_light", "hit_heavy", "ko")
+EVENTS = ("jump", "djump", "attack_light", "attack_heavy", "special", "hit_light", "hit_heavy", "ko")
 
 VOICES = {  # fighter -> (timbre, base frequency)
     "Pod": ("bubble", 520), "StatefulSet": ("horn", 130), "Kubectl": ("digital", 880), "Chaos Monkey": ("squeak", 900),
@@ -201,10 +201,119 @@ def growl(b: float, ev: str) -> np.ndarray:
     return mixin(rumble(b * 4, b * 0.7, 1.0, 2.2), crunch(0.9, 150, 3000, 3), 0, 0.5)
 
 
+# --- fighting-game building blocks ---------------------------------------------------------------
+VOWELS = {  # formant frequencies (F1, F2, F3) in Hz
+    "ah": (800, 1200, 2800), "eh": (530, 1840, 2480), "oh": (570, 840, 2410), "ee": (270, 2290, 3010),
+    "uh": (520, 1190, 2390),
+}
+# fighter -> (pitch Hz, light vowel, shout vowel, grit 0..1, ring-mod Hz for robot voices, breathiness)
+VOX = {
+    "Pod": (300, "eh", "ee", 0.1, 0, 0.5), "StatefulSet": (118, "uh", "ah", 0.5, 0, 0.6),
+    "Kubectl": (190, "eh", "ah", 0.2, 72, 0.2), "Chaos Monkey": (430, "ee", "oh", 0.1, 0, 0.7),
+    "Sidecar": (235, "eh", "ah", 0.25, 0, 0.5), "Ingress": (160, "oh", "ah", 0.3, 0, 0.4),
+    "Operator": (335, "eh", "ee", 0.1, 0, 0.5), "OOMKiller": (84, "uh", "oh", 0.9, 0, 0.8),
+}
+
+
+def whoosh(dur: float, rising: bool = True, power: float = 0.6, seed: int = 4) -> np.ndarray:
+    """A swing through the air: noise whose brightness sweeps across three bands."""
+    n = int(dur * SR)
+    t = np.linspace(0, 1, n)
+    noise_ = I.noise(n, seed)
+    out = np.zeros(n)
+    for lo, hi, peak in ((250, 900, 0.2), (900, 2600, 0.5), (2600, 7000, 0.8)):
+        centre = peak if rising else 1 - peak
+        weight = np.exp(-((t - centre) / 0.3) ** 2)
+        out += I.bp(noise_, lo, hi) * weight * (1.0 if hi < 3000 else 0.6)
+    env = np.sin(np.pi * np.clip(t, 0, 1)) ** 1.4
+    return out * env * (0.5 + power)
+
+
+def punch(power: float, seed: int = 1) -> np.ndarray:
+    """A layered impact: a sharp crack, a slap, a thump and (for heavy hits) a low boom, like arcade fighters."""
+    dur = 0.14 + 0.3 * power
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    crack = I.hp(I.noise(n, seed), 3000) * np.exp(-t * 700) * 1.0
+    slap = I.bp(I.noise(n, seed + 1), 500, 3200) * np.exp(-t * (55 - 25 * power)) * 0.9
+    thump = np.sin(2 * np.pi * np.cumsum(60 + 110 * np.exp(-t * 45) + 40 * (1 - power)) / SR) * np.exp(-t * (24 - 12 * power)) * (0.8 + power)
+    out = crack * (0.7 + 0.3 * power) + slap + thump
+    if power > 0.5:
+        boom = np.sin(2 * np.pi * np.cumsum(46 + 40 * np.exp(-t * 20)) / SR) * np.exp(-t * 7) * 1.3
+        tail = I.lp(I.noise(n, seed + 2), 900) * np.exp(-t * 10) * 0.7
+        out = out + boom * (power - 0.4) + tail * (power - 0.3)
+    return out
+
+
+def voice(pitch: float, end_pitch: float, dur: float, vowel_a: str, vowel_b: str, grit: float = 0.2,
+          ring: float = 0.0, breath: float = 0.5, hit: bool = True) -> np.ndarray:
+    """A shouted syllable: a glottal buzz gliding in pitch through two vowels' formants, with breath, grit and
+    an optional ring-modulator for robot voices."""
+    n = int(dur * SR)
+    t = np.linspace(0, 1, n)
+    f = pitch + (end_pitch - pitch) * t ** 0.8
+    f = f * (1 + 0.012 * np.sin(2 * np.pi * 7 * np.arange(n) / SR))
+    source = I.osc("saw", f, n) * 0.8 + I.osc("pulse25", f * 1.003, n) * 0.4
+
+    def vowel(name: str) -> np.ndarray:
+        out = np.zeros(n)
+        for freq, gain in zip(VOWELS[name], (1.0, 0.7, 0.35)):
+            out += I.bp(source, freq * 0.88, freq * 1.12, 2) * gain
+        return out
+
+    mix = t
+    body = I.lp(source, 420) * 0.55  # the chest: a voice keeps its fundamental alongside the formants
+    sig = vowel(vowel_a) * (1 - mix) + vowel(vowel_b) * mix + body
+    secs = np.arange(n) / SR
+    env = np.minimum(1.0, secs / 0.008) * np.exp(-np.maximum(0, secs - dur * 0.45) * (3.5 / dur))
+    sig = sig * env
+    if hit:  # the "h" of a "HAH!": a burst of breath before the vowel
+        puff = I.bp(I.noise(n, 11), 1200, 5200) * np.exp(-secs * 38) * breath * 1.6
+        sig = sig + puff
+    sig = sig + I.bp(I.noise(n, 12), 900, 4500) * env * breath * 0.25
+    if ring:
+        sig = sig * (0.45 + 0.55 * np.sin(2 * np.pi * ring * secs))
+    if grit:
+        sig = np.tanh(sig * (1 + grit * 5)) / np.tanh(1 + grit * 5)
+    return sig
+
+
+def _norm(x: np.ndarray, peak: float = 1.0) -> np.ndarray:
+    return x / (np.max(np.abs(x)) or 1.0) * peak
+
+
+def fighter_attack(fighter: str, event: str) -> np.ndarray:
+    """A swing plus a battle cry. Both layers are levelled first so the voice leads and the whoosh supports it."""
+    pitch, va, vb, grit, ring, breath = VOX[fighter]
+    if event == "attack_light":  # a quick "hup!"
+        shout = voice(pitch * 1.15, pitch * 0.95, 0.12, va, va, grit, ring, breath)
+        return mixin(_norm(whoosh(0.13, True, 0.35, 7), 0.35), _norm(shout, 0.95), 0.0)
+    if event == "attack_heavy":  # a committed "HAH!"
+        shout = voice(pitch * 1.25, pitch * 0.78, 0.26, va, vb, grit, ring, breath)
+        return mixin(_norm(whoosh(0.24, True, 0.8, 8), 0.4), _norm(shout, 1.0), 0.02)
+    # special: the big rising shout, with a trace of the fighter's own timbre underneath
+    shout = voice(pitch * 0.9, pitch * 1.7, 0.42, va, vb, min(1.0, grit + 0.15), ring, breath)
+    cast = mixin(_norm(whoosh(0.38, True, 1.0, 9), 0.45), _norm(shout, 1.0), 0.03)
+    return mixin(cast, _norm(fighter_flavor(fighter, "special"), 0.3), 0.0)
+
+
+def fighter_flavor(fighter: str, event: str) -> np.ndarray:
+    timbre, base = VOICES[fighter]
+    return TIMBRES[timbre](float(base), event)
+
+
 TIMBRES = {"bubble": bubble, "horn": horn, "digital": digital, "squeak": squeak, "servo": servo, "portal": portal,
            "dtmf": dtmf, "growl": growl}
 
 
 def fighter_sound(fighter: str, event: str) -> np.ndarray:
-    timbre, base = VOICES[fighter]
-    return TIMBRES[timbre](float(base), "hit" if event == "hit_light" else event)
+    pitch, va, vb, grit, ring, breath = VOX[fighter]
+    if event in ("attack_light", "attack_heavy", "special"):
+        return fighter_attack(fighter, event)
+    if event in ("hit_light", "hit_heavy"):  # a meaty impact with a hint of the attacker's own character
+        power = 0.35 if event == "hit_light" else 0.92
+        return mixin(punch(power, seed=len(fighter)), fighter_flavor(fighter, "hit" if event == "hit_light" else event), 0.0, 0.35)
+    if event == "ko":  # the timbre's fall plus a long falling scream
+        scream = voice(pitch * 2.1, pitch * 0.55, 0.9, vb, va, min(1.0, grit + 0.2), ring, breath * 0.5, hit=False)
+        return mixin(_norm(fighter_flavor(fighter, "ko"), 0.6), _norm(scream, 1.0), 0.0)
+    return fighter_flavor(fighter, event)

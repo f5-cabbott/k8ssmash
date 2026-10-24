@@ -127,11 +127,14 @@ def test_every_fighter_has_a_full_distinct_sound_set():
 
 
 def test_effects_are_louder_than_music():
-    def rms(path):
-        return float(np.sqrt((_pcm(path).mean(axis=1) ** 2).mean()))
+    def rms(path, seconds=None):
+        a = _pcm(path).mean(axis=1)
+        if seconds:  # the body of a sound, ignoring its long quiet tail
+            a = a[: int(seconds * pygame.mixer.get_init()[0])]
+        return float(np.sqrt((a ** 2).mean()))
     music = np.mean([rms(ASSETS / f"{n}.ogg") for n in MUSIC]) * Config().music_volume
     for fighter in VOICES:
-        sfx = rms(ASSETS / f"{slug(fighter)}__hit_heavy.wav") * Config().sfx_volume
+        sfx = rms(ASSETS / f"{slug(fighter)}__hit_heavy.wav", 0.15) * Config().sfx_volume
         assert sfx > music * 2.0, (fighter, sfx, music)  # at least 6 dB over the music
 
 
@@ -208,3 +211,60 @@ def test_battle_hits_use_the_attackers_sound_and_pan(app):
     assert b.pan_of(v) > 0.3 and b.pan_of(b.fighters[0]) > 0
     v.x = 80
     assert b.pan_of(v) < -0.3
+
+
+# --- fighting-game attack sounds -------------------------------------------------------------------
+def test_normals_and_specials_have_their_own_swing_and_shout(app):
+    from k8ssmash.fighter import Fighter
+    from k8ssmash.input import PlayerInput
+    from k8ssmash.stage import datacenter_stage
+    st = datacenter_stage()
+    f = Fighter(roster()[0], 0)
+    f.spawn(st.spawns[0], 1)
+    inp = PlayerInput()
+    inp.update(set()); f.update(inp, st)
+    inp.update({"ATTACK"}); f.update(inp, st)
+    assert f.events[-1] == "attack_light"  # a jab is a light grunt
+    f.events.clear(); f.move = None; f.state = "idle"
+    inp.update(set()); f.update(inp, st)
+    f.events.clear(); f.move = None; f.state = "idle"
+    inp.update({"ATTACK", "RIGHT"}); f.update(inp, st)
+    assert f.events[-1] == "attack_heavy"  # a side attack is heavier
+    f.events.clear(); f.move = None; f.state = "idle"
+    inp.update(set()); f.update(inp, st)
+    inp.update({"SPECIAL"}); f.update(inp, st)
+    assert f.events[-1] == "special"
+
+
+def test_every_fighter_has_voiced_attacks_and_punchy_hits():
+    for fighter in VOICES:
+        for event in ("attack_light", "attack_heavy", "special", "hit_light", "hit_heavy", "ko"):
+            assert (ASSETS / f"{slug(fighter)}__{event}.wav").stat().st_size > 2500, (fighter, event)
+    for event in ("attack_light", "attack_heavy", "special", "hit_light", "hit_heavy"):
+        assert (ASSETS / f"{event}.wav").exists()  # the generic fallbacks
+
+
+def _low_share(a, sr):
+    """Share of the shout's energy below 250 Hz: high for gravelly voices, near zero for squeaky ones."""
+    seg = a[:12000]
+    spec = np.abs(np.fft.rfft(seg * np.hanning(len(seg)))) ** 2
+    freqs = np.fft.rfftfreq(len(seg), 1 / sr)
+    return float(spec[(freqs > 50) & (freqs < 250)].sum() / spec[(freqs > 50) & (freqs < 4000)].sum())
+
+
+def test_fighter_voices_are_distinct():
+    """Each fighter shouts in their own voice: a gravelly reaper and a deep keeper, mid robots, a squeaky monkey."""
+    sr = pygame.mixer.get_init()[0] if pygame.mixer.get_init() else 44100
+    low = {f: _low_share(_pcm(ASSETS / f"{slug(f)}__attack_heavy.wav").mean(axis=1), sr) for f in VOICES}
+    assert low["OOMKiller"] > 0.5 and low["StatefulSet"] > 0.5  # deep voices
+    assert low["Chaos Monkey"] < 0.1 and low["Pod"] < 0.1 and low["Operator"] < 0.1  # high voices
+    assert low["OOMKiller"] > low["Kubectl"]  # and the reaper is the deepest
+
+
+def test_impacts_are_meatier_than_the_old_blips():
+    """A heavy hit should carry real low-end weight, unlike a chiptune beep."""
+    a = _pcm(ASSETS / "hit_heavy.wav").mean(axis=1)
+    sr = pygame.mixer.get_init()[0]
+    spec = np.abs(np.fft.rfft(a[: sr // 2]))
+    freqs = np.fft.rfftfreq(len(a[: sr // 2]), 1 / sr)
+    assert spec[freqs < 200].sum() / spec.sum() > 0.25

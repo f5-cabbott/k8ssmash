@@ -94,8 +94,15 @@ def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     for old in OUT.glob("*"):
         old.unlink()  # regenerate cleanly: no stale files from earlier versions
-    for name, data in generic_sfx().items():
-        write_wav(OUT / f"{name}.wav", finish_sfx(np.asarray(data), target_rms=0.2))
+    generic = generic_sfx()
+    # fighting-game style fallbacks: swings, meaty impacts and a battle-cry whoosh (a fighter's own sounds replace these)
+    generic["attack_light"] = sfx.whoosh(0.14, True, 0.4, 7)
+    generic["attack_heavy"] = sfx.mixin(sfx.whoosh(0.26, True, 0.9, 8), sfx.thump(90, 0.2, 12), 0.1, 0.6)
+    generic["special"] = sfx.mixin(sfx.whoosh(0.4, True, 1.0, 9), sfx.voice(220, 380, 0.4, "eh", "ah", 0.3), 0.04, 0.8)
+    generic["hit_light"] = sfx.punch(0.35)
+    generic["hit_heavy"] = sfx.punch(0.92)
+    for name, data in generic.items():
+        write_wav(OUT / f"{name}.wav", finish_sfx(np.asarray(data), target_rms=0.19))
     for fighter in sfx.VOICES:
         slug = fighter.lower().replace(" ", "_")
         for event in sfx.EVENTS:
