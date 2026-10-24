@@ -37,13 +37,13 @@ def test_display_gpu_path_and_screenshot(tmp_path):
     pygame.init()
     cfg = Config()
     d = Display(cfg)
-    assert d.gpu and d.screen.get_size() == (640, 360)
+    assert d.gpu and d.screen.get_size() == (960, 540)
     d.canvas.fill((10, 20, 30))
     d.present()
     out = tmp_path / "s.png"
     d.screenshot(out)
     img = pygame.image.load(str(out))
-    assert img.get_size() == (640 * d.scale, 360 * d.scale)
+    assert img.get_size() == (960 * d.scale, 540 * d.scale)
     d.cycle_resolution()
     assert (cfg.width, cfg.height) == (2560, 1440)
 
@@ -52,7 +52,7 @@ def test_display_software_fallback(tmp_path):
     from k8ssmash.render import Display
     pygame.init()
     d = Display(Config(), prefer_gpu=False)
-    assert not d.gpu and d.scale == 3
+    assert not d.gpu and d.scale == 2
     d.present()
     d.screenshot(tmp_path / "s.png")
 
@@ -74,3 +74,49 @@ def test_default_pad_mapping_matches_the_real_snes_clones():
     """Measured with tools/padtest.py on the booth pads: B=2 A=1 Y=3 X=0 L=4 R=5 Select=8 Start=9."""
     from k8ssmash.config import DEFAULT_PAD
     assert DEFAULT_PAD == {"JUMP": [3, 0], "ATTACK": [2], "SPECIAL": [1], "SHIELD": [4, 5], "START": [9], "SELECT": [8]}
+
+
+def test_menus_keep_their_layout_when_drawn_on_the_world_canvas(tmp_path):
+    """Menu scenes draw on a 640x360 grid and are scaled up to the 960x540 world; battles draw natively."""
+    from k8ssmash.render import Display
+    from k8ssmash.scenes.base import Scene
+    from k8ssmash.scenes.battle import Battle
+    pygame.init()
+    d = Display(Config())
+
+    class Menu(Scene):
+        def draw(self, canvas):
+            assert canvas.get_size() == (640, 360)  # the scene sees its own design size
+            canvas.fill((200, 0, 0))
+            pygame.draw.rect(canvas, (0, 0, 255), (320, 180, 320, 180))  # bottom-right quarter
+
+    d.draw_scene(Menu(None))
+    assert d.canvas.get_at((100, 100))[:3] == (200, 0, 0)
+    assert d.canvas.get_at((900, 500))[:3] == (0, 0, 255)  # quarter maps to the same quarter of the bigger canvas
+    assert Battle.native == (960, 540)
+
+
+def test_windows_always_fit_the_desktop(monkeypatch):
+    """On an ultrawide (3440x1440) a 2560x1440 window ran off the top of the screen; sizes now shrink to fit."""
+    from k8ssmash.render import Display
+    monkeypatch.setattr(Display, "desktop_size", staticmethod(lambda: (3440, 1440)))
+    w, h = Display.fit_to_desktop(2560, 1440)
+    assert h <= 1440 * 0.86 and abs(w / h - 16 / 9) < 0.02  # still 16:9, with room for the title bar
+    assert Display.fit_to_desktop(1920, 1080) == (1920, 1080)  # already fits: untouched
+    assert Display.fit_to_desktop(1280, 720) == (1280, 720)
+    monkeypatch.setattr(Display, "desktop_size", staticmethod(lambda: (1366, 768)))
+    w, h = Display.fit_to_desktop(1920, 1080)
+    assert w <= 1366 and h <= 768 * 0.86
+
+
+def test_f10_only_cycles_through_sizes_that_fit(monkeypatch):
+    from k8ssmash.render import Display
+    pygame.init()
+    monkeypatch.setattr(Display, "desktop_size", staticmethod(lambda: (3440, 1440)))
+    cfg = Config()
+    d = Display(cfg)
+    seen = set()
+    for _ in range(6):
+        d.cycle_resolution()
+        seen.add((cfg.width, cfg.height))
+    assert (2560, 1440) not in seen and seen <= {(1280, 720), (1920, 1080)}

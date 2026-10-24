@@ -9,7 +9,7 @@ from k8ssmash import ui
 from k8ssmash.ai import SimpleAI
 from k8ssmash.audio_manager import MUSIC_FOR_THEME
 from k8ssmash.backdrops import draw_backdrop, draw_platform
-from k8ssmash.config import CANVAS_H, CANVAS_W, FPS
+from k8ssmash.config import FPS, WORLD_H, WORLD_W
 from k8ssmash.fighter import (BUFF_ARMOR, BUFF_GUARD, BUFF_HASTE, BUFF_POWER, CALLOUT_FRAMES, Fighter,
                               FighterStats, Projectile)
 from k8ssmash.fx import draw_effect, draw_projectile
@@ -47,11 +47,12 @@ def vignette() -> pygame.Surface:
                 d = math.hypot((xx - w / 2) / (w / 2), (yy - h / 2) / (h / 2))
                 a = max(0.0, min(1.0, (d - 0.55) / 0.8)) ** 1.4
                 small.set_at((xx, yy), (0, 0, 8, int(255 * a)))
-        _VIGNETTE = pygame.transform.smoothscale(small, (CANVAS_W, CANVAS_H))
+        _VIGNETTE = pygame.transform.smoothscale(small, (WORLD_W, WORLD_H))
     return _VIGNETTE
 
 
 class Battle(Scene):
+    native = (WORLD_W, WORLD_H)
     metrics_mode: str | None = None  # None: derived from who is human
 
     def __init__(self, app, stats: list[FighterStats], stage: Stage | None = None, stocks: int = 3,
@@ -207,7 +208,7 @@ class Battle(Scene):
     @staticmethod
     def pan_of(f: Fighter) -> float:
         """Stereo position from where the fighter is on screen, kept gentle so it never hard-pans."""
-        return max(-0.8, min(0.8, (f.x - CANVAS_W / 2) / CANVAS_W * 1.8))
+        return max(-0.8, min(0.8, (f.x - WORLD_W / 2) / WORLD_W * 1.8))
 
     def announce(self, text: str, color=(255, 255, 255)) -> None:
         self.banners = (self.banners + [[text, color, BANNER_FRAMES]])[-2:]
@@ -259,7 +260,7 @@ class Battle(Scene):
     def _explode(self, p: Projectile) -> None:
         d = p.defn
         self.effects.append(("boom", p.x, p.y, 20))
-        self.app.audio.play("explosion", pan=max(-0.8, min(0.8, (p.x - CANVAS_W / 2) / CANVAS_W * 1.8)))
+        self.app.audio.play("explosion", pan=max(-0.8, min(0.8, (p.x - WORLD_W / 2) / WORLD_W * 1.8)))
         for vic in self.fighters:
             if not vic.alive or (vic is p.owner and d.harmless_to_owner):
                 continue
@@ -320,7 +321,7 @@ class Battle(Scene):
     # --- drawing -------------------------------------------------------------------------
     def draw(self, canvas: pygame.Surface) -> None:
         live = [f for f in self.fighters if f.alive]
-        cam = (sum(f.x for f in live) / len(live) - CANVAS_W / 2) if live else 0.0
+        cam = (sum(f.x for f in live) / len(live) - WORLD_W / 2) if live else 0.0
         self.cam += (cam - self.cam) * 0.05  # ease, so the scenery drifts rather than snaps
         draw_backdrop(canvas, self.stage.theme, self.frame, self.cam)
         for plat in self.stage.platforms:
@@ -335,23 +336,23 @@ class Battle(Scene):
             draw_effect(canvas, kind, x, y, left)
         self._draw_hud(canvas)
         if self.paused_for_pad:
-            shade = pygame.Surface((CANVAS_W, CANVAS_H), pygame.SRCALPHA)
+            shade = pygame.Surface((WORLD_W, WORLD_H), pygame.SRCALPHA)
             shade.fill((0, 0, 0, 180))
             canvas.blit(shade, (0, 0))
             who = " & ".join(f"P{s + 1}" for s in sorted(self.app.input.lost))
-            self._center(canvas, "CONTROLLER DISCONNECTED", self.big, 130)
-            self._center(canvas, f"Reconnect {who} controller to resume", self.font, 175)
+            self._center(canvas, "CONTROLLER DISCONNECTED", self.big, WORLD_H // 2 - 50)
+            self._center(canvas, f"Reconnect {who} controller to resume", self.font, WORLD_H // 2 - 4)
             return
         if self.phase == "ready":
             text = READY_STATUS[min(2, self.frame * 3 // READY_FRAMES)]
-            self._center(canvas, text, self.huge if len(text) < 12 else self.big, 140, shadow=True)
+            self._center(canvas, text, self.huge if len(text) < 12 else self.big, int(WORLD_H * 0.36), shadow=True)
         elif self.phase == "finished":
-            self._center(canvas, "GAME!", self.huge, 120, shadow=True)
+            self._center(canvas, "GAME!", self.huge, int(WORLD_H * 0.32), shadow=True)
         elif self.slowmo > 0:
             self._draw_finale(canvas)
         for i, (text, color, left) in enumerate(self.banners):
             slide = min(1.0, (BANNER_FRAMES - left) / 8)
-            y = int(-30 + (66 + i * 34) * slide)
+            y = int(-30 + (84 + i * 34) * slide)
             self._center(canvas, text, self.big, y, color=color, shadow=True)
 
     def _draw_finale(self, canvas: pygame.Surface) -> None:
@@ -363,12 +364,12 @@ class Battle(Scene):
         veil.set_alpha(int(200 * k))
         canvas.blit(veil, (0, 0))
         bar = int(20 * k)
-        pygame.draw.rect(canvas, (6, 6, 14), (0, 0, CANVAS_W, bar))
-        pygame.draw.rect(canvas, (6, 6, 14), (0, CANVAS_H - bar, CANVAS_W, bar))
+        pygame.draw.rect(canvas, (6, 6, 14), (0, 0, WORLD_W, bar))
+        pygame.draw.rect(canvas, (6, 6, 14), (0, WORLD_H - bar, WORLD_W, bar))
         text = "TERMINATED"
         glyphs = [self.finale_font.render(c, False, (255, 232, 176)) for c in text]
         width = sum(g.get_width() for g in glyphs) + 5 * (len(text) - 1)
-        x, y = (CANVAS_W - width) // 2, 150 - int((1 - k) * 8)
+        x, y = (WORLD_W - width) // 2, int(WORLD_H * 0.42) - int((1 - k) * 8)
         for g in glyphs:
             shadow = self.finale_font.render(" ", False, (0, 0, 0))
             g.set_alpha(int(235 * k))
@@ -378,7 +379,7 @@ class Battle(Scene):
     def _center(self, canvas: pygame.Surface, text: str, font: pygame.font.Font, y: int,
                 color=(255, 255, 255), shadow: bool = False) -> None:
         surf = font.render(text, False, color)
-        x = (CANVAS_W - surf.get_width()) // 2
+        x = (WORLD_W - surf.get_width()) // 2
         if shadow:
             canvas.blit(font.render(text, False, (16, 12, 28)), (x + 2, y + 2))
         canvas.blit(surf, (x, y))
@@ -446,8 +447,8 @@ class Battle(Scene):
     def _draw_hud(self, canvas: pygame.Surface) -> None:
         for f in self.fighters:
             color = self.colors[f.slot]
-            x = 22 if f.slot == 0 else CANVAS_W - 22 - 250
-            panel = pygame.Rect(x, 286, 250, 66)
+            x = 26 if f.slot == 0 else WORLD_W - 26 - 250
+            panel = pygame.Rect(x, WORLD_H - 82, 250, 66)
             ui.window(canvas, panel, accent=color)
             # portrait: head and shoulders from the idle frame
             sprites = sprite_set(f.stats.name)
@@ -476,4 +477,4 @@ class Battle(Scene):
                     pygame.draw.rect(canvas, color, (cx - 5, cy - 5, 10, 10))
         secs = max(self.time_left // FPS, 0)
         t = self.big.render(f"{secs // 60}:{secs % 60:02d}", False, (230, 230, 240))
-        canvas.blit(t, ((CANVAS_W - t.get_width()) // 2, 10))
+        canvas.blit(t, ((WORLD_W - t.get_width()) // 2, 14))

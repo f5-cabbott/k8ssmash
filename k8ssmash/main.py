@@ -151,7 +151,7 @@ class App:
             while acc >= STEP:
                 self.step()
                 acc -= STEP
-            self.scene.draw(self.display.canvas)
+            self.display.draw_scene(self.scene)
             if self.show_fps:
                 text = f"{clock.get_fps():.0f} fps  worst {worst * 1000:.0f} ms"
                 self.display.canvas.blit(self._fps_font.render(text, False, (255, 255, 0), (0, 0, 0)), (4, 4))

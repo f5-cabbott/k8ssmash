@@ -91,7 +91,8 @@ the change, then enable it again.
 
 ## 7. Display modes
 
-The game draws a 640x360 canvas and SDL scales it to the screen: exactly 3x at 1080p and 4x at 1440p. If
+The game draws a 960x540 world and SDL scales it to the screen: exactly 2x at 1080p, and about 2.67x at 1440p (SDL
+scales on the GPU, so the extra fraction costs nothing). If
 the Pi picks the wrong mode for your TV, force one on the kernel command line
 (`/boot/firmware/cmdline.txt`, keep it a single line, append):
 

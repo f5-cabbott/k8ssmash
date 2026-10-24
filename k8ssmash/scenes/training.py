@@ -4,7 +4,7 @@ from __future__ import annotations
 import pygame
 
 from k8ssmash.ai import SimpleAI
-from k8ssmash.config import CANVAS_W, FPS
+from k8ssmash.config import FPS, WORLD_H, WORLD_W
 from k8ssmash.fighter import Fighter, FighterStats
 from k8ssmash.input import PlayerInput
 from k8ssmash.scenes.battle import READY_FRAMES, Battle
@@ -103,6 +103,6 @@ class Training(Battle):
         ]
         for i, text in enumerate(lines):
             surf = self.font.render(text, False, (255, 235, 120) if i == 0 else (225, 230, 250), (10, 12, 28))
-            canvas.blit(surf, ((CANVAS_W - surf.get_width()) // 2, 8 + i * 20))
+            canvas.blit(surf, ((WORLD_W - surf.get_width()) // 2, 44 + i * 20))
         hint = self.font.render("SELECT: dummy mode    START: reset    hold START: leave", False, (150, 160, 205))
-        canvas.blit(hint, ((CANVAS_W - hint.get_width()) // 2, 342))
+        canvas.blit(hint, ((WORLD_W - hint.get_width()) // 2, WORLD_H - 20))

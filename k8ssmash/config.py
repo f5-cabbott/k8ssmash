@@ -6,11 +6,15 @@ import os
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+# Menus are laid out on a 640x360 design grid. Battles use the bigger 960x540 world (a farther-out view: fighters
+# take up less of the screen and the arenas have room for more levels). 960x540 is exactly 2x at 1080p.
 CANVAS_W = 640
 CANVAS_H = 360
+WORLD_W = 960
+WORLD_H = 540
 FPS = 60
 
-RESOLUTIONS = [(1920, 1080), (2560, 1440)]
+RESOLUTIONS = [(1280, 720), (1920, 1080), (2560, 1440)]
 
 ACTIONS = ("LEFT", "RIGHT", "UP", "DOWN", "JUMP", "ATTACK", "SPECIAL", "SHIELD", "START", "SELECT")
 

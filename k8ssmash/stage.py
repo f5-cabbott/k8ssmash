@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 
 import pygame
 
-from k8ssmash.config import CANVAS_H, CANVAS_W
+from k8ssmash.config import WORLD_H, WORLD_W
 
 
 @dataclass
@@ -41,7 +41,7 @@ class Stage:
     platforms: list[Platform]
     spawns: list[tuple[float, float]]
     blast: pygame.Rect = field(
-        default_factory=lambda: pygame.Rect(-100, -140, CANVAS_W + 200, CANVAS_H + 240))
+        default_factory=lambda: pygame.Rect(-220, -280, WORLD_W + 440, WORLD_H + 400))
     theme: str = "datacenter"
 
     def tick(self, frame: int) -> None:
@@ -50,41 +50,53 @@ class Stage:
 
 
 def datacenter_stage() -> Stage:
+    """Server hall: a main floor with three tiers of planks above it, a body's-jump apart."""
     return Stage(
         name="Datacenter",
         platforms=[
-            Platform(pygame.Rect(120, 250, 400, 40)),
-            Platform(pygame.Rect(170, 185, 120, 8), dropthrough=True),
-            Platform(pygame.Rect(350, 185, 120, 8), dropthrough=True),
+            Platform(pygame.Rect(190, 400, 580, 40)),
+            Platform(pygame.Rect(215, 330, 150, 8), dropthrough=True),
+            Platform(pygame.Rect(595, 330, 150, 8), dropthrough=True),
+            Platform(pygame.Rect(385, 260, 190, 8), dropthrough=True),
+            Platform(pygame.Rect(255, 190, 120, 8), dropthrough=True),
+            Platform(pygame.Rect(585, 190, 120, 8), dropthrough=True),
         ],
-        spawns=[(200, 250), (440, 250)],
+        spawns=[(330, 400), (630, 400)],
     )
 
 
 def control_plane_stage() -> Stage:
+    """Core chamber: a wide floor and a pyramid of planks rising to a single high perch."""
     return Stage(
         name="Control Plane",
         platforms=[
-            Platform(pygame.Rect(100, 255, 440, 36)),
-            Platform(pygame.Rect(140, 196, 100, 8), dropthrough=True),
-            Platform(pygame.Rect(400, 196, 100, 8), dropthrough=True),
-            Platform(pygame.Rect(270, 140, 100, 8), dropthrough=True),
+            Platform(pygame.Rect(150, 400, 660, 40)),
+            Platform(pygame.Rect(185, 330, 130, 8), dropthrough=True),
+            Platform(pygame.Rect(415, 330, 130, 8), dropthrough=True),
+            Platform(pygame.Rect(645, 330, 130, 8), dropthrough=True),
+            Platform(pygame.Rect(290, 260, 130, 8), dropthrough=True),
+            Platform(pygame.Rect(540, 260, 130, 8), dropthrough=True),
+            Platform(pygame.Rect(415, 190, 130, 8), dropthrough=True),
         ],
-        spawns=[(190, 255), (450, 255)],
+        spawns=[(300, 400), (660, 400)],
         theme="controlplane",
     )
 
 
 def node_pool_stage() -> Stage:
+    """Pod bay: two floors split by a gap, a lift between them, and a drifting platform up high."""
     return Stage(
         name="Node Pool",
         platforms=[
-            Platform(pygame.Rect(50, 255, 200, 34)),
-            Platform(pygame.Rect(390, 255, 200, 34)),
-            Platform(pygame.Rect(270, 235, 100, 8), dropthrough=True, motion=("y", 22, 300)),
-            Platform(pygame.Rect(245, 170, 150, 8), dropthrough=True),
+            Platform(pygame.Rect(60, 400, 300, 40)),
+            Platform(pygame.Rect(600, 400, 300, 40)),
+            Platform(pygame.Rect(420, 370, 120, 8), dropthrough=True, motion=("y", 30, 300)),
+            Platform(pygame.Rect(140, 330, 120, 8), dropthrough=True),
+            Platform(pygame.Rect(700, 330, 120, 8), dropthrough=True),
+            Platform(pygame.Rect(330, 260, 300, 8), dropthrough=True),
+            Platform(pygame.Rect(420, 190, 120, 8), dropthrough=True, motion=("x", 70, 420)),
         ],
-        spawns=[(150, 255), (490, 255)],
+        spawns=[(210, 400), (750, 400)],
         theme="nodepool",
     )
 

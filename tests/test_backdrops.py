@@ -4,7 +4,7 @@ import pygame
 import pytest
 
 from k8ssmash import backdrops
-from k8ssmash.config import CANVAS_H, CANVAS_W
+from k8ssmash.config import WORLD_H as CANVAS_H, WORLD_W as CANVAS_W
 from k8ssmash.stage import STAGES
 
 THEMES = ["datacenter", "controlplane", "nodepool"]

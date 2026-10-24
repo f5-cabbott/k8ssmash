@@ -202,7 +202,7 @@ def test_battle_hits_use_the_attackers_sound_and_pan(app):
     app.set_scene(b)
     b.frame = READY_FRAMES + 1
     a, v = b.fighters
-    v.x, v.y, a.x = 560, a.y, 540
+    v.x, v.y, a.x = 880, a.y, 860
     b._hit(v, a, 9, 4, 0.05, 40, 1)
     assert app.audio.last_file == "pod__hit_heavy"
     assert b.pan_of(v) > 0.3 and b.pan_of(b.fighters[0]) > 0
