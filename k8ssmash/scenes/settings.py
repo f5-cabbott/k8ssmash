@@ -4,6 +4,7 @@ from __future__ import annotations
 import pygame
 
 from k8ssmash import ui
+from k8ssmash.ui import pd
 from k8ssmash.config import CANVAS_W, FPS
 from k8ssmash.scenes.base import Scene
 
@@ -26,9 +27,9 @@ class Settings(Scene):
         self.row = 0
         self.frame = 0
         self.held_for = 0
-        self.big = ui.Font(40)
-        self.font = ui.Font(26)
-        self.small = ui.Font(18)
+        self.big = ui.UIFont(40)
+        self.font = ui.UIFont(26)
+        self.small = ui.UIFont(18)
         app.audio.music("select")
 
     # --- values --------------------------------------------------------------------------------
@@ -85,36 +86,34 @@ class Settings(Scene):
 
     # --- drawing -------------------------------------------------------------------------------
     def draw(self, canvas: pygame.Surface) -> None:
-        canvas.blit(_background(), (0, 0))
+        pd.blit(canvas, _background(), (0, 0))
         head = self.big.render("SETTINGS", False, (255, 224, 90))
-        canvas.blit(head, ((CANVAS_W - head.get_width()) // 2, 18))
+        ui.blit_c(canvas, head, 18)
         panel = pygame.Rect(60, 70, 520, 236)
-        ui.window(canvas, panel)
+        ui.window_d(canvas, panel)
         for i, (key, label, kind) in enumerate(ROWS):
             y = panel.y + 16 + i * 36
             active = i == self.row
             if active:
-                pygame.draw.rect(canvas, (60, 90, 200), (panel.x + 8, y - 4, panel.w - 16, 32), border_radius=4)
-                pygame.draw.polygon(canvas, (255, 224, 90), [(panel.x + 16, y + 4), (panel.x + 16, y + 20), (panel.x + 28, y + 12)])
-            canvas.blit(self.font.render(label, False, (255, 255, 255) if active else (190, 200, 235)), (panel.x + 40, y))
+                pd.rect(canvas, (60, 90, 200), (panel.x + 8, y - 4, panel.w - 16, 32), border_radius=4)
+                pd.polygon(canvas, (255, 224, 90), [(panel.x + 16, y + 4), (panel.x + 16, y + 20), (panel.x + 28, y + 12)])
+            pd.blit(canvas, self.font.render(label, False, (255, 255, 255) if active else (190, 200, 235)), (panel.x + 40, y))
             value = self.value(key)
             if kind == "slider":
                 bar = pygame.Rect(panel.x + 270, y + 4, 170, 18)
-                pygame.draw.rect(canvas, (8, 12, 40), bar, border_radius=3)
+                pd.rect(canvas, (8, 12, 40), bar, border_radius=3)
                 filled = int(bar.w * value)
                 for sx in range(0, filled - 2, 8):  # segmented neon bar
-                    pygame.draw.rect(canvas, _hue(sx / bar.w), (bar.x + 2 + sx, bar.y + 2, 6, bar.h - 4))
-                pygame.draw.rect(canvas, (150, 170, 230), bar, 1, border_radius=3)
+                    pd.rect(canvas, _hue(sx / bar.w), (bar.x + 2 + sx, bar.y + 2, 6, bar.h - 4))
+                pd.rect(canvas, (150, 170, 230), bar, 1, border_radius=3)
                 pct = self.font.render(f"{int(round(value * 100))}%", False, (255, 255, 255))
-                canvas.blit(pct, (bar.right + 12, y))
+                pd.blit(canvas, pct, (bar.right + 12, y))
             else:
                 on = bool(value)
                 text = self.font.render("ON" if on else "OFF", False, (120, 255, 160) if on else (150, 156, 190))
-                canvas.blit(text, (panel.x + 290, y))
+                pd.blit(canvas, text, (panel.x + 290, y))
         hint = self.small.render("UP / DOWN choose     LEFT / RIGHT change     START or A: save and go back", False, (150, 166, 220))
-        canvas.blit(hint, ((CANVAS_W - hint.get_width()) // 2, 326))
-
-
+        ui.blit_c(canvas, hint, 326)
 _bg: pygame.Surface | None = None
 
 
@@ -122,8 +121,8 @@ def _background() -> pygame.Surface:
     global _bg
     if _bg is None:
         from k8ssmash.backdrops import dither_gradient
-        from k8ssmash.config import CANVAS_H
-        _bg = dither_gradient(CANVAS_W, CANVAS_H, [(0, (4, 6, 22)), (0.5, (10, 24, 80)), (1, (3, 6, 24))], bands=20)
+        from k8ssmash.config import WORLD_H, WORLD_W
+        _bg = dither_gradient(WORLD_W, WORLD_H, [(0, (4, 6, 22)), (0.5, (10, 24, 80)), (1, (3, 6, 24))], bands=20)
     return _bg
 
 

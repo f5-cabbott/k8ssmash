@@ -4,6 +4,7 @@ from __future__ import annotations
 import pygame
 
 from k8ssmash import ui
+from k8ssmash.ui import pd
 from k8ssmash.config import CANVAS_W
 from k8ssmash.scenes.base import Scene
 
@@ -15,8 +16,8 @@ ON = (120, 230, 140)
 class ControllerTest(Scene):
     def __init__(self, app):
         super().__init__(app)
-        self.font = ui.Font(17)
-        self.big = ui.Font(34)
+        self.font = ui.UIFont(17)
+        self.big = ui.UIFont(34)
         self._rebind_hold = 0
 
     def update(self) -> None:
@@ -35,23 +36,21 @@ class ControllerTest(Scene):
     def draw(self, canvas: pygame.Surface) -> None:
         canvas.fill(BG)
         title = self.big.render("CONTROLLER TEST   (hold SELECT+START to exit)", False, (255, 255, 255))
-        canvas.blit(title, ((CANVAS_W - title.get_width()) // 2, 12))
+        ui.blit_c(canvas, title, 12)
         hint = self.font.render("JUMP on P2 pad: make it P1      hold SELECT 2s: rebind buttons", False, (150, 160, 200))
-        canvas.blit(hint, ((CANVAS_W - hint.get_width()) // 2, 340))
+        ui.blit_c(canvas, hint, 340)
         for slot, player in enumerate(self.app.input.players):
             self._draw_pad(canvas, slot, player.held, 20 + slot * 310)
 
     def _draw_pad(self, canvas: pygame.Surface, slot: int, held: set[str], x: int) -> None:
         pad = self.app.input.pads[slot]
         name = pad.get_name() if pad else "keyboard only (no pad)"
-        canvas.blit(self.big.render(f"P{slot + 1}: {name}", False, (200, 210, 255)), (x, 50))
-
+        pd.blit(canvas, self.big.render(f"P{slot + 1}: {name}", False, (200, 210, 255)), (x, 50))
         def lamp(action: str, cx: int, cy: int, label: str, r: int = 14) -> None:
             on = action in held
-            pygame.draw.circle(canvas, ON if on else DIM, (x + cx, 165 + cy), r)
+            pd.circle(canvas, ON if on else DIM, (x + cx, 165 + cy), r)
             txt = self.font.render(label, False, (10, 10, 20) if on else (150, 156, 180))
-            canvas.blit(txt, (x + cx - txt.get_width() // 2, 165 + cy - txt.get_height() // 2))
-
+            pd.blit(canvas, txt, (x + cx - txt.get_width() // 2, 165 + cy - txt.get_height() // 2))
         # D-pad
         lamp("UP", 50, -22, "U")
         lamp("DOWN", 50, 22, "D")
@@ -71,4 +70,4 @@ class ControllerTest(Scene):
         buttons, axes, hat = raw
         lines = [f"buttons down: {buttons or '-'}", f"axes: {axes}  hat: {hat}"]
         for i, line in enumerate(lines):
-            canvas.blit(self.font.render(line, False, (180, 190, 220)), (x, 240 + i * 18))
+            pd.blit(canvas, self.font.render(line, False, (180, 190, 220)), (x, 240 + i * 18))

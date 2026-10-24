@@ -13,6 +13,7 @@ import pygame
 from k8ssmash.art.shade import BAYER
 from k8ssmash.config import CANVAS_H, CANVAS_W, WORLD_H, WORLD_W
 from k8ssmash.stage import Platform
+from k8ssmash.ui import ScaledDraw
 
 W, H = CANVAS_W, CANVAS_H  # design grid
 U = WORLD_W / CANVAS_W  # design -> world scale (1.5)
@@ -23,57 +24,7 @@ WIDE = W + 2 * MARGIN  # width of a parallax layer in design px
 Color = tuple[int, int, int]
 
 
-class ScaledDraw:
-    """pygame.draw-alike that takes design-grid coordinates and draws them at world scale."""
-
-    def __init__(self, u: float):
-        self.u = u
-
-    def _p(self, pt) -> tuple[int, int]:
-        return round(pt[0] * self.u), round(pt[1] * self.u)
-
-    def _w(self, w: float) -> int:
-        return int(w) if w <= 1 else max(1, round(w * self.u))  # hairlines stay hairlines
-
-    def _r(self, rect) -> tuple[int, int, int, int]:
-        x, y, w, h = rect
-        return round(x * self.u), round(y * self.u), max(1, round(w * self.u)), max(1, round(h * self.u))
-
-    def rect(self, surf, color, rect, width=0, border_radius=0):
-        pygame.draw.rect(surf, color, self._r(rect), self._w(width) if width else 0,
-                         border_radius=round(border_radius * self.u))
-
-    def line(self, surf, color, a, b, width=1):
-        pygame.draw.line(surf, color, self._p(a), self._p(b), self._w(width))
-
-    def lines(self, surf, color, closed, pts, width=1):
-        pygame.draw.lines(surf, color, closed, [self._p(p) for p in pts], self._w(width))
-
-    def polygon(self, surf, color, pts, width=0):
-        pygame.draw.polygon(surf, color, [self._p(p) for p in pts], self._w(width) if width else 0)
-
-    def circle(self, surf, color, center, radius, width=0):
-        pygame.draw.circle(surf, color, self._p(center), max(1, round(radius * self.u)), self._w(width) if width else 0)
-
-    def ellipse(self, surf, color, rect, width=0):
-        pygame.draw.ellipse(surf, color, self._r(rect), self._w(width) if width else 0)
-
-    def set_at(self, surf, pos, color):
-        x, y = self._p(pos)
-        size = max(1, round(self.u))
-        surf.fill(color, (x, y, size, size))
-
-    def fill(self, surf, color, rect):
-        surf.fill(color, self._r(rect))
-
-    def blit(self, dst, src, pos):
-        dst.blit(src, self._p(pos))
-
-    def surface(self, size) -> pygame.Surface:
-        return pygame.Surface((round(size[0] * self.u), round(size[1] * self.u)), pygame.SRCALPHA)
-
-
-pd = ScaledDraw(U)
+pd = ScaledDraw(U)  # design -> world drawing (see k8ssmash.ui)
 
 
 def _lerp(a, b, t):

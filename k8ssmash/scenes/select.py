@@ -5,6 +5,7 @@ import random
 import pygame
 
 from k8ssmash import ui
+from k8ssmash.ui import pd
 from k8ssmash.config import CANVAS_W, FPS
 from k8ssmash.fighter import FighterStats
 from k8ssmash.roster import roster
@@ -30,10 +31,10 @@ class CharacterSelect(Scene):
         self.locked = [False, False]
         self.ready_frames = 0
         self.stage_idx = random.randrange(len(STAGES))
-        self.big = ui.Font(36)
-        self.font = ui.Font(22)
-        self.small = ui.Font(18)
-        self.tiny = ui.Font(15)
+        self.big = ui.UIFont(36)
+        self.font = ui.UIFont(22)
+        self.small = ui.UIFont(18)
+        self.tiny = ui.UIFont(15)
         self.frame = 0
         app.audio.music("select")
         self.rng = random.Random()
@@ -120,7 +121,7 @@ class CharacterSelect(Scene):
         canvas.fill(BG)
         colors = player_colors(self.app.cfg)
         head = self.big.render("TRAINING: CHOOSE YOUR POD" if self.training else "CHOOSE YOUR POD", False, (255, 255, 255))
-        canvas.blit(head, ((CANVAS_W - head.get_width()) // 2, 5))
+        ui.blit_c(canvas, head, 5)
         n = len(self.roster)
         cols = min(n, 4)
         card_w, card_h, gap = 132, 78, 10
@@ -129,33 +130,32 @@ class CharacterSelect(Scene):
             cx = x0 + (i % cols) * (card_w + gap)
             cy = 36 + (i // cols) * (card_h + 8)
             card = pygame.Rect(cx, cy, card_w, card_h)
-            ui.window(canvas, card)
-            pygame.draw.rect(canvas, _dim(st.color), (cx + 3, cy + card_h - 20, card_w - 6, 17))
+            ui.window_d(canvas, card)
             sprites = sprite_set(st.name)
-            if sprites is not None:
-                img = sprites.get("idle", (self.frame // 12) % 4, 1)
+            if sprites is not None:  # a bust portrait: the sprite at a whole-number 2x so its pixels stay crisp
+                img = sprites.get("idle", (self.frame // 12) % 4, 1, 2.0)
                 fx, fy = sprites.feet
-                canvas.set_clip(card.inflate(-4, -4))
-                canvas.blit(img, (cx + card_w // 2 - fx, cy + card_h - 21 - fy))
-                canvas.set_clip(None)
+                pd.set_clip(canvas, card.inflate(-4, -4))
+                ui.blit_sprite(canvas, img, cx + card_w // 2, cy + 6 + 132 / ui.SCALE, (fx * 2, fy * 2))
+                pd.set_clip(canvas, None)
+            pd.rect(canvas, _dim(st.color), (cx + 3, cy + card_h - 20, card_w - 6, 17))
             label = self.small.render(st.name, False, (240, 240, 255))
-            canvas.blit(label, (cx + (card_w - label.get_width()) // 2, cy + card_h - 18))
+            pd.blit(canvas, label, (cx + (card_w - label.get_width()) // 2, cy + card_h - 18))
             for slot in (0, 1):
                 if self._active(slot) and self.cursor[slot] == i:
                     off = slot * 3
                     width = 3 if not self.locked[slot] or (self.frame // 8) % 2 == 0 else 5
-                    pygame.draw.rect(canvas, colors[slot], (cx - off - 2, cy - off - 2, card_w + 2 * off + 4, card_h + 2 * off + 4), width)
+                    pd.rect(canvas, colors[slot], (cx - off - 2, cy - off - 2, card_w + 2 * off + 4, card_h + 2 * off + 4), width)
         for slot in (0, 1):
             self._draw_panel(canvas, pygame.Rect(12 + slot * 312, 204, 304, 112), slot, colors[slot])
         self._draw_legend(canvas)
         stage = STAGES[self.stage_idx]().name
         hint = self.tiny.render(f"START join/ready    A back / leave    SELECT add CPU    L/R stage: {stage}", False, (126, 134, 176))
-        canvas.blit(hint, ((CANVAS_W - hint.get_width()) // 2, 347))
-
+        ui.blit_c(canvas, hint, 347)
     def _draw_panel(self, canvas: pygame.Surface, rect: pygame.Rect, slot: int, color) -> None:
-        ui.window(canvas, rect, accent=color)
+        ui.window_d(canvas, rect, accent=color)
         tag = self.big.render(f"P{slot + 1}", False, color)
-        canvas.blit(tag, (rect.x + 8, rect.y + 6))
+        pd.blit(canvas, tag, (rect.x + 8, rect.y + 6))
         if self.training and slot == 1:
             self._center_text(canvas, rect, "Dummy: a random fighter", (170, 176, 205))
             return
@@ -165,11 +165,11 @@ class CharacterSelect(Scene):
         st = self.roster[self.cursor[slot]]
         status = "CPU" if self.cpu[slot] else ("READY!" if self.locked[slot] else "")
         name = self.font.render(st.name, False, (255, 255, 255))
-        canvas.blit(name, (rect.x + 46, rect.y + 6))
+        pd.blit(canvas, name, (rect.x + 46, rect.y + 6))
         if status:
             s = self.small.render(status, False, (120, 230, 140) if status == "READY!" else (180, 184, 210))
-            canvas.blit(s, (rect.right - s.get_width() - 10, rect.y + 8))
-        canvas.blit(self.tiny.render(st.blurb, False, (170, 178, 214)), (rect.x + 46, rect.y + 24))
+            pd.blit(canvas, s, (rect.right - s.get_width() - 10, rect.y + 8))
+        pd.blit(canvas, self.tiny.render(st.blurb, False, (170, 178, 214)), (rect.x + 46, rect.y + 24))
         for i, (direction, key, tag_text) in enumerate(MOVE_ROWS):
             self._move_row(canvas, rect.x + 12, rect.y + 44 + i * 16, direction, st, key, tag_text)
 
@@ -180,22 +180,20 @@ class CharacterSelect(Scene):
         if direction:
             x += ui.dpad_glyph(canvas, x, y, direction)
             plus = self.tiny.render("+", False, (200, 206, 235))
-            canvas.blit(plus, (x, y))
+            pd.blit(canvas, plus, (x, y))
             x += plus.get_width() + 3
         x += ui.button_glyph(canvas, x, y, "A") + 6
         text = move.announce or move.name
         t = self.small.render(text[0].upper() + text[1:], False, (240, 242, 255))
-        canvas.blit(t, (x, y - 1))
+        pd.blit(canvas, t, (x, y - 1))
         if tag_text:
-            canvas.blit(self.tiny.render(tag_text, False, (255, 214, 120)), (x + t.get_width() + 8, y + 1))
-
+            pd.blit(canvas, self.tiny.render(tag_text, False, (255, 214, 120)), (x + t.get_width() + 8, y + 1))
     def _center_text(self, canvas, rect: pygame.Rect, text: str, color) -> None:
         t = self.small.render(text, False, color)
-        canvas.blit(t, (rect.centerx - t.get_width() // 2, rect.centery - t.get_height() // 2 + 8))
-
+        pd.blit(canvas, t, (rect.centerx - t.get_width() // 2, rect.centery - t.get_height() // 2 + 8))
     def _draw_legend(self, canvas: pygame.Surface) -> None:
         bar = pygame.Rect(12, 320, 616, 24)
-        ui.window(canvas, bar)
+        ui.window_d(canvas, bar)
         x, y = bar.x + 10, bar.y + 4
         parts: list[tuple[str, tuple]] = [
             ("Move", ("dpad", None)), ("Jump x2", ("btn", "Y", "X")), ("Attack", ("btn", "B")),
@@ -209,7 +207,7 @@ class CharacterSelect(Scene):
                 for b in spec[1:]:
                     x += ui.button_glyph(canvas, x, y, b) + 1
             t = self.tiny.render(label, False, (226, 230, 250))
-            canvas.blit(t, (x + 2, y + 1))
+            pd.blit(canvas, t, (x + 2, y + 1))
             x += t.get_width() + 14
 
 

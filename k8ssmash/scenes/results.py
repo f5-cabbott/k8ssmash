@@ -5,7 +5,8 @@ import math
 import pygame
 
 from k8ssmash import ui
-from k8ssmash.config import CANVAS_H, CANVAS_W, FPS
+from k8ssmash.ui import pd
+from k8ssmash.config import CANVAS_W, FPS, WORLD_H, WORLD_W
 from k8ssmash.particles import Particles
 from k8ssmash.sprites import sprite_set
 from k8ssmash.scenes.base import Scene
@@ -27,11 +28,11 @@ class Results(Scene):
         self.new_runs: set[str] = set()
         self.ranks: dict[str, int | None] = {}
         app.audio.music("results", loop=False)
-        self.huge = ui.Font(60)
-        self.big = ui.Font(30)
-        self.font = ui.Font(22)
-        self.small = ui.Font(18)
-        self.fx = Particles(seed=5)
+        self.huge = ui.UIFont(60)
+        self.big = ui.UIFont(30)
+        self.font = ui.UIFont(22)
+        self.small = ui.UIFont(18)
+        self.fx = Particles(seed=5, scale=ui.SCALE)
 
     def update(self) -> None:
         from k8ssmash.scenes.battle import Battle
@@ -74,54 +75,53 @@ class Results(Scene):
 
     def draw(self, canvas: pygame.Surface) -> None:
         colors = player_colors(self.app.cfg)
-        canvas.blit(self._backdrop(), (0, 0))
+        pd.blit(canvas, self._backdrop(), (0, 0))
         text = "DRAW" if self.winner == -1 else f"P{self.winner + 1} WINS!"
         color = (255, 255, 255) if self.winner == -1 else colors[self.winner]
         bounce = int(math.sin(self.frame * 0.12) * 3)
         surf = self.huge.render(text, False, color)
-        canvas.blit(surf, ((CANVAS_W - surf.get_width()) // 2, 6 + bounce))
+        ui.blit_c(canvas, surf, 6 + bounce)
         for slot, row in enumerate(self.summary):
             cx = 170 + slot * 300
             won = slot == self.winner
             alt = len({r["name"] for r in self.summary}) == 1 and slot == 1
             sprites = sprite_set(row["name"], alt)
-            pygame.draw.line(canvas, (0, 226, 255), (cx - 84, 217), (cx + 84, 217), 2)  # the podium plate
-            pygame.draw.line(canvas, (0, 90, 120), (cx - 84, 219), (cx + 84, 219), 1)
+            pd.line(canvas, (0, 226, 255), (cx - 84, 217), (cx + 84, 217), 2)  # the podium plate
+            pd.line(canvas, (0, 90, 120), (cx - 84, 219), (cx + 84, 219), 1)
             if sprites is not None:
                 if won or self.winner == -1:
                     idx = (self.frame * 7 // 60) % 4
                     anim, hop = "win", (0, -16, -22, -4)[idx]
                 else:
                     anim, idx, hop = "lose", 0, 0
-                img = sprites.get(anim, idx, 1 if slot == 0 else -1, 2.0)
+                img = sprites.get(anim, idx, 1 if slot == 0 else -1, 3.0)  # whole-number pixel scale: stays crisp
                 fx, fy = sprites.feet
-                canvas.blit(img, (cx - fx * 2, 214 + hop - fy * 2))
+                ui.blit_sprite(canvas, img, cx, 214 + hop, (fx * 3, fy * 3))
             run = self.app.runs.runs[slot]
             if run.streak >= 2:
                 t = self.small.render(f"{run.streak} wins in a row!", False, (255, 215, 90))
-                canvas.blit(t, (cx - t.get_width() // 2, 64))
+                pd.blit(canvas, t, (cx - t.get_width() // 2, 64))
             panel = pygame.Rect(cx - 130, 226, 260, 82)
-            ui.window(canvas, panel, accent=colors[slot])
-            canvas.blit(self.big.render(row["name"], False, colors[slot]), (panel.x + 10, panel.y + 4))
+            ui.window_d(canvas, panel, accent=colors[slot])
+            pd.blit(canvas, self.big.render(row["name"], False, colors[slot]), (panel.x + 10, panel.y + 4))
             for i, line in enumerate((f"KOs  {row['kos']}", f"Damage dealt  {int(row['damage'])}%", f"Stocks left  {row['stocks']}")):
-                canvas.blit(self.small.render(line, False, (226, 230, 250)), (panel.x + 12, panel.y + 30 + i * 15))
+                pd.blit(canvas, self.small.render(line, False, (226, 230, 250)), (panel.x + 12, panel.y + 30 + i * 15))
         self.fx.draw(canvas)
         if self.prompts:
             who = " & ".join(f"P{p.slot + 1}" for p in self.prompts)
             banner = self.big.render(f"NEW HIGH SCORE!  {who}: press START", False, (255, 215, 90))
             pulse = 1.0 + 0.05 * math.sin(self.frame * 0.15)
-            banner = pygame.transform.smoothscale(banner, (int(banner.get_width() * pulse), int(banner.get_height() * pulse)))
-            canvas.blit(banner, ((CANVAS_W - banner.get_width()) // 2, 318 - banner.get_height() // 2))
+            banner = ui.scale_surface(banner, pulse)
+            ui.blit_c(canvas, banner, 318 - banner.get_height() // 2)
         if self.frame > LOCK:
             hint = self.small.render("START rematch     SELECT change fighters     A main menu", False, (255, 224, 140))
-            canvas.blit(hint, ((CANVAS_W - hint.get_width()) // 2, 340))
-
+            ui.blit_c(canvas, hint, 340)
     _bg: pygame.Surface | None = None
 
     @classmethod
     def _backdrop(cls) -> pygame.Surface:
         if cls._bg is None:
             from k8ssmash.backdrops import dither_gradient
-            cls._bg = dither_gradient(CANVAS_W, CANVAS_H, [(0, (4, 6, 22)), (0.55, (10, 26, 84)), (0.62, (30, 130, 190)),
+            cls._bg = dither_gradient(WORLD_W, WORLD_H, [(0, (4, 6, 22)), (0.55, (10, 26, 84)), (0.62, (30, 130, 190)),
                                                             (0.64, (4, 8, 26)), (1, (2, 4, 14))], bands=22)
         return cls._bg

@@ -6,8 +6,9 @@ import random
 import pygame
 
 from k8ssmash import ui
+from k8ssmash.ui import pd
 from k8ssmash.backdrops import dither_gradient
-from k8ssmash.config import CANVAS_H, CANVAS_W, FPS
+from k8ssmash.config import CANVAS_H, CANVAS_W, FPS, WORLD_H, WORLD_W
 from k8ssmash.particles import Particles
 from k8ssmash.roster import roster
 from k8ssmash.scenes.base import Scene
@@ -25,16 +26,16 @@ _sky: pygame.Surface | None = None
 def draw_helm(canvas: pygame.Surface, cx: int, cy: int, r: int, angle: float, color) -> None:
     """Seven-spoke wheel (the Kubernetes logo shape) with a soft neon glow."""
     for k, w in ((8, 1), (5, 2), (2, 4)):  # glow rings, dim to bright
-        pygame.draw.circle(canvas, tuple(int(c * (0.18 + 0.12 * (8 - k))) for c in color), (cx, cy), r + k, w)
-    pygame.draw.circle(canvas, color, (cx, cy), r, 3)
-    pygame.draw.circle(canvas, (255, 255, 255), (cx, cy), r // 4)
-    pygame.draw.circle(canvas, color, (cx, cy), r // 4, 2)
+        pd.circle(canvas, tuple(int(c * (0.18 + 0.12 * (8 - k))) for c in color), (cx, cy), r + k, w)
+    pd.circle(canvas, color, (cx, cy), r, 3)
+    pd.circle(canvas, (255, 255, 255), (cx, cy), r // 4)
+    pd.circle(canvas, color, (cx, cy), r // 4, 2)
     for i in range(7):
         a = angle + i * 2 * math.pi / 7
         ex, ey = cx + math.cos(a) * (r + 7), cy + math.sin(a) * (r + 7)
-        pygame.draw.line(canvas, color, (cx + math.cos(a) * r // 4, cy + math.sin(a) * r // 4), (ex, ey), 3)
-        pygame.draw.circle(canvas, (255, 255, 255), (int(ex), int(ey)), 3)
-        pygame.draw.circle(canvas, color, (int(ex), int(ey)), 3, 1)
+        pd.line(canvas, color, (cx + math.cos(a) * r // 4, cy + math.sin(a) * r // 4), (ex, ey), 3)
+        pd.circle(canvas, (255, 255, 255), (int(ex), int(ey)), 3)
+        pd.circle(canvas, color, (int(ex), int(ey)), 3, 1)
 
 
 class Runner:
@@ -80,10 +81,7 @@ class Runner:
         else:
             anim, idx = "run", (frame * 16 // 60 + self.phase) % 8
         img = self.sprites.get(anim, idx, self.direction)
-        fx, fy = self.sprites.feet
-        canvas.blit(img, (int(self.x) - fx, int(FLOOR_Y - lift) - fy))
-
-
+        ui.blit_sprite(canvas, img, int(self.x), int(FLOOR_Y - lift), self.sprites.feet)
 class Title(Scene):
     def __init__(self, app):
         super().__init__(app)
@@ -92,12 +90,12 @@ class Title(Scene):
         self._select_clean = True
         self._shield_held = 0
         app.audio.music("splash")
-        self.huge = ui.Font(92)
-        self.big = ui.Font(36)
-        self.font = ui.Font(22)
-        self.small = ui.Font(28)
+        self.huge = ui.UIFont(92)
+        self.big = ui.UIFont(36)
+        self.font = ui.UIFont(22)
+        self.small = ui.UIFont(28)
         self.rng = random.Random(7)
-        self.fx = Particles(seed=3)
+        self.fx = Particles(seed=3, scale=ui.SCALE)
         self.parade = [Runner(f.name, self.rng, i) for i, f in enumerate(roster())]
 
     def update(self) -> None:
@@ -147,30 +145,30 @@ class Title(Scene):
     def _background(self, canvas: pygame.Surface) -> None:
         global _sky
         if _sky is None:
-            _sky = dither_gradient(CANVAS_W, CANVAS_H, [(0, (4, 6, 22)), (0.4, (8, 20, 70)), (0.6, (14, 70, 150)),
+            _sky = dither_gradient(WORLD_W, WORLD_H, [(0, (4, 6, 22)), (0.4, (8, 20, 70)), (0.6, (14, 70, 150)),
                                                         (0.63, (90, 220, 255)), (0.64, (4, 8, 26)), (1, (2, 4, 14))], bands=24)
-        canvas.blit(_sky, (0, 0))
+        pd.blit(canvas, _sky, (0, 0))
         t = self.frame
         for k in range(-18, 19):  # the Grid: lines converging on the horizon
             bx = CANVAS_W / 2 + k * 52
-            pygame.draw.line(canvas, (0, int(70 - abs(k) * 2.2), int(110 - abs(k) * 3)), (CANVAS_W / 2 + k * 2, HORIZON), (bx, CANVAS_H), 1)
+            pd.line(canvas, (0, int(70 - abs(k) * 2.2), int(110 - abs(k) * 3)), (CANVAS_W / 2 + k * 2, HORIZON), (bx, CANVAS_H), 1)
         for i in range(12):  # cross lines roll toward the viewer
             u = ((i + (t * 0.014) % 1.0) / 12) ** 2.1
             y = HORIZON + (CANVAS_H - HORIZON) * u
-            pygame.draw.line(canvas, (0, int(60 + 110 * u), int(90 + 150 * u)), (0, int(y)), (CANVAS_W, int(y)), 1)
+            pd.line(canvas, (0, int(60 + 110 * u), int(90 + 150 * u)), (0, int(y)), (CANVAS_W, int(y)), 1)
         for n, (depth, speed, color, direction) in enumerate(((0.12, 3.6, CYAN, 1), (0.3, 4.6, (255, 140, 40), -1))):
             y = int(HORIZON + (CANVAS_H - HORIZON) * depth ** 2.1)
             x = (t * speed * direction + 200 * n) % (CANVAS_W + 300) - 150
             for k in range(8):  # a light-cycle's fading ribbon
                 tx = x - direction * k * 12
-                pygame.draw.line(canvas, tuple(int(c * (1 - k * 0.12)) for c in color), (tx, y), (tx - direction * 12, y), 2)
-            pygame.draw.rect(canvas, (255, 255, 255), (int(x) - 4, y - 3, 8, 4))
+                pd.line(canvas, tuple(int(c * (1 - k * 0.12)) for c in color), (tx, y), (tx - direction * 12, y), 2)
+            pd.rect(canvas, (255, 255, 255), (int(x) - 4, y - 3, 8, 4))
 
     def draw(self, canvas: pygame.Surface) -> None:
         self._background(canvas)
         t = self.frame
         event = self.small.render(self.app.cfg.event_name.upper() + " EDITION", False, (255, 215, 90))
-        canvas.blit(event, ((CANVAS_W - event.get_width()) // 2, 8 + int(math.sin(t * 0.05) * 2)))
+        ui.blit_c(canvas, event, 8 + int(math.sin(t * 0.05) * 2))
         draw_helm(canvas, CANVAS_W // 2, 98, 40, t * 0.025, CYAN)
         for runner in sorted(self.parade, key=lambda r: r.speed):
             runner.draw(canvas, t)
@@ -182,13 +180,13 @@ class Title(Scene):
         x, base = (CANVAS_W - width) // 2, 124
         for i, g in enumerate(glyphs):
             bob = math.sin(t * 0.13 + i * 0.55) * 4
-            canvas.blit(g, (x, base + bob))
+            pd.blit(canvas, g, (x, base + bob))
             x += g.get_width() - 1
         sub = self.big.render("PODS  VS.  CHAOS", False, CYAN)
-        canvas.blit(sub, ((CANVAS_W - sub.get_width()) // 2, base + 84 + int(math.sin(t * 0.1) * 2)))
+        ui.blit_c(canvas, sub, base + 84 + int(math.sin(t * 0.1) * 2))
         pulse = 1.0 + 0.07 * math.sin(t * 0.14)  # a smooth pulse, not a blink
         press = self.big.render("PRESS START", False, (255, 224, 90))
-        press = pygame.transform.smoothscale(press, (int(press.get_width() * pulse), int(press.get_height() * pulse)))
-        canvas.blit(press, ((CANVAS_W - press.get_width()) // 2, 266 - press.get_height() // 2))
+        press = ui.scale_surface(press, pulse)
+        ui.blit_c(canvas, press, 266 - press.get_height() // 2)
         hint = self.font.render("A: training     SELECT: leaderboard     hold L/R: settings", False, (130, 146, 210))
-        canvas.blit(hint, ((CANVAS_W - hint.get_width()) // 2, 336))
+        ui.blit_c(canvas, hint, 336)

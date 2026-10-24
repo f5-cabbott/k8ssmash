@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 class Scene:
     # The design size this scene draws at. Display.draw_scene scales it to the world canvas when it differs.
-    native: tuple[int, int] = (640, 360)
+    native: tuple[int, int] = (960, 540)
 
     def __init__(self, app: "App"):
         self.app = app

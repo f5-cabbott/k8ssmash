@@ -96,35 +96,171 @@ def window(canvas: pygame.Surface, rect: pygame.Rect, accent: Color | None = Non
     canvas.blit(surf, rect.topleft)
 
 
+# --- design-unit scaling for the menu screens ------------------------------------------------------------
+# Menus are laid out on a 640x360 grid but drawn at the 960x540 world resolution, so text renders at its real size
+# and pixel art lands on whole pixels instead of being stretched (which blurred everything).
+SCALE = 1.5
+
+
+class ScaledDraw:
+    """pygame.draw-alike that takes design-grid coordinates (640x360) and draws them at world scale (960x540)."""
+
+    def __init__(self, u: float):
+        self.u = u
+
+    def _p(self, pt) -> tuple[int, int]:
+        return round(pt[0] * self.u), round(pt[1] * self.u)
+
+    def _w(self, w: float) -> int:
+        return int(w) if w <= 1 else max(1, round(w * self.u))  # hairlines stay hairlines
+
+    def _r(self, rect) -> tuple[int, int, int, int]:
+        x, y, w, h = rect
+        return round(x * self.u), round(y * self.u), max(1, round(w * self.u)), max(1, round(h * self.u))
+
+    def rect(self, surf, color, rect, width=0, border_radius=0):
+        pygame.draw.rect(surf, color, self._r(rect), self._w(width) if width else 0,
+                         border_radius=round(border_radius * self.u))
+
+    def line(self, surf, color, a, b, width=1):
+        pygame.draw.line(surf, color, self._p(a), self._p(b), self._w(width))
+
+    def lines(self, surf, color, closed, pts, width=1):
+        pygame.draw.lines(surf, color, closed, [self._p(p) for p in pts], self._w(width))
+
+    def polygon(self, surf, color, pts, width=0):
+        pygame.draw.polygon(surf, color, [self._p(p) for p in pts], self._w(width) if width else 0)
+
+    def circle(self, surf, color, center, radius, width=0):
+        pygame.draw.circle(surf, color, self._p(center), max(1, round(radius * self.u)), self._w(width) if width else 0)
+
+    def ellipse(self, surf, color, rect, width=0):
+        pygame.draw.ellipse(surf, color, self._r(rect), self._w(width) if width else 0)
+
+    def set_at(self, surf, pos, color):
+        x, y = self._p(pos)
+        size = max(1, round(self.u))
+        surf.fill(color, (x, y, size, size))
+
+    def fill(self, surf, color, rect):
+        surf.fill(color, self._r(rect))
+
+    def blit(self, dst, src, pos):
+        dst.blit(src, self._p(pos))
+
+    def surface(self, size) -> pygame.Surface:
+        return pygame.Surface((round(size[0] * self.u), round(size[1] * self.u)), pygame.SRCALPHA)
+
+
+    def set_clip(self, surf, rect):
+        surf.set_clip(None if rect is None else self._r(rect))
+
+
+pd = ScaledDraw(SCALE)
+
+
+class DSurface(pygame.Surface):
+    """A rendered-text surface that *reports* its size in design units, so layout maths written for the 640x360 grid
+    (centering, right-aligning, advancing x past a label) keeps working. Blitting still uses the real pixels."""
+
+    def get_width(self) -> int:
+        return round(super().get_width() / SCALE)
+
+    def get_height(self) -> int:
+        return round(super().get_height() / SCALE)
+
+    def get_size(self) -> tuple[int, int]:
+        return self.get_width(), self.get_height()
+
+
+def _as_design(surf: pygame.Surface) -> DSurface:
+    d = DSurface(pygame.Surface.get_size(surf), pygame.SRCALPHA)
+    d.blit(surf, (0, 0))
+    return d
+
+
+class UIFont(Font):
+    """Font for menu scenes: pass the design-unit size and it renders at world resolution."""
+
+    def __init__(self, size: int):
+        super().__init__(max(8, round(size * SCALE)))
+        self._design: dict[tuple, DSurface] = {}
+
+    def render(self, text: str, antialias: bool = False, color: Color = (255, 255, 255),
+               background: Color | None = None) -> pygame.Surface:
+        key = (text, tuple(color[:3]), background)
+        hit = self._design.get(key)
+        if hit is None:
+            if len(self._design) > 400:
+                self._design.clear()
+            hit = self._design[key] = _as_design(super().render(text, antialias, color, background))
+        return hit
+
+    def get_height(self) -> int:
+        return round(super().get_height() / SCALE)
+
+    def size(self, text: str) -> tuple[int, int]:
+        w, h = super().size(text)
+        return round(w / SCALE), round(h / SCALE)
+
+
+def blit_c(canvas: pygame.Surface, surf: pygame.Surface, y: float) -> None:
+    """Blit horizontally centred on the canvas, at a design-unit y."""
+    canvas.blit(surf, ((canvas.get_width() - pygame.Surface.get_width(surf)) // 2, round(y * SCALE)))
+
+
+def blit_sprite(canvas: pygame.Surface, img: pygame.Surface, x: float, y: float, feet: tuple[int, int]) -> None:
+    """Place a sprite so its feet land on a design-unit point. Sprites stay at their native pixel size."""
+    canvas.blit(img, (round(x * SCALE) - feet[0], round(y * SCALE) - feet[1]))
+
+
+def scale_surface(surf: pygame.Surface, k: float) -> pygame.Surface:
+    """Smoothly resize a text surface by k (used for gentle pulses). Returns a design-sized surface."""
+    w, h = pygame.Surface.get_size(surf)
+    return _as_design(pygame.transform.smoothscale(surf, (max(1, int(w * k)), max(1, int(h * k)))))
+
+
+def window_d(canvas: pygame.Surface, rect: pygame.Rect, accent: Color | None = None, alpha: int = 235) -> None:
+    """window() for a rect given in design units."""
+    x, y, w, h = pd._r(rect)
+    window(canvas, pygame.Rect(x, y, w, h), accent, alpha)
+
+
 BUTTON_COLORS = {"A": (214, 64, 64), "B": (232, 190, 56), "X": (74, 114, 224), "Y": (72, 190, 96)}
 _glyph_font: Font | None = None
 
 
 def button_glyph(canvas: pygame.Surface, x: int, y: int, label: str) -> int:
-    """A tiny SNES-style button (colored face button or shoulder) at (x, y). Returns its width."""
+    """A tiny SNES-style button (colored face button or shoulder) at a design-unit (x, y). Returns its design width."""
     global _glyph_font
-    _glyph_font = _glyph_font or Font(14)
+    k = SCALE
+    _glyph_font = _glyph_font or Font(round(14 * k))
+    X, Y = round(x * k), round(y * k)
     if label in BUTTON_COLORS:
         c = BUTTON_COLORS[label]
-        pygame.draw.circle(canvas, (14, 10, 30), (x + 7, y + 7), 8)
-        pygame.draw.circle(canvas, c, (x + 7, y + 7), 7)
-        pygame.draw.circle(canvas, _mix(c, (255, 255, 255), 0.45), (x + 5, y + 5), 2)
+        r = round(7 * k)
+        pygame.draw.circle(canvas, (14, 10, 30), (X + r, Y + r), r + 2)
+        pygame.draw.circle(canvas, c, (X + r, Y + r), r)
+        pygame.draw.circle(canvas, _mix(c, (255, 255, 255), 0.45), (X + r - 2, Y + r - 2), round(2 * k))
         t = _glyph_font.flat(label, (255, 255, 255))
-        canvas.blit(t, (x + 7 - t.get_width() // 2, y + 7 - t.get_height() // 2 + 1))
+        canvas.blit(t, (X + r - t.get_width() // 2, Y + r - t.get_height() // 2 + 1))
         return 16
-    pygame.draw.rect(canvas, (14, 10, 30), (x, y + 1, 18, 12), border_radius=4)
-    pygame.draw.rect(canvas, (176, 182, 206), (x + 1, y + 2, 16, 10), border_radius=3)
+    w, h = round(18 * k), round(12 * k)
+    pygame.draw.rect(canvas, (14, 10, 30), (X, Y + 1, w, h), border_radius=5)
+    pygame.draw.rect(canvas, (176, 182, 206), (X + 2, Y + 3, w - 4, h - 4), border_radius=4)
     t = _glyph_font.flat(label, (30, 34, 70))
-    canvas.blit(t, (x + 9 - t.get_width() // 2, y + 7 - t.get_height() // 2 + 1))
+    canvas.blit(t, (X + w // 2 - t.get_width() // 2, Y + h // 2 - t.get_height() // 2 + 2))
     return 19
 
 
 def dpad_glyph(canvas: pygame.Surface, x: int, y: int, direction: str | None = None) -> int:
-    """A tiny D-pad; the arm for `direction` ('up'/'down'/'left'/'right') lights up. Returns its width."""
+    """A tiny D-pad at a design-unit (x, y); the arm for `direction` lights up. Returns its design width."""
+    k = SCALE
+    X, Y = round(x * k), round(y * k)
     arms = {"up": (5, 0, 4, 5), "down": (5, 9, 4, 5), "left": (0, 5, 5, 4), "right": (9, 5, 5, 4)}
-    pygame.draw.rect(canvas, (14, 10, 30), (x - 1, y - 1, 16, 16), border_radius=3)
+    pygame.draw.rect(canvas, (14, 10, 30), (X - 2, Y - 2, round(16 * k), round(16 * k)), border_radius=4)
     for name, (ax, ay, aw, ah) in arms.items():
-        lit = name == direction
-        pygame.draw.rect(canvas, (255, 236, 130) if lit else (110, 118, 156), (x + ax, y + ay, aw, ah))
-    pygame.draw.rect(canvas, (150, 158, 196), (x + 5, y + 5, 4, 4))
+        pygame.draw.rect(canvas, (255, 236, 130) if name == direction else (110, 118, 156),
+                         (X + round(ax * k), Y + round(ay * k), round(aw * k), round(ah * k)))
+    pygame.draw.rect(canvas, (150, 158, 196), (X + round(5 * k), Y + round(5 * k), round(4 * k), round(4 * k)))
     return 17

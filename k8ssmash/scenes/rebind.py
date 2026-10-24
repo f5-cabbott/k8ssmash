@@ -4,6 +4,7 @@ from __future__ import annotations
 import pygame
 
 from k8ssmash import ui
+from k8ssmash.ui import pd
 from k8ssmash.config import CANVAS_W, FPS
 from k8ssmash.scenes.base import Scene
 
@@ -20,8 +21,8 @@ class Rebind(Scene):
         self.new: dict[str, list[int]] = {}
         self.message = ""
         self.frame = 0
-        self.big = ui.Font(40)
-        self.font = ui.Font(26)
+        self.big = ui.UIFont(40)
+        self.font = ui.UIFont(26)
 
     @property
     def finished(self) -> bool:
@@ -61,7 +62,7 @@ class Rebind(Scene):
     def draw(self, canvas: pygame.Surface) -> None:
         canvas.fill((14, 18, 36))
         head = self.big.render("REBIND BUTTONS", False, (255, 215, 90))
-        canvas.blit(head, ((CANVAS_W - head.get_width()) // 2, 30))
+        ui.blit_c(canvas, head, 30)
         if self.finished:
             self._center(canvas, "Saved!", self.big, 150, (120, 230, 140))
         else:
@@ -69,9 +70,9 @@ class Rebind(Scene):
             self._center(canvas, f"step {self.step + 1} of {len(STEPS)}", self.font, 175, (130, 140, 190))
         self._center(canvas, self.message, self.font, 230, (255, 200, 120))
         for i, (action, buttons) in enumerate(self.new.items()):
-            canvas.blit(self.font.render(f"{action}: {buttons}", False, (190, 200, 240)),
+            pd.blit(canvas, self.font.render(f"{action}: {buttons}", False, (190, 200, 240)),
                         (60 + (i // 4) * 200, 280 + (i % 4) * 18))
 
     def _center(self, canvas, text, font, y, color) -> None:
         surf = font.render(text, False, color)
-        canvas.blit(surf, ((CANVAS_W - surf.get_width()) // 2, y))
+        ui.blit_c(canvas, surf, y)

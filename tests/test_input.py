@@ -85,6 +85,8 @@ def test_menus_keep_their_layout_when_drawn_on_the_world_canvas(tmp_path):
     d = Display(Config())
 
     class Menu(Scene):
+        native = (640, 360)  # a scene may still opt into a smaller design grid; it is scaled up
+
         def draw(self, canvas):
             assert canvas.get_size() == (640, 360)  # the scene sees its own design size
             canvas.fill((200, 0, 0))
@@ -93,7 +95,7 @@ def test_menus_keep_their_layout_when_drawn_on_the_world_canvas(tmp_path):
     d.draw_scene(Menu(None))
     assert d.canvas.get_at((100, 100))[:3] == (200, 0, 0)
     assert d.canvas.get_at((900, 500))[:3] == (0, 0, 255)  # quarter maps to the same quarter of the bigger canvas
-    assert Battle.native == (960, 540)
+    assert Battle.native == (960, 540) and Scene.native == (960, 540)  # battles and menus both draw at world size
 
 
 def test_windows_always_fit_the_desktop(monkeypatch):

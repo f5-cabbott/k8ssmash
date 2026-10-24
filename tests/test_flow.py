@@ -226,7 +226,7 @@ def test_results_draws_winner_loser_draw_and_mirror_match(app):
         scene = Results(app, winner, rows(*names), [True, True])
         for _ in range(40):
             scene.update()
-        scene.draw(pygame.Surface((640, 360)))
+        scene.draw(pygame.Surface((960, 540)))
 
 
 def test_splash_runs_the_whole_roster_and_stays_responsive(app):
@@ -235,7 +235,7 @@ def test_splash_runs_the_whole_roster_and_stays_responsive(app):
     for _ in range(600):
         frame(app)
     assert len(t.parade) == 8 and len(t.fx) > 0
-    t.draw(pygame.Surface((640, 360)))
+    t.draw(pygame.Surface((960, 540)))
     tap(app, {"START"})
     assert isinstance(app.scene, CharacterSelect)
 
@@ -245,3 +245,26 @@ def test_splash_has_its_own_fast_happy_track(app):
     assert "splash" in SONGS and SONGS["splash"]().bpm >= 140
     Title(app)
     assert app.audio.current == "splash"
+
+
+def test_menus_draw_at_native_resolution_with_no_rescaling(app):
+    """Menus used to be drawn small and bilinear-stretched, which blurred them. They must draw straight onto the world canvas."""
+    from k8ssmash.scenes.padtest import ControllerTest
+    from k8ssmash.scenes.rebind import Rebind
+    from k8ssmash.scenes.scoreboard import HighScores, NameEntry
+    from k8ssmash.scenes.settings import Settings
+    from k8ssmash.scores import Prompt
+    scenes = [Title(app), CharacterSelect(app), CharacterSelect(app, training=True), Settings(app), ControllerTest(app),
+              Rebind(app), HighScores(app, on_done=lambda: None), NameEntry(app, Prompt(0, ["streak"], "Pod"), lambda n: None)]
+    for scene in scenes:
+        assert scene.native == app.display.canvas.get_size(), type(scene).__name__
+        app.display.draw_scene(scene)
+    assert app.display._scratch == {}  # nothing went through the scale-up path
+
+
+def test_menu_text_is_rendered_at_real_size_but_reports_design_units():
+    from k8ssmash import ui
+    pygame.init()
+    big = ui.UIFont(20).render("Hello", False, (255, 255, 255))
+    real = pygame.Surface.get_width(big)
+    assert real > big.get_width() and abs(real / big.get_width() - ui.SCALE) < 0.1  # drawn 1.5x, reported in design px

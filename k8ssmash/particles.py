@@ -40,7 +40,8 @@ class Particle:
 
 
 class Particles:
-    def __init__(self, seed: int | None = None):
+    def __init__(self, seed: int | None = None, scale: float = 1.0):
+        self.scale = scale  # menus author positions in design units; battles draw 1:1
         self.items: list[Particle] = []
         self.rng = random.Random(seed)
 
@@ -108,24 +109,25 @@ class Particles:
         self.items = alive
 
     def draw(self, canvas: pygame.Surface) -> None:
+        k = self.scale
         for p in self.items:
             t = p.t
-            x, y = int(p.x), int(p.y)
+            x, y = int(p.x * k), int(p.y * k)
             if p.kind == "dust":
-                pygame.draw.circle(canvas, _mix(p.color, (24, 30, 60), t * 0.9), (x, y), max(1, int(p.size * (1 + t * 1.4))))
+                pygame.draw.circle(canvas, _mix(p.color, (24, 30, 60), t * 0.9), (x, y), max(1, int(p.size * k * (1 + t * 1.4))))
             elif p.kind == "spark":
-                tail = (x - p.vx * 2.2, y - p.vy * 2.2)
+                tail = (x - p.vx * 2.2 * k, y - p.vy * 2.2 * k)
                 pygame.draw.line(canvas, _mix((255, 255, 255), p.color, t * 1.6), (x, y), tail, 2 if t < 0.6 else 1)
             elif p.kind == "square":
-                s = max(1, int(p.size * (1 - t)))
+                s = max(1, int(p.size * k * (1 - t)))
                 pygame.draw.rect(canvas, _mix(p.color, (255, 255, 255), 0.4 * (1 - t)), (x - s // 2, y - s // 2, s, s))
             elif p.kind == "ring":
-                r = int(p.size * (0.25 + 0.75 * t ** 0.6))
+                r = int(p.size * k * (0.25 + 0.75 * t ** 0.6))
                 pygame.draw.ellipse(canvas, _mix(p.color, (30, 40, 90), t), (x - r, y - r // 3, 2 * r, max(2, 2 * r // 3)),
                                     2 if t < 0.6 else 1)
             elif p.kind == "star":
                 grow = math.sin(min(1.0, t * 1.6) * math.pi / 2)
-                r = p.size * grow * (1 - max(0.0, t - 0.55) / 0.45)
+                r = p.size * k * grow * (1 - max(0.0, t - 0.55) / 0.45)
                 pts = []
                 for i in range(16):
                     a = i * math.pi / 8 + t * 0.6
@@ -137,6 +139,6 @@ class Particles:
                     pygame.draw.circle(canvas, p.color, (x, y), max(1, int(r * 0.3)))
             elif p.kind == "confetti":
                 flutter = math.sin(p.age * 0.35 + p.phase)
-                w, h = max(1, int(p.size * (0.5 + abs(flutter)))), max(1, int(p.size * 1.6))
+                w, h = max(1, int(p.size * k * (0.5 + abs(flutter)))), max(1, int(p.size * k * 1.6))
                 p.x += flutter * 0.4
                 pygame.draw.rect(canvas, p.color, (x, y, w, h))

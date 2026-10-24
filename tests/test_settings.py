@@ -94,4 +94,4 @@ def test_settings_screen_draws(app):
     s = Settings(app)
     for row in range(len(ROWS)):
         s.row = row
-        s.draw(pygame.Surface((640, 360)))
+        s.draw(pygame.Surface((960, 540)))
