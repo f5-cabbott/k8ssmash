@@ -203,7 +203,6 @@ class Battle(Scene):
 
         self._update_projectiles()
         self._resolve_melee()
-        self._update_hazards()
         for f in self.fighters:
             if f.alive and not self.stage.blast.collidepoint(f.x, f.y - f.stats.height / 2):
                 if f.last_hit_by is not None:
@@ -240,43 +239,6 @@ class Battle(Scene):
             self.fx.sparkle(f.x, f.y - 22, color, 1, 12)
         if f.state == "hurt" and math.hypot(f.vx, f.vy) > 7 and self.frame % 2 == 0:
             self.fx.streak(f.x, f.y - 22, f.vx, f.vy, self.colors[f.slot])
-
-    def _update_hazards(self) -> None:
-        for hz in self.stage.hazards:
-            phase, x, _ = hz.state(self.frame)
-            if phase != "fire":
-                hz.hit.clear()
-                continue
-            if self.frame % 2 == 0 and not hz.hit:
-                self.app.audio.play("explosion", 0.8, pan=max(-0.8, min(0.8, (x - WORLD_W / 2) / WORLD_W * 1.8)))
-            for f in self.fighters:
-                if not f.alive or f.slot in hz.hit or abs(f.x - x) > hz.width / 2 + f.stats.width / 2:
-                    continue
-                if f.apply_hit(hz.damage, 4.4, 0.05, 88, 1 if f.x >= x else -1) == "hit":
-                    hz.hit.add(f.slot)
-                    f.last_hit_by = None
-                    self.hitstop = 5
-                    self.effects.append(("hit_heavy", f.x, f.y - f.stats.height / 2, 14))
-                    self._hit_burst(f, f, hz.damage, 88, 1)
-
-    def _draw_hazards(self, canvas: pygame.Surface) -> None:
-        for hz in self.stage.hazards:
-            phase, x, k = hz.state(self.frame)
-            if phase == "idle":
-                continue
-            if phase == "warn":  # a steady mark that grows and brightens: a clear heads-up without any flashing
-                w = int(hz.width * (0.35 + 0.65 * k))
-                col = (255, int(190 - 70 * k), 60)
-                pygame.draw.ellipse(canvas, col, (x - w // 2, hz.floor_y - 5, w, 8), 2)
-                pygame.draw.line(canvas, col, (x, hz.floor_y - 3), (x, hz.floor_y - 3 - int(46 * k)), 2)
-                label = self.font.render(hz.name, False, col)
-                canvas.blit(label, (x - label.get_width() // 2, hz.floor_y - 64 - int(46 * k * 0.3)))
-            else:  # the beam: a bright core with a soft edge, quick and then gone
-                fade = 1.0 - k
-                w = int(hz.width * (0.55 + 0.45 * fade))
-                for scale, col in ((1.0, (60, 150, 220)), (0.62, (140, 230, 255)), (0.28, (255, 255, 255))):
-                    ww = max(2, int(w * scale))
-                    pygame.draw.rect(canvas, col, (x - ww // 2, -10, ww, hz.floor_y + 14))
 
     def _count_combo(self, attacker: Fighter, victim: Fighter, chained: bool) -> None:
         """Hits that land while the victim is still reeling from the last one build a combo."""
@@ -473,7 +435,6 @@ class Battle(Scene):
         draw_backdrop(full, self.stage.theme, self.frame, self.cam)
         for plat in self.stage.platforms:
             draw_platform(canvas, plat, self.stage.theme)
-        self._draw_hazards(canvas)
         for item in self.spawner.items:
             draw_item(canvas, item, self.font, self.frame)
         for f in self.fighters:
