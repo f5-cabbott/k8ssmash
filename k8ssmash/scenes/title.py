@@ -79,7 +79,7 @@ class Runner:
             lift = math.sin(u * math.pi) * 36
             anim, idx = ("jump", 0 if u < 0.25 else 1) if u < 0.6 else ("fall", 0)
         else:
-            anim, idx = "run", (frame * 16 // 60 + self.phase) % 8
+            anim, idx = "run", (frame * 20 // 60 + self.phase) % 12
         img = self.sprites.get(anim, idx, self.direction)
         ui.blit_sprite(canvas, img, int(self.x), int(FLOOR_Y - lift), self.sprites.feet)
 TAGLINES = ["PODS VS. CHAOS", "kubectl apply -f fight.yaml", "HIGH AVAILABILITY, LOW HP", "0/1 NODES ARE AVAILABLE TO SMASH",

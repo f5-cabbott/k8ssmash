@@ -10,7 +10,7 @@ from k8ssmash.art.rig import Pose
 # name -> (frame count, fps, loops)
 ANIMS: dict[str, tuple[int, int, bool]] = {
     "idle": (8, 6, True),  # 6 breathing frames + 2 blink frames
-    "run": (8, 16, True),
+    "run": (12, 20, True),
     "jump": (3, 1, False),  # rise (stretched), apex, early fall
     "fall": (2, 1, False),
     "djump": (4, 18, False),
@@ -20,13 +20,13 @@ ANIMS: dict[str, tuple[int, int, bool]] = {
     "hurt": (3, 8, True),
     "win": (4, 7, True),
     "lose": (1, 1, False),
-    "jab": (3, 0, False),
-    "side": (3, 0, False),
-    "up": (3, 0, False),
-    "down": (3, 0, False),
-    "cast": (3, 0, False),
-    "dash": (3, 0, False),
-    "rise": (3, 0, False),
+    "jab": (6, 0, False),
+    "side": (6, 0, False),
+    "up": (6, 0, False),
+    "down": (6, 0, False),
+    "cast": (6, 0, False),
+    "dash": (6, 0, False),
+    "rise": (6, 0, False),
     "counter": (3, 0, False),
     "buff": (3, 0, False),
 }
@@ -40,6 +40,20 @@ def _with(p: Pose, **kw) -> Pose:
     return replace(p, **kw)
 
 
+def lerp_pose(a: Pose, b: Pose, t: float) -> Pose:
+    """In-between of two poses: numbers and (x, y) pairs blend, face and flash come from whichever is nearer."""
+    out = {}
+    for name in a.__dataclass_fields__:
+        x, y = getattr(a, name), getattr(b, name)
+        if isinstance(x, tuple):
+            out[name] = tuple(u + (v - u) * t for u, v in zip(x, y))
+        elif isinstance(x, (int, float)) and not isinstance(x, bool):
+            out[name] = x + (y - x) * t
+        else:
+            out[name] = y if t >= 0.5 else x
+    return Pose(**out)
+
+
 def idle(i: int) -> Pose:
     ph = (i % 6) / 6 * 2 * math.pi
     breathe = math.sin(ph)
@@ -49,13 +63,13 @@ def idle(i: int) -> Pose:
 
 
 def run(i: int) -> Pose:
-    ph = i / 8 * 2 * math.pi
+    ph = i / 12 * 2 * math.pi
     sw = lambda q: (math.sin(q) * 12, max(0.0, -math.cos(q)) * 9)
     contact = abs(math.cos(ph * 2))  # the body dips as each foot lands and rises as it passes
     return Pose(lean=5, bob=-(1 - contact) * 2.4, crouch=1 + contact * 1.2, squash=0.97 + 0.05 * (1 - contact),
                 f_foot=sw(ph), b_foot=sw(ph + math.pi), head_dx=1.0, head_dy=-0.5 * (1 - contact),
                 arm_f=(-math.sin(ph) * 58, -math.sin(ph) * 58 + 40), arm_b=(math.sin(ph) * 58, math.sin(ph) * 58 + 40),
-                face="happy" if i % 8 in (2, 6) else "neutral")
+                face="happy" if i % 12 in (3, 9) else "neutral")
 
 
 def jump(i: int) -> Pose:
@@ -120,10 +134,15 @@ def lose(i: int) -> Pose:
 
 
 def _phases(startup: Pose, active: Pose, recover: Pose, swing: float) -> list[Pose]:
-    """Anticipation (squash, strained face), strike (stretch, smear, fierce face), then ease back."""
-    return [_with(startup, squash=startup.squash * 0.93, face="effort"),
+    """Six frames: the first lean-in, anticipation (squash, strained face), the strike (stretch, smear, fierce face),
+    the follow-through still reaching, then two frames easing back to a ready stance."""
+    rest = Pose()
+    return [_with(lerp_pose(rest, startup, 0.55), squash=0.97, face="focus"),
+            _with(startup, squash=startup.squash * 0.93, face="effort"),
             _with(active, squash=active.squash * 1.05, smear=swing, face="angry"),
-            _with(recover, face="neutral")]
+            _with(lerp_pose(active, recover, 0.4), smear=swing * 0.45, face="angry"),
+            _with(recover, face="neutral"),
+            _with(lerp_pose(recover, rest, 0.6), face="neutral")]
 
 
 def jab(i: int) -> Pose:
@@ -159,7 +178,7 @@ def cast(i: int) -> Pose:
         Pose(lean=-3, arm_f=(40, 100), arm_b=(30, 110), f_foot=(6, 0), b_foot=(-7, 0)),
         Pose(lean=3, arm_f=(88, 90), arm_b=(84, 90), f_foot=(8, 0), b_foot=(-7, 0)),
         Pose(lean=1, arm_f=(70, 85), arm_b=(60, 80), f_foot=(7, 0), b_foot=(-6, 0)), 0)
-    return _with(p[i], face=("focus", "shock", "happy")[i], smear=0)
+    return _with(p[i], face=("focus", "focus", "shock", "shock", "happy", "happy")[i], smear=0)
 
 
 def dash(i: int) -> Pose:

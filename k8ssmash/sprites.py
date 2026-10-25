@@ -62,15 +62,28 @@ def sprite_set(name: str, alt: bool = False) -> SpriteSet | None:
     return _cache[key]
 
 
+def sprite_frames(f: Fighter, anim: str) -> list:
+    sprites = sprite_set(f.stats.name)
+    return sprites.frames.get(anim, []) if sprites else [0, 0, 0, 0, 0, 0]
+
+
 def pick_frame(f: Fighter) -> tuple[str, int]:
     """Which animation and frame index a fighter should show right now."""
     state, n = f.state, f.anim_frame
     if state == "attack" and f.move is not None:
         m = f.move
-        phase = 0 if f.move_frame < m.startup else 1 if f.move_frame < m.startup + m.active else 2
-        return (m.anim or "jab"), phase
+        anim = m.anim or "jab"
+        n_frames = len(sprite_frames(f, anim))
+        if n_frames < 6:  # the three-frame moves (counter, buff)
+            phase = 0 if f.move_frame < m.startup else 1 if f.move_frame < m.startup + m.active else 2
+            return anim, min(phase, n_frames - 1)
+        if f.move_frame < m.startup:  # two frames of wind-up, two of strike, two of recovery
+            return anim, 0 if f.move_frame < m.startup * 0.45 else 1
+        if f.move_frame < m.startup + m.active:
+            return anim, 2 if f.move_frame < m.startup + max(1, m.active * 0.55) else 3
+        return anim, 4 if f.move_frame < m.startup + m.active + max(1, (m.total - m.startup - m.active) * 0.5) else 5
     if state == "run":
-        return "run", (n * 16 // 60) % 8
+        return "run", (n * 20 // 60) % 12
     if state == "idle":
         if f.land_timer > 0:  # the squash after a landing, easing back up
             return "land", min(2, (6 - f.land_timer) // 2)

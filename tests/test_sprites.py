@@ -47,6 +47,8 @@ def test_pick_frame_follows_state():
     f.move_frame = 0
     assert pick_frame(f) == ("rise", 0)
     f.move_frame = f.move.startup
-    assert pick_frame(f) == ("rise", 1)
+    assert pick_frame(f) == ("rise", 2)  # the strike frames follow two wind-up frames
+    f.move_frame = f.move.startup + f.move.active - 1
+    assert pick_frame(f)[1] in (2, 3)
     f.move_frame = f.move.total - 1
-    assert pick_frame(f) == ("rise", 2)
+    assert pick_frame(f) == ("rise", 5)  # and the last of two recovery frames

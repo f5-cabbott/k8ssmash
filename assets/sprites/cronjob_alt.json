@@ -13,8 +13,8 @@
   },
   "run": {
    "row": 1,
-   "frames": 8,
-   "fps": 16,
+   "frames": 12,
+   "fps": 20,
    "loop": true
   },
   "jump": {
@@ -73,43 +73,43 @@
   },
   "jab": {
    "row": 11,
-   "frames": 3,
+   "frames": 6,
    "fps": 0,
    "loop": false
   },
   "side": {
    "row": 12,
-   "frames": 3,
+   "frames": 6,
    "fps": 0,
    "loop": false
   },
   "up": {
    "row": 13,
-   "frames": 3,
+   "frames": 6,
    "fps": 0,
    "loop": false
   },
   "down": {
    "row": 14,
-   "frames": 3,
+   "frames": 6,
    "fps": 0,
    "loop": false
   },
   "cast": {
    "row": 15,
-   "frames": 3,
+   "frames": 6,
    "fps": 0,
    "loop": false
   },
   "dash": {
    "row": 16,
-   "frames": 3,
+   "frames": 6,
    "fps": 0,
    "loop": false
   },
   "rise": {
    "row": 17,
-   "frames": 3,
+   "frames": 6,
    "fps": 0,
    "loop": false
   },
