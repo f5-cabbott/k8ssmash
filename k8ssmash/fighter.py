@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 import pygame
 
 from k8ssmash.input import PlayerInput
+from k8ssmash.flair import TAUNT
 from k8ssmash.moves import Move, ProjectileDef, default_moveset
 from k8ssmash.stage import Stage
 
@@ -148,6 +149,7 @@ class Fighter:
         self.hanging: tuple | None = None  # (platform, inward) while holding a ledge
         self.hang_timer = 0
         self.regrab_timer = 0
+        self.taunt_timer = 0
         self.buf = {"ATTACK": 0, "SPECIAL": 0, "JUMP": 0}  # input buffer: frames each press is still live
         self.coyote = 0
         self.kos = 0
@@ -306,7 +308,7 @@ class Fighter:
         self.last_axis = (inp.axis_x, inp.axis_y)
         for name in self.buf:
             self.buf[name] = BUFFER if name in inp.pressed else max(0, self.buf[name] - 1)
-        for name in ("invuln", "hitstun", "drop_timer", "shield_break", "callout_timer", "land_timer", "regrab_timer"):
+        for name in ("invuln", "hitstun", "drop_timer", "shield_break", "callout_timer", "land_timer", "regrab_timer", "taunt_timer"):
             value = getattr(self, name)
             if value > 0:
                 setattr(self, name, value - 1)
@@ -399,6 +401,14 @@ class Fighter:
             self.state = "shield"
             return
 
+        if "SELECT" in inp.pressed and self.on_ground and self.taunt_timer == 0 and abs(self.vx) < 0.5:
+            self.taunt_timer = 44  # a taunt: a pose and a one-liner (it leaves you open, so it is a gamble)
+            self.say(TAUNT.get(self.stats.name, "Hey!"))
+            self.events.append("taunt")
+        if self.taunt_timer > 0 and self.on_ground and not inp.axis_x:
+            self.state = "win"
+            self.vx = 0.0
+            return
         if self.buf["ATTACK"]:
             self._start_attack(inp)
             self.buf["ATTACK"] = 0  # the press is spent whether or not the move was allowed

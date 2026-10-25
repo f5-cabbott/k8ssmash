@@ -7,7 +7,7 @@ import numpy as np
 from k8ssmash.audio import instruments as I
 
 SR = I.SR
-EVENTS = ("jump", "djump", "attack_light", "attack_heavy", "special", "hit_light", "hit_heavy", "ko")
+EVENTS = ("jump", "djump", "attack_light", "attack_heavy", "special", "hit_light", "hit_heavy", "ko", "taunt", "win")
 
 VOICES = {  # fighter -> (timbre, base frequency)
     "Pod": ("bubble", 520), "StatefulSet": ("horn", 130), "Kubectl": ("digital", 880), "Chaos Monkey": ("squeak", 900),
@@ -306,7 +306,44 @@ TIMBRES = {"bubble": bubble, "horn": horn, "digital": digital, "squeak": squeak,
            "dtmf": dtmf, "growl": growl}
 
 
+# each fighter's victory motif: (instrument, [(midi note, length in seconds)]) played as a short fanfare
+MOTIFS = {
+    "Pod": ("marimba", [(72, .13), (76, .13), (79, .13), (84, .5)]),
+    "StatefulSet": ("brass", [(48, .3), (55, .22), (52, .22), (60, .7)]),
+    "Kubectl": ("lead_synth", [(76, .1), (79, .1), (83, .1), (88, .1), (83, .1), (88, .5)]),
+    "Chaos Monkey": ("steel", [(79, .1), (72, .1), (79, .1), (74, .1), (81, .1), (76, .1), (84, .5)]),
+    "Sidecar": ("flute", [(67, .16), (71, .16), (74, .16), (79, .6)]),
+    "Ingress": ("bell", [(72, .18), (79, .18), (84, .18), (91, .8)]),
+    "Operator": ("epiano", [(64, .14), (67, .14), (71, .14), (76, .14), (71, .14), (76, .6)]),
+    "OOMKiller": ("brass", [(38, .28), (41, .28), (38, .2), (34, .2), (29, .9)]),
+}
+
+
+def motif(fighter: str, short: bool = False) -> np.ndarray:
+    name, notes = MOTIFS[fighter]
+    notes = notes[:2] if short else notes
+    make = I.INSTRUMENTS[name]
+    total = sum(d for _, d in notes) + 1.2
+    out = np.zeros(int(total * SR))
+    t = 0.0
+    for midi, dur in notes:
+        voice_ = make(midi, dur)
+        i = int(t * SR)
+        out[i:i + len(voice_)] += voice_[: len(out) - i]
+        t += dur
+    echo = np.zeros_like(out)
+    d = int(0.18 * SR)
+    echo[d:] = I.lp(out, 2400)[: len(out) - d] * 0.35
+    return out + echo
+
+
 def fighter_sound(fighter: str, event: str) -> np.ndarray:
+    if event in ("win", "taunt"):
+        return motif(fighter, short=event == "taunt")
+    return _fighter_sound(fighter, event)
+
+
+def _fighter_sound(fighter: str, event: str) -> np.ndarray:
     pitch, va, vb, grit, ring, breath = VOX[fighter]
     if event in ("attack_light", "attack_heavy", "special"):
         return fighter_attack(fighter, event)

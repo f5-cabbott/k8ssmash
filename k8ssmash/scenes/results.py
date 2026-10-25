@@ -7,6 +7,7 @@ import pygame
 from k8ssmash import ui
 from k8ssmash.ui import pd
 from k8ssmash.config import CANVAS_W, FPS, WORLD_H, WORLD_W
+from k8ssmash.flair import WIN
 from k8ssmash.particles import Particles
 from k8ssmash.sprites import sprite_set
 from k8ssmash.scenes.base import Scene
@@ -28,6 +29,8 @@ class Results(Scene):
         self.new_runs: set[str] = set()
         self.ranks: dict[str, int | None] = {}
         app.audio.music("results", loop=False)
+        if 0 <= winner < len(summary):
+            app.audio.play("win", fighter=summary[winner]["name"])  # the winner's own fanfare
         self.huge = ui.UIFont(60)
         self.big = ui.UIFont(30)
         self.font = ui.UIFont(22)
@@ -101,11 +104,16 @@ class Results(Scene):
             if run.streak >= 2:
                 t = self.small.render(f"{run.streak} wins in a row!", False, (255, 215, 90))
                 pd.blit(canvas, t, (cx - t.get_width() // 2, 64))
-            panel = pygame.Rect(cx - 130, 226, 260, 82)
+            panel = pygame.Rect(cx - 130, 226, 260, 98 if won else 82)
             ui.window_d(canvas, panel, accent=colors[slot])
             pd.blit(canvas, self.big.render(row["name"], False, colors[slot]), (panel.x + 10, panel.y + 4))
             for i, line in enumerate((f"KOs  {row['kos']}", f"Damage dealt  {int(row['damage'])}%", f"Stocks left  {row['stocks']}")):
                 pd.blit(canvas, self.small.render(line, False, (226, 230, 250)), (panel.x + 12, panel.y + 30 + i * 15))
+        if 0 <= self.winner < len(self.summary):
+            quote = WIN.get(self.summary[self.winner]["name"], "")
+            qx = 170 + self.winner * 300
+            q = self.small.render(f"\"{quote}\"", False, (255, 224, 140))
+            pd.blit(canvas, q, (qx - q.get_width() // 2, 226 + 77))
         self.fx.draw(canvas)
         if self.prompts:
             who = " & ".join(f"P{p.slot + 1}" for p in self.prompts)

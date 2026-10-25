@@ -95,7 +95,7 @@ def test_cpu_match_finishes_with_results_and_kos(app):
     r = roster()
     battle = Battle(app, r[:2], human=[False, False], demo=False)
     app.set_scene(battle)
-    for _ in range(120 * 60 + 400):
+    for _ in range(120 * 60 + 1800):  # hit-stop freezes the clock, so a full-length match runs a bit past 7200 frames
         frame(app)
         if isinstance(app.scene, Results):
             break

@@ -10,6 +10,7 @@ from k8ssmash.ai import SimpleAI
 from k8ssmash.audio_manager import MUSIC_FOR_THEME
 from k8ssmash.backdrops import draw_backdrop, draw_platform
 from k8ssmash.config import FPS, WORLD_H, WORLD_W
+from k8ssmash.flair import INTRO
 from k8ssmash.fighter import (BUFF_ARMOR, BUFF_GUARD, BUFF_HASTE, BUFF_POWER, CALLOUT_FRAMES, Fighter,
                               FighterStats, Projectile)
 from k8ssmash.fx import draw_effect, draw_projectile
@@ -154,6 +155,9 @@ class Battle(Scene):
             self.app.go_title()
             return
         if self.phase == "ready":
+            if self.frame == 4 and not self.demo:  # everybody gets a line walking in
+                for f in self.fighters:
+                    f.say(INTRO.get(f.stats.name, ""))
             if self.frame in (1, 31, 61):
                 self.app.audio.play("countdown")
             return
