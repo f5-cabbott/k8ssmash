@@ -34,6 +34,7 @@ KO_REASONS = ["OOMKilled", "Evicted", "CrashLoopBackOff", "ImagePullBackOff", "T
 READY_STATUS = ["Pending...", "ContainerCreating...", "RUNNING!"]
 
 
+COMBO_SHOW = 70  # frames the combo counter stays up after the last hit
 _VIGNETTES: dict[int, pygame.Surface] = {}
 
 
@@ -74,6 +75,7 @@ class Battle(Scene):
         self.frame = 0
         self.time_left = MATCH_SECONDS * FPS
         self.hitstop = 0
+        self.combos: dict[int, tuple[int, int, int]] = {}  # attacker slot -> (hits, frames to show, victim slot)
         self.winner: int | None = None  # fighter slot, -1 for a draw
         self.finished_frames = 0
         self.debug = False
@@ -186,6 +188,7 @@ class Battle(Scene):
                 self.projectiles.append(proj)
             f.spawn_queue.clear()
         self.effects = [(k, x, y, t - 1) for k, x, y, t in self.effects if t > 1]
+        self.combos = {s: (n, t - 1, v) for s, (n, t, v) in self.combos.items() if t > 1}
         for f, item in self.spawner.update(self.stage, self.fighters):
             self.effects.append(("pickup", f.x, f.y - f.stats.height / 2, 24))
             self.fx.sparkle(f.x, f.y - 24, (255, 245, 170), 9, 16)
@@ -205,6 +208,7 @@ class Battle(Scene):
                 f.last_hit_by = None
                 self._ko_burst(f)
                 f.knock_out()
+                self._second_wind(f)
                 self.app.audio.play("ko", pan=self.pan_of(f), fighter=f.stats.name)
                 self.announce(f"{f.stats.name}: {self.rng.choice(KO_REASONS)}", self.colors[f.slot])
                 if f.eliminated and not self.demo:
@@ -231,6 +235,22 @@ class Battle(Scene):
             self.fx.sparkle(f.x, f.y - 22, color, 1, 12)
         if f.state == "hurt" and math.hypot(f.vx, f.vy) > 7 and self.frame % 2 == 0:
             self.fx.streak(f.x, f.y - 22, f.vx, f.vy, self.colors[f.slot])
+
+    def _count_combo(self, attacker: Fighter, victim: Fighter, chained: bool) -> None:
+        """Hits that land while the victim is still reeling from the last one build a combo."""
+        count, _, vslot = self.combos.get(attacker.slot, (0, 0, -1))
+        count = count + 1 if chained and vslot == victim.slot and count else 1
+        self.combos[attacker.slot] = (count, COMBO_SHOW, victim.slot)
+        if count >= 3:
+            self.fx.ring(victim.x, victim.y - victim.stats.height - 8, (255, 214, 90), 20 + count * 3, 16)
+            self.app.audio.play("counter", pan=self.pan_of(victim))
+
+    def _second_wind(self, f: Fighter) -> None:
+        """Down to the last stock while the other fighter still has spare ones: a modest comeback boost."""
+        others = [o for o in self.fighters if o is not f and not o.eliminated]
+        if f.stocks == 1 and not f.eliminated and not f.comeback and others and max(o.stocks for o in others) >= 2:
+            f.comeback = True
+            self.announce("LAST STOCK: SECOND WIND!", self.colors[f.slot])
 
     def _hit_burst(self, victim: Fighter, attacker: Fighter, damage: float, angle: float, direction: int) -> None:
         cx, cy = victim.hurtbox.center
@@ -277,9 +297,12 @@ class Battle(Scene):
             self.fx.ring(victim.x, victim.y - 24, (255, 224, 120), 34, 22)
             self.fx.burst(victim.x, victim.y - 24, (255, 224, 120), 12, 3.6)
             return True
+        was_stunned = victim.hitstun > 0
         result = victim.apply_hit(damage, base, growth, angle, direction)
         if result == "ignored":
             return False
+        if result == "hit":
+            self._count_combo(attacker, victim, was_stunned)
         if result == "shield":
             self.app.audio.play("shield", pan=self.pan_of(victim))
             self.fx.ring(victim.hurtbox.centerx, victim.hurtbox.centery, (150, 235, 255), 26, 14)
@@ -309,8 +332,30 @@ class Battle(Scene):
                     continue
                 if box.colliderect(vic.hurtbox):
                     m = atk.move
-                    if self._hit(vic, atk, m.damage, m.base_kb, m.kb_growth, m.angle, atk.facing):
+                    if m.grab:
+                        if self._throw(atk, vic):
+                            atk.hit_targets.add(vic.slot)
+                    elif self._hit(vic, atk, m.damage, m.base_kb, m.kb_growth, m.angle, atk.facing):
                         atk.hit_targets.add(vic.slot)
+
+    def _throw(self, atk: Fighter, vic: Fighter) -> bool:
+        """A grab beats a shield. The way the stick is held when it connects picks the throw."""
+        if vic.invuln > 0 or vic.intangible:
+            return False
+        vic.shielding = False
+        ax, ay = atk.last_axis
+        rel = ax * atk.facing
+        if ay < 0:  # up throw: a high launch
+            args, direction = (6, 4.6, 0.055, 88), atk.facing
+        elif ay > 0:  # down throw: a low pop-up that sets up a follow-up
+            args, direction = (5, 3.0, 0.03, 80), atk.facing
+        elif rel < 0:  # back throw: the strongest
+            args, direction = (8, 4.4, 0.075, 35), -atk.facing
+            atk.facing = -atk.facing
+        else:  # forward throw
+            args, direction = (7, 4.0, 0.06, 32), atk.facing
+        vic.x = atk.x + atk.facing * 18  # the victim is held right in front of the thrower
+        return self._hit(vic, atk, *args, direction)
 
     def _explode(self, p: Projectile) -> None:
         d = p.defn
@@ -525,7 +570,18 @@ class Battle(Scene):
         else:
             pygame.draw.rect(canvas, color, (mx, my, 6, 6))
 
+    def _draw_combo(self, canvas: pygame.Surface) -> None:
+        for slot, (n, t, _) in self.combos.items():
+            if n < 2:
+                continue
+            f = self.fighters[slot]
+            x = 26 if slot == 0 else WORLD_W - 26 - 250
+            pop = 1.0 + 0.25 * max(0, t - (COMBO_SHOW - 6)) / 6  # a quick pop when the count goes up, then steady
+            text = ui.scale_surface(self.big.render(f"{n} HITS", False, (255, 214, 90)), pop)
+            canvas.blit(text, (x, WORLD_H - 110 - text.get_height() // 2))
+
     def _draw_hud(self, canvas: pygame.Surface) -> None:
+        self._draw_combo(canvas)
         for f in self.fighters:
             color = self.colors[f.slot]
             x = 26 if f.slot == 0 else WORLD_W - 26 - 250

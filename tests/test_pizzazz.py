@@ -154,3 +154,65 @@ def test_heavy_hit_star_draws_and_settles():
         draw_effect(canvas, "hit_heavy", 100, 100, left)
         sizes.append(sum(1 for x in range(0, 200, 2) for y in range(0, 200, 2) if canvas.get_at((x, y))[:3] != (0, 0, 0)))
     assert sizes[1] > sizes[0] > 0 and sizes[3] < sizes[1]  # pops out, then shrinks away: no flashing
+
+
+def _arena():
+    from k8ssmash.config import Config
+    from k8ssmash.main import App
+    from k8ssmash.roster import roster
+    from k8ssmash.scenes.battle import READY_FRAMES, Battle
+    from k8ssmash.stage import STAGES
+    app = App(Config())
+    app.input.poll = lambda: None
+    b = Battle(app, roster()[:2], stage=STAGES[0](), human=[False, False], items=False)
+    app.set_scene(b)
+    for _ in range(READY_FRAMES + 5):
+        b.update()
+    return b
+
+
+def test_grab_beats_a_shield_and_the_stick_picks_the_throw():
+    b = _arena()
+    a, v = b.fighters
+    a.x, a.y, a.facing, a.on_ground = 400.0, 400.0, 1, True
+    v.x, v.y, v.on_ground = 420.0, 400.0, True
+    v.shielding = True
+    v.invuln = a.invuln = 0
+    a.last_axis = (0, 0)
+    before = v.percent
+    assert b._throw(a, v)
+    assert v.percent > before and not v.shielding and v.vx > 0  # forward throw sends them away from the thrower
+    v.hitstun = 0
+    a.last_axis = (0, -1)
+    v.percent = 0
+    b._throw(a, v)
+    assert v.vy < -2.5  # up throw launches high
+
+
+def test_combo_counter_counts_chained_hits_and_resets():
+    b = _arena()
+    a, v = b.fighters
+    v.invuln = 0
+    for _ in range(3):
+        v.invuln = 0
+        b._hit(v, a, 3, 2.0, 0.02, 40, 1)  # each lands while the last still stuns
+    assert b.combos[a.slot][0] == 3
+    v.hitstun = 0
+    v.invuln = 0
+    b._hit(v, a, 3, 2.0, 0.02, 40, 1)
+    assert b.combos[a.slot][0] == 1  # a fresh exchange starts over
+
+
+def test_second_wind_only_on_the_last_stock_when_behind():
+    b = _arena()
+    a, v = b.fighters
+    a.stocks, v.stocks = 1, 3
+    b._second_wind(a)
+    assert a.comeback and a.damage_mult > 1.1 and a.speed_mult > 1.0
+    b._second_wind(v)
+    assert not v.comeback
+    b2 = _arena()
+    for f in b2.fighters:
+        f.stocks = 1
+    b2._second_wind(b2.fighters[0])
+    assert not b2.fighters[0].comeback  # no boost when the opponent is also on the last stock

@@ -18,6 +18,7 @@ CALLOUT_FRAMES = 50
 DUCK_HEIGHT = 0.55
 LEDGE_REACH = 30  # how far below a platform's top you can be and still be pulled up onto it
 LEDGE_GRAB = 12  # how far out from the edge counts as 'at the ledge'
+HANG_MAX = 170  # frames you can hold a ledge before you drop
 
 # Buff names -> what they do. Durations are in frames and live in Fighter.buffs.
 BUFF_HASTE = "haste"  # +35% move speed
@@ -140,6 +141,11 @@ class Fighter:
         self.fx: list[tuple[str, float]] = []  # visual cues (landing dust, jump rings) for the battle scene
         self.land_timer = 0  # frames of landing squash remaining
         self.buffs: dict[str, int] = {}
+        self.comeback = False  # last-stock second wind, set by the battle
+        self.last_axis = (0, 0)  # the stick on the latest frame: a grab reads it to choose the throw
+        self.hanging: tuple | None = None  # (platform, inward) while holding a ledge
+        self.hang_timer = 0
+        self.regrab_timer = 0
         self.kos = 0
         self.dealt_damage = 0.0
         self.last_hit_by: Fighter | None = None
@@ -156,11 +162,11 @@ class Fighter:
 
     @property
     def speed_mult(self) -> float:
-        return 1.35 if self.has(BUFF_HASTE) else 1.0
+        return (1.35 if self.has(BUFF_HASTE) else 1.0) * (1.06 if self.comeback else 1.0)
 
     @property
     def damage_mult(self) -> float:
-        return 1.3 if self.has(BUFF_POWER) else 1.0
+        return (1.3 if self.has(BUFF_POWER) else 1.0) * (1.15 if self.comeback else 1.0)
 
     @property
     def taken_mult(self) -> float:
@@ -236,12 +242,14 @@ class Fighter:
         self.used_recovery = False
         self.on_ground = False
         self.standing_on = None
+        self.hanging = None
         self.buffs.clear()
 
     def knock_out(self) -> None:
         self.stocks -= 1
         self.ko_timer = KO_DELAY
         self.move = None
+        self.hanging = None
         self.vx = self.vy = 0.0
         self.buffs.clear()
         if self.stocks <= 0:
@@ -262,6 +270,7 @@ class Fighter:
                 self.vy = -5.0
                 self.events.append("shield_break")
             return "shield"
+        self.hanging = None
         self.percent += damage * self.taken_mult
         if self.armored:
             return "hit"  # damage lands, but no flinch or launch
@@ -288,7 +297,8 @@ class Fighter:
                            RESPAWN_INVULN)
                 self.percent = 0.0
             return
-        for name in ("invuln", "hitstun", "drop_timer", "shield_break", "callout_timer", "land_timer"):
+        self.last_axis = (inp.axis_x, inp.axis_y)
+        for name in ("invuln", "hitstun", "drop_timer", "shield_break", "callout_timer", "land_timer", "regrab_timer"):
             value = getattr(self, name)
             if value > 0:
                 setattr(self, name, value - 1)
@@ -301,6 +311,10 @@ class Fighter:
         stunned = self.hitstun > 0
         self.shielding = False
 
+        if self.hanging is not None and not stunned and self.move is None:
+            self._hang(inp)
+            self._finish_frame()
+            return
         if stunned:
             self.state = "hurt"
         elif self.move is not None:
@@ -334,9 +348,31 @@ class Fighter:
         if self.shield_hp < SHIELD_MAX and not self.shielding:
             self.shield_hp = min(SHIELD_MAX, self.shield_hp + 0.25)
 
+        self._finish_frame()
+
+    def _finish_frame(self) -> None:
         key = self.move.anim if self.move is not None and self.state == "attack" else self.state
         self.anim_frame = self.anim_frame + 1 if key == self._anim_state else 0
         self._anim_state = key
+
+    def _hang(self, inp: PlayerInput) -> None:
+        """Holding a ledge: safe for a moment, then climb (up, jump or toward the stage), or let go (down)."""
+        plat, inward = self.hanging
+        self.vx = self.vy = 0.0
+        self.state = "jump"
+        self.hang_timer -= 1
+        held_for = HANG_MAX - self.hang_timer
+        half = self.stats.width * self.scale / 2
+        if held_for > 8 and (inp.pressed & {"UP", "JUMP"} or inp.axis_x == inward and held_for > 14):
+            r = plat.rect
+            self.x = (r.left if inward > 0 else r.right) + inward * half * 0.5
+            self.y = float(r.top)
+            self.on_ground, self.standing_on, self.hanging = True, plat, None
+            self.facing = inward
+            self.events.append("land")
+            self.fx.append(("land", 0.6))
+        elif "DOWN" in inp.pressed or self.hang_timer <= 0:
+            self.hanging, self.regrab_timer = None, 30
 
     def _control(self, inp: PlayerInput) -> None:
         s = self.stats
@@ -345,6 +381,10 @@ class Fighter:
         air = s.air_speed * self.speed_mult
 
         if self.on_ground and "SHIELD" in inp and self.shield_break == 0:
+            if "ATTACK" in inp.pressed:  # shield + attack: grab
+                self._begin(self._pick("grab"))
+                if self.move is not None:
+                    return
             self.shielding = True
             self.vx = 0.0
             self.state = "shield"
@@ -485,9 +525,9 @@ class Fighter:
                 facing=self.facing, life=d.life, orbit_angle=self.slot * math.pi))
 
     def _ledge_assist(self, stage: Stage, inp: PlayerInput) -> None:
-        """Forgiving recovery: drift down beside a solid platform edge, push toward it (or up), and you are pulled
-        up onto the platform instead of sliding past. Thin planks are left alone."""
-        if self.on_ground or self.move is not None or self.vy < -3.0:
+        """Smash-style ledge grab: fall beside a solid platform's edge, push toward it (or up), and you catch hold and
+        hang there, briefly invincible. Thin planks are left alone."""
+        if self.on_ground or self.move is not None or self.vy < -3.0 or self.regrab_timer > 0 or self.hanging is not None:
             return
         half = self.stats.width * self.scale / 2
         for plat in stage.platforms:
@@ -499,10 +539,14 @@ class Fighter:
             for edge, inward in ((r.left, 1), (r.right, -1)):  # inward: the direction that points onto the platform
                 gap = (edge - self.x) * inward  # positive while still outside the edge
                 if -half * 0.5 <= gap <= half + LEDGE_GRAB and (inp.axis_x == inward or "UP" in inp):
-                    self.x = edge + inward * half * 0.5
-                    self.y = float(r.top)
+                    self.x = edge - inward * half * 0.6
+                    self.y = float(r.top + 30)
                     self.vx = self.vy = 0.0
-                    self.on_ground, self.standing_on = True, plat
+                    self.hanging, self.hang_timer = (plat, inward), HANG_MAX
+                    self.facing = inward
+                    self.invuln = max(self.invuln, 45)
+                    self.aerial_jumps = self.stats.air_jumps
+                    self.events.append("shield")
                     return
 
     # --- movement --------------------------------------------------------------------------

@@ -276,7 +276,26 @@ def test_ledge_assist_pulls_you_onto_the_stage(stage):
     f.x, f.y = main.left - 8, main.top + 14  # just below and outside the left edge
     f.vy, f.on_ground = 1.0, False
     tick(f, stage, {"RIGHT"})
-    assert f.on_ground and f.y == main.top and f.x > main.left
+    assert f.hanging is not None and not f.on_ground and f.invuln > 0  # caught the ledge, briefly safe
+    tick(f, stage, frames=12)
+    assert f.hanging is not None  # holding is stable
+    tick(f, stage, {"UP"})
+    assert f.on_ground and f.y == main.top and f.x > main.left  # climbs up
+
+
+def test_ledge_hang_can_be_dropped_and_times_out(stage):
+    main = stage.platforms[0].rect
+    f = make(stage)
+    f.x, f.y, f.vy, f.on_ground = main.left - 8, main.top + 14, 1.0, False
+    tick(f, stage, {"RIGHT"})
+    tick(f, stage, frames=10)
+    tick(f, stage, {"DOWN"})
+    assert f.hanging is None and f.regrab_timer > 0  # let go, and cannot instantly re-grab
+    g = make(stage)
+    g.x, g.y, g.vy, g.on_ground = main.left - 8, main.top + 14, 1.0, False
+    tick(g, stage, {"RIGHT"})
+    tick(g, stage, frames=200)
+    assert g.hanging is None  # nobody hangs forever
 
 
 def test_ledge_assist_needs_you_to_push_toward_the_stage(stage):
@@ -285,12 +304,12 @@ def test_ledge_assist_needs_you_to_push_toward_the_stage(stage):
     f.x, f.y = main.left - 8, main.top + 14
     f.vy, f.on_ground = 1.0, False
     tick(f, stage, {"LEFT"})
-    assert not f.on_ground
+    assert f.hanging is None
     g = make(stage)
     g.x, g.y = main.right + 8, main.top + 14
     g.vy, g.on_ground = 1.0, False
     tick(g, stage, {"LEFT"})
-    assert g.on_ground and g.x < main.right  # the same works on the right edge
+    assert g.hanging is not None  # the same works on the right edge
 
 
 def test_ledge_assist_ignores_deep_or_far_positions_and_thin_planks(stage):

@@ -54,6 +54,7 @@ class Move:
     heal: float = 0.0  # percent removed on the first active frame
     buff: tuple[str, int] | None = None  # (buff name, frames) applied on the first active frame
     once_per_air: bool = False  # recovery moves: usable once until the fighter lands
+    grab: bool = False  # connects through shields; the direction held when it lands picks the throw
     projectile: ProjectileDef | None = None
     anim: str = ""  # sprite animation style; falls back to the move key
     announce: str = ""  # k8s-flavoured callout shown when the move is used
@@ -71,6 +72,7 @@ def default_moveset() -> dict[str, Move]:
         "side": Move("side", 8, 4, 16, (6, -36, 30, 18), 9, 3.6, 0.055, 32, lunge=1.5, anim="side"),
         "up": Move("up", 6, 5, 15, (-12, -70, 26, 30), 7, 3.2, 0.050, 85, anim="up"),
         "down": Move("down", 5, 4, 14, (4, -14, 32, 14), 6, 2.8, 0.040, 22, anim="down"),
+        "grab": Move("grab", 6, 3, 24, (2, -34, 26, 24), anim="jab", announce="kubectl drain", grab=True),
         "special": Move(
             "apply", 10, 1, 18, projectile=ProjectileDef(
                 speed=4.5, width=10, height=8, damage=5, base_kb=2.6, kb_growth=0.03, angle=30),
