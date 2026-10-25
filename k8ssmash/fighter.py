@@ -18,6 +18,8 @@ CALLOUT_FRAMES = 50
 DUCK_HEIGHT = 0.55
 LEDGE_REACH = 30  # how far below a platform's top you can be and still be pulled up onto it
 LEDGE_GRAB = 12  # how far out from the edge counts as 'at the ledge'
+BUFFER = 6  # frames a button press is remembered, so mashing a hair early still counts
+COYOTE = 5  # frames after walking off an edge in which you can still make a ground jump
 HANG_MAX = 170  # frames you can hold a ledge before you drop
 
 # Buff names -> what they do. Durations are in frames and live in Fighter.buffs.
@@ -146,6 +148,8 @@ class Fighter:
         self.hanging: tuple | None = None  # (platform, inward) while holding a ledge
         self.hang_timer = 0
         self.regrab_timer = 0
+        self.buf = {"ATTACK": 0, "SPECIAL": 0, "JUMP": 0}  # input buffer: frames each press is still live
+        self.coyote = 0
         self.kos = 0
         self.dealt_damage = 0.0
         self.last_hit_by: Fighter | None = None
@@ -243,6 +247,8 @@ class Fighter:
         self.on_ground = False
         self.standing_on = None
         self.hanging = None
+        self.coyote = 0
+        self.buf = dict.fromkeys(self.buf, 0)
         self.buffs.clear()
 
     def knock_out(self) -> None:
@@ -298,6 +304,8 @@ class Fighter:
                 self.percent = 0.0
             return
         self.last_axis = (inp.axis_x, inp.axis_y)
+        for name in self.buf:
+            self.buf[name] = BUFFER if name in inp.pressed else max(0, self.buf[name] - 1)
         for name in ("invuln", "hitstun", "drop_timer", "shield_break", "callout_timer", "land_timer", "regrab_timer"):
             value = getattr(self, name)
             if value > 0:
@@ -339,6 +347,7 @@ class Fighter:
             self.land_timer = 6 if impact > 4.5 else 4
             self.fx.append(("land", min(1.0, impact / 8.0)))
 
+        self.coyote = COYOTE if self.on_ground else max(0, self.coyote - 1)
         if self.on_ground:
             self.aerial_jumps = self.stats.air_jumps
             self.used_recovery = False
@@ -390,17 +399,20 @@ class Fighter:
             self.state = "shield"
             return
 
-        if "ATTACK" in inp.pressed:
+        if self.buf["ATTACK"]:
             self._start_attack(inp)
+            self.buf["ATTACK"] = 0  # the press is spent whether or not the move was allowed
             if self.move is not None:
                 return
-        elif "SPECIAL" in inp.pressed:
+        elif self.buf["SPECIAL"]:
             self._start_special(inp)
+            self.buf["SPECIAL"] = 0
             if self.move is not None:
                 return
 
-        if "JUMP" in inp.pressed:
-            if self.on_ground:
+        if self.buf["JUMP"]:
+            if self.on_ground or self.coyote > 0:
+                self.buf["JUMP"] = self.coyote = 0
                 self.vy = s.jump_vel
                 self.on_ground = False
                 self.standing_on = None
@@ -408,6 +420,7 @@ class Fighter:
                 self.events.append("jump")
                 self.fx.append(("jump", 0.5))
             elif self.aerial_jumps > 0:
+                self.buf["JUMP"] = 0
                 used = s.air_jumps - self.aerial_jumps
                 self.aerial_jumps -= 1
                 self.vy = s.djump_vel * (0.93 ** used)

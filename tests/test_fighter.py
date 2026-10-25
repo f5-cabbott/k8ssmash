@@ -368,3 +368,25 @@ def test_running_is_snappy(stage):
     tick(f, stage, frames=3)
     tick(f, stage, {"RIGHT"}, frames=3)
     assert f.vx >= 3.0  # Smash-like pace: no slow ramp-up
+
+
+def test_a_press_just_before_recovery_is_buffered(stage):
+    f = make(stage)
+    tick(f, stage, frames=3)
+    f.hitstun = 3  # still reeling for three more frames
+    tick(f, stage, {"ATTACK"})  # mashed a little early
+    tick(f, stage, frames=4)
+    assert f.state == "attack" or f.move is not None or f.hitstun == 0 and f.buf["ATTACK"] == 0
+
+
+def test_coyote_time_allows_a_late_ground_jump_once(stage):
+    f = make(stage)
+    f.x = stage.platforms[0].rect.right + 4  # just walked off the edge
+    f.on_ground = False
+    tick(f, stage, frames=1)
+    f.coyote = 3
+    tick(f, stage, {"JUMP"})
+    assert f.vy < -5 and f.aerial_jumps == f.stats.air_jumps  # a full ground jump, air jumps untouched
+    tick(f, stage, frames=2)
+    tick(f, stage, {"JUMP"})
+    assert f.aerial_jumps == f.stats.air_jumps - 1  # the next is a normal air jump
