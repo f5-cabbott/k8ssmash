@@ -78,13 +78,25 @@ def face(f, r: Rig, eyes: list[tuple[int, int]], size: tuple[int, int], iris, mo
 
 # --- Pod ---------------------------------------------------------------------------------------
 def pod() -> Look:
-    pal = with_back_palettes({"body": (70, 150, 255), "leaf": (90, 210, 110), "face": (226, 240, 255)})
+    pal = with_back_palettes({"body": (70, 150, 255), "leaf": (150, 225, 255), "face": (226, 240, 255)})
 
-    def sprout(s, r: Rig) -> None:
+    def tail_fin(s, r: Rig) -> None:  # a whale's flukes curling up behind: it swishes with the motion
+        hx, hy = r.hip
+        sw = math.sin(r.pose.lean * 0.7 + r.pose.bob) * 2.0 + r.pose.lean * 0.3
+        draw.limb(s, [(hx - 4, hy), (hx - 11, hy + 1), (hx - 16 - sw, hy - 6), (hx - 15 - sw, hy - 13)], 4)
+        draw.poly(s, [(hx - 15 - sw, hy - 13), (hx - 23 - sw, hy - 19), (hx - 20 - sw, hy - 12), (hx - 24 - sw, hy - 9),
+                      (hx - 14 - sw, hy - 9)])
+
+    def sprout(s, r: Rig) -> None:  # the water spout from the blowhole, drifting with the motion
         cx, cy = r.head
-        sway = math.sin(r.pose.lean * 0.5 + r.pose.bob) * 1.5  # the sprout flops with the motion
-        draw.line(s, (cx + 1, cy - 8), (cx + 2 + sway, cy - 13), 2)
-        draw.poly(s, [(cx + 2 + sway, cy - 14), (cx + 12 + sway * 2, cy - 18), (cx + 7 + sway, cy - 9)])
+        sway = math.sin(r.pose.lean * 0.5 + r.pose.bob) * 1.5
+        draw.line(s, (cx + 1, cy - 9), (cx + 2 + sway, cy - 14), 2)
+        for dx, dy, rad in ((-4, -16, 1.8), (2, -19, 2.2), (8, -16, 1.8)):
+            draw.circle(s, (cx + dx + sway * 1.4, cy + dy), rad)
+
+    def belly(s, r: Rig) -> None:
+        hx, hy = r.hip[0] + r.pose.lean * 0.4, r.hip[1] - 9
+        draw.ellipse(s, hx - 2, hy - 5, 10, 13)
 
     def face_plate(s, r: Rig) -> None:
         cx, cy = r.head
@@ -92,22 +104,29 @@ def pod() -> Look:
 
     def details(f: pygame.Surface, r: Rig) -> None:
         face(f, r, [(1, -3), (7, -3)], (4, 5), (60, 110, 230), (3, 5, 6), (50, 70, 140))
-        hx, hy = r.hip[0] + r.pose.lean * 0.4, r.hip[1] - 8
-        for i in range(7):  # ship's-wheel emblem on the belly
-            a = i * 2 * math.pi / 7
-            f.set_at((round(hx + math.cos(a) * 3.2), round(hy + math.sin(a) * 3.2)), (240, 248, 255))
-        f.set_at((round(hx), round(hy)), (240, 248, 255))
-        pygame.draw.circle(f, (200, 226, 255), (round(hx), round(hy)), 5, 1)
+        hx, hy = r.hip[0] + r.pose.lean * 0.4, r.hip[1] - 9
+        for i in range(-1, 2):  # throat pleats of a baleen whale
+            pygame.draw.line(f, (160, 196, 240), (round(hx + 1), round(hy + i * 3)), (round(hx + 6), round(hy + i * 3)), 1)
 
     return Look("Pod", pal, head_r=11, torso_w=16, torso_h=15, leg_len=13, leg_w=6, head_pal="body",
-                no_hue_shift=("face", "leaf"), front=[(face_plate, "face"), (sprout, "leaf")], details=details)
+                no_hue_shift=("face", "leaf"), back=[(tail_fin, "body")],
+                front=[(belly, "face"), (face_plate, "face"), (sprout, "leaf")], details=details)
 
 
 # --- StatefulSet -------------------------------------------------------------------------------
 def statefulset() -> Look:
     pal = with_back_palettes({
         "body": (240, 204, 58), "skin": (238, 196, 156), "hat": (236, 238, 244), "drum": (96, 132, 190),
-        "pants": (70, 78, 112), "stache": (120, 82, 54), "boots": (92, 66, 46)})
+        "pants": (70, 78, 112), "stache": (120, 82, 54), "boots": (92, 66, 46), "lock": (214, 218, 230)})
+
+    def drum2(s, r: Rig) -> None:  # a second, smaller drum stacked on top: lots of persistent storage
+        cx, cy = r.shoulder[0] - 9, r.shoulder[1] + 6
+        draw.rect(s, cx - 5, cy - 24, 10, 10, radius=2)
+        draw.ellipse(s, cx - 5, cy - 27, 10, 6)
+
+    def padlock(s, r: Rig) -> None:
+        hx, hy = r.hip[0] + r.pose.lean * 0.3 + 6, r.hip[1] - 3
+        draw.rect(s, hx - 3, hy - 2, 7, 6, radius=1)
 
     def drum(s, r: Rig) -> None:  # a big persistent-volume drum strapped to his back
         cx, cy = r.shoulder[0] - 9, r.shoulder[1] + 6
@@ -143,14 +162,18 @@ def statefulset() -> Look:
         hx, hy = r.hip[0] + r.pose.lean * 0.3, r.hip[1] - 4
         pygame.draw.line(f, (240, 244, 255), (round(hx - 8), round(hy - 6)), (round(hx + 8), round(hy - 6)), 1)  # reflective vest stripes
         pygame.draw.line(f, (240, 244, 255), (round(hx - 8), round(hy - 2)), (round(hx + 8), round(hy - 2)), 1)
+        lx, ly = r.hip[0] + r.pose.lean * 0.3 + 6, r.hip[1] - 3
+        pygame.draw.arc(f, (170, 176, 196), (round(lx - 2), round(ly - 6), 5, 7), 0, math.pi, 1)  # the padlock's shackle
+        f.set_at((round(lx), round(ly + 1)), (60, 60, 80))
         dx, dy = r.shoulder[0] - 9, r.shoulder[1] + 6
         pygame.draw.rect(f, (255, 255, 255), (round(dx) - 3, round(dy) - 2, 6, 5))  # the drum's label
         pygame.draw.line(f, (60, 90, 150), (round(dx) - 2, round(dy)), (round(dx) + 2, round(dy)), 1)
 
     return Look("StatefulSet", pal, torso_w=19, torso_h=17, leg_len=14, leg_w=7, arm_w=6, head_r=9, leg_pal="pants",
                 textures={"body": "cloth", "pants": "cloth", "drum": "metal", "hat": "metal"},
-                no_hue_shift=("skin", "stache", "hat", "drum", "boots"),
-                back=[(drum, "drum"), (hoops, "hat")], front=[(stache, "stache"), (hard_hat, "hat"), (lamp, "body")],
+                no_hue_shift=("skin", "stache", "hat", "drum", "boots", "lock"),
+                back=[(drum, "drum"), (drum2, "drum"), (hoops, "hat")],
+                front=[(stache, "stache"), (hard_hat, "hat"), (lamp, "body"), (padlock, "lock")],
                 details=details)
 
 
@@ -183,9 +206,12 @@ def kubectl() -> Look:
             pygame.draw.lines(f, glow, False, [(x + 9, y - 3), (x + 5, y), (x + 9, y + 3)], 2)
         elif face == "shock":  # "O_O"
             pygame.draw.circle(f, glow, (x, y), 3, 1); pygame.draw.circle(f, glow, (x + 7, y), 3, 1)
-        else:  # ">_"
+        else:  # ">_" with a couple of lines of output above it
             pygame.draw.lines(f, glow, False, [(x - 1, y - 3), (x + 3, y), (x - 1, y + 3)], 2)
             ln(f, glow, (x + 5, y + 3), (x + 8, y + 3), 2)
+            dim = tuple(int(c * 0.5) for c in glow)
+            ln(f, dim, (x - 3, y - 6), (x + 6, y - 6), 1)
+            ln(f, dim, (x - 3, y - 4), (x + 1, y - 4), 1)
         hx, hy = r.hip[0] + r.pose.lean * 0.5, r.hip[1] - 9
         for i, c in enumerate(((255, 120, 110), (255, 215, 90), (140, 255, 190))):
             pygame.draw.rect(f, c, (round(hx - 4 + i * 4), round(hy), 3, 3))
@@ -198,7 +224,13 @@ def kubectl() -> Look:
 
 # --- Chaos Monkey ------------------------------------------------------------------------------
 def monkey() -> Look:
-    pal = with_back_palettes({"body": (226, 128, 70), "face": (250, 214, 168), "ear": (240, 160, 110)})
+    pal = with_back_palettes({"body": (226, 128, 70), "face": (250, 214, 168), "ear": (240, 160, 110),
+                              "banana": (255, 222, 70)})
+
+    def banana_hat(s, r: Rig) -> None:  # a banana worn like a jaunty hat
+        cx, cy = r.head
+        tilt = r.pose.lean * 0.3 + math.sin(r.pose.bob * 2) * 0.8
+        draw.limb(s, [(cx - 8, cy - 7 - tilt), (cx - 3, cy - 14), (cx + 5, cy - 15 + tilt), (cx + 11, cy - 10 + tilt)], 4)
 
     def tail(s, r: Rig) -> None:
         hx, hy = r.hip
@@ -223,8 +255,9 @@ def monkey() -> Look:
         face(f, r, [(1, -3), (6, -3)], (3, 4), (110, 70, 30), (3, 5, 5), (150, 70, 40))
 
     return Look("Chaos Monkey", pal, torso_w=13, torso_h=14, leg_len=13, leg_w=5, arm_w=5, arm_len=17,
-                head_r=9, head_pal="body", textures={"body": "fur", "ear": "fur"}, no_hue_shift=("face",),
-                back=[(tail, "body")], front=[(ears, "ear"), (face_patch, "face"), (belly, "face")], details=details)
+                head_r=9, head_pal="body", textures={"body": "fur", "ear": "fur"}, no_hue_shift=("face", "banana"),
+                back=[(tail, "body")], front=[(ears, "ear"), (face_patch, "face"), (belly, "face"), (banana_hat, "banana")],
+                details=details)
 
 
 # --- Sidecar -----------------------------------------------------------------------------------
@@ -236,6 +269,15 @@ def sidecar() -> Look:
         sx, sy = r.shoulder
         flutter = math.sin(r.pose.lean + r.pose.bob * 3) * 2 + max(0.0, r.pose.lean) * 0.5
         draw.limb(s, [(sx, sy - 1), (sx - 8, sy + 1 - flutter * 0.3), (sx - 15 - flutter * 0.5, sy + 6 + flutter)], 4)
+
+    def drone_pos(r: Rig) -> tuple[float, float]:
+        return r.shoulder[0] + 24 - r.pose.lean * 0.3, r.shoulder[1] - 12 + math.sin(r.pose.bob * 2) * 2
+
+    def drone(s, r: Rig) -> None:  # the sidecar itself: a round little drone that follows along and bobs
+        x, y = drone_pos(r)
+        draw.circle(s, (x, y), 6)
+        draw.line(s, (x, y - 5), (x - 1, y - 9), 1.4)
+        draw.line(s, (x - 9, y + 1), (x + 9, y + 1), 1.6)  # stubby side rotors
 
     def helmet(s, r: Rig) -> None:
         cx, cy = r.head
@@ -262,15 +304,20 @@ def sidecar() -> Look:
         mouth_expr(f, round(cx + 4), round(cy + 5), 5, r.pose.face, (150, 80, 70))
         hx, hy = r.hip[0] + r.pose.lean * 0.4, r.hip[1] - 7
         pygame.draw.rect(f, (255, 215, 90), (round(hx - 2), round(hy), 5, 4))
+        dx, dy = drone_pos(r)  # the drone's single glowing eye and antenna light
+        pygame.draw.circle(f, (30, 40, 70), (round(dx + 1), round(dy)), 3)
+        pygame.draw.circle(f, lens, (round(dx + 1), round(dy)), 2)
+        f.set_at((round(dx - 1), round(dy - 9)), (255, 120, 110))
 
     return Look("Sidecar", pal, torso_w=14, torso_h=15, leg_len=14, head_r=9, head_pal="skin",
                 textures={"body": "cloth", "steel": "metal"}, no_hue_shift=("skin", "steel"),
-                back=[(scarf, "scarf")], front=[(helmet, "steel")], details=details)
+                back=[(scarf, "scarf")], front=[(helmet, "steel"), (drone, "steel")], details=details)
 
 
 # --- Ingress -----------------------------------------------------------------------------------
 def ingress() -> Look:
-    pal = with_back_palettes({"body": (90, 215, 220), "steel": (190, 205, 220), "dark": (50, 70, 100)})
+    pal = with_back_palettes({"body": (90, 215, 220), "steel": (190, 205, 220), "dark": (50, 70, 100),
+                              "cone": (255, 150, 40)})
 
     def shield(s, r: Rig) -> None:
         hx, hy = r.hand_f
@@ -303,10 +350,13 @@ def ingress() -> Look:
         pygame.draw.arc(f, (230, 250, 255), (round(hx - 4), round(hy - 3), 8, 8), 0, math.pi, 2)
         pygame.draw.line(f, (230, 250, 255), (round(hx - 4), round(hy + 1)), (round(hx - 4), round(hy + 5)), 1)
         pygame.draw.line(f, (230, 250, 255), (round(hx + 3), round(hy + 1)), (round(hx + 3), round(hy + 5)), 1)
+        for gx in range(-2, 4, 2):  # portcullis bars across the gate
+            pygame.draw.line(f, (40, 80, 100), (round(hx + gx), round(hy - 7)), (round(hx + gx), round(hy - 3)), 1)
+        pygame.draw.line(f, (255, 255, 255), (round(cx - 2), round(cy - 12)), (round(cx + 2), round(cy - 12)), 1)  # the cone's stripe
 
     return Look("Ingress", pal, torso_w=18, torso_h=16, leg_len=14, leg_w=6, arm_w=6, head_r=10,
                 head_pal="steel", leg_pal="dark", textures={"body": "panel", "steel": "metal"},
-                no_hue_shift=("steel", "dark"), front=[(crest, "body"), (shield, "steel")], details=details)
+                no_hue_shift=("steel", "dark", "cone"), front=[(crest, "cone"), (shield, "steel")], details=details)
 
 
 # --- Operator ----------------------------------------------------------------------------------
@@ -327,6 +377,12 @@ def operator() -> Look:
         draw.circle(s, (cx - 9, cy - 4 + bounce), 4)
         draw.circle(s, (cx + 8, cy - 12 + bounce), 4)
 
+    def cord(s, r: Rig) -> None:  # a patch cord from the switchboard, swinging with every step
+        hx, hy = r.hip
+        sw = math.sin(r.pose.bob * 2 + r.pose.lean * 0.5) * 2 + r.pose.lean * 0.4
+        draw.limb(s, [(hx - 4, hy - 2), (hx - 12, hy + 2), (hx - 17 - sw, hy - 5), (hx - 22 - sw, hy - 1), (hx - 25 - sw, hy - 8)], 2)
+        draw.rect(s, hx - 28 - sw, hy - 12, 6, 5, radius=1)  # the plug
+
     def headset(s, r: Rig) -> None:
         cx, cy = r.head
         draw.arc(s, cx - 10, cy - 13, 20, 20, 0.3, math.pi - 0.3, 2)
@@ -341,13 +397,13 @@ def operator() -> Look:
 
     return Look("Operator", pal, torso_w=14, torso_h=16, leg_len=15, leg_w=5, head_r=10, head_pal="skin",
                 leg_pal="dark", textures={"coat": "cloth", "body": "cloth"}, no_hue_shift=("skin", "coat", "dark"),
-                back=[(coat, "coat")], front=[(hair, "hair"), (headset, "dark")], details=details)
+                back=[(coat, "coat"), (cord, "dark")], front=[(hair, "hair"), (headset, "dark")], details=details)
 
 
 # --- OOMKiller ---------------------------------------------------------------------------------
 def oomkiller() -> Look:
     pal = with_back_palettes({"body": (205, 60, 70), "hood": (84, 34, 74), "bone": (238, 232, 215),
-                              "steel": (185, 195, 215), "wood": (130, 88, 54)})
+                              "steel": (185, 195, 215), "wood": (130, 88, 54), "pcb": (52, 168, 104)})
 
     def horns(s, r: Rig) -> None:
         cx, cy = r.head
@@ -390,14 +446,18 @@ def oomkiller() -> Look:
             pygame.draw.line(f, (60, 30, 50), (x - 1, y - 5), (x + 4, y - 3)); pygame.draw.line(f, (60, 30, 50), (x + 6, y - 3), (x + 11, y - 5))
         for i in range(4):  # teeth
             f.set_at((x + 1 + i * 3, y + 5 + (1 if face in ("hurt", "shock", "effort") else 0)), (70, 40, 60))
+        bx, by = r.hand_f  # memory chips and gold contacts on the RAM-stick blade
+        for i in range(3):
+            pygame.draw.rect(f, (28, 34, 40), (round(bx + 6 + i * 4), round(by - 33 + i * 2), 3, 2))
+        pygame.draw.line(f, (240, 200, 80), (round(bx + 5), round(by - 29)), (round(bx + 18), round(by - 27)), 1)
         hx, hy = r.hip[0] + r.pose.lean * 0.4, r.hip[1] - 10
         pygame.draw.line(f, (238, 232, 215), (round(hx - 3), round(hy)), (round(hx + 3), round(hy + 6)), 1)
         pygame.draw.line(f, (238, 232, 215), (round(hx + 3), round(hy)), (round(hx - 3), round(hy + 6)), 1)
 
     return Look("OOMKiller", pal, torso_w=19, torso_h=19, leg_len=14, leg_w=7, arm_w=6, head_r=10,
                 head_pal="hood", textures={"body": "cloth", "hood": "cloth", "steel": "metal"},
-                no_hue_shift=("bone", "steel", "wood"),
-                front=[(skull, "bone"), (horns, "bone"), (scythe, "wood"), (blade, "steel")], details=details)
+                no_hue_shift=("bone", "steel", "wood", "pcb"),
+                front=[(skull, "bone"), (horns, "bone"), (scythe, "wood"), (blade, "pcb")], details=details)
 
 
 LOOKS = {"Pod": pod, "StatefulSet": statefulset, "Kubectl": kubectl, "Chaos Monkey": monkey, "Sidecar": sidecar,

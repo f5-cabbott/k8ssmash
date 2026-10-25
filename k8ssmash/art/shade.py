@@ -130,7 +130,7 @@ def paint_part(frame: np.ndarray, mask: np.ndarray, ramp: np.ndarray, shiny: boo
     for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
         ring |= shift(mask, dy, dx)
     ring &= ~mask
-    outline = tuple(int(v * 0.55) for v in _mix(tuple(float(x) for x in ramp[0]), (10, 6, 34), 0.35))
+    outline = tuple(int(v * 0.42) for v in _mix(tuple(float(x) for x in ramp[0]), (8, 4, 28), 0.5))  # a bolder, inkier outline
     frame[ring, :3] = outline
     frame[ring, 3] = 255
     sel = mask
