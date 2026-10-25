@@ -62,6 +62,63 @@ def dither_gradient(w: int, h: int, stops, bands: int = 20) -> pygame.Surface:
 
 
 
+# --- match-reactive state and slow moods -----------------------------------------------------------------------
+REACT = {"energy": 0.0, "leader": 0.0, "kos": 0}  # set by the battle: how heated the fight is, who leads (-1..1), KOs so far
+
+# Each stage drifts through a few lighting moods, like Final Destination's cycling nebulae: very slow, never flashing.
+MOODS = {
+    "datacenter": [((0, 0, 0), 0), ((255, 150, 40), 34), ((40, 70, 255), 40)],  # day shift, backup window, night ops
+    "controlplane": [((0, 0, 0), 0), ((255, 210, 110), 30), ((150, 80, 255), 36)],
+    "nodepool": [((0, 0, 0), 0), ((0, 200, 255), 32), ((255, 90, 140), 30)],
+}
+MOOD_HOLD, MOOD_FADE = 2700, 700  # frames each mood holds, and how long the crossfade between moods takes
+_tints: dict[tuple, pygame.Surface] = {}
+
+
+def _tint(color: Color, strength: int, w: int) -> pygame.Surface:
+    """A full-width wash that is strongest in the sky and fades out toward the floor."""
+    key = (color, strength, w)
+    if key not in _tints:
+        surf = pygame.Surface((w, WORLD_H), pygame.SRCALPHA)
+        for y in range(0, WORLD_H, 2):
+            a = int(strength * (1.0 - 0.75 * y / WORLD_H))
+            pygame.draw.rect(surf, (*color, a), (0, y, w, 2))
+        _tints[key] = surf
+    return _tints[key]
+
+
+def apply_mood(canvas: pygame.Surface, theme: str, frame: int) -> None:
+    moods = MOODS.get(theme)
+    if not moods:
+        return
+    n = len(moods)
+    t = frame % (MOOD_HOLD * n)
+    idx, into = divmod(t, MOOD_HOLD)
+    cur, nxt = moods[idx], moods[(idx + 1) % n]
+    blend = max(0.0, (into - (MOOD_HOLD - MOOD_FADE)) / MOOD_FADE)  # crossfade near the end of the hold
+    w = canvas.get_width()
+    for (color, strength), amount in ((cur, 1.0 - blend), (nxt, blend)):
+        if strength and amount > 0.02:
+            wash = _tint(color, strength, w)
+            wash.set_alpha(int(255 * amount))
+            canvas.blit(wash, (0, 0))
+
+
+_hazes: dict[tuple, pygame.Surface] = {}
+
+
+def haze_band(canvas: pygame.Surface, y: int, color: Color, height: int = 70, peak: int = 70) -> None:
+    """Atmospheric perspective: a soft glow lying along the horizon so far scenery sits behind near scenery."""
+    w = canvas.get_width()
+    key = (y, color, height, peak, w)
+    if key not in _hazes:
+        surf = pygame.Surface((w, height), pygame.SRCALPHA)
+        for i in range(height):
+            pygame.draw.line(surf, (*color, int(peak * (i / height) ** 1.6)), (0, i), (w, i))
+        _hazes[key] = surf
+    canvas.blit(_hazes[key], (0, int(y * U) - height))
+
+
 
 class Layer:
     """A parallax layer authored in design px (wider than the screen by MARGIN each side)."""
@@ -90,8 +147,8 @@ class Animated:
 
 
 class Backdrop:
-    def __init__(self, sky: pygame.Surface, items: list):
-        self.sky, self.items = sky, items
+    def __init__(self, sky: pygame.Surface, items: list, theme: str = ""):
+        self.sky, self.items, self.theme = sky, items, theme
 
     def draw(self, canvas: pygame.Surface, frame: int, cam: float = 0.0) -> None:
         canvas.blit(self.sky, (0, 0))
@@ -106,6 +163,7 @@ class Backdrop:
                     pd.ox = 0
             else:
                 item.draw(canvas, frame, cam)
+        apply_mood(canvas, self.theme, frame)
 
 
 def _wide() -> pygame.Surface:
@@ -264,7 +322,7 @@ def build_datacenter(canvas_w: int = WORLD_W) -> Backdrop:
     def led_fn(canvas, frame, cam):  # status lights: dim, and they change rarely
         ox = -MARGIN - cam * 0.09
         for x, y, ph, col in leds:
-            if ((frame + ph * 9) // 50 + ph) % 5 != 0:  # staggered, so they never flip in unison
+            if ((frame + ph * 9) // 50 + ph) % (5 + int(REACT['energy'] * 3)) != 0:  # staggered, so they never flip in unison
                 pd.fill(canvas, _scale(col, 0.55), (int(x + ox), y, 2, 1))
 
     def floor_fn(canvas, frame, cam):
@@ -279,12 +337,16 @@ def build_datacenter(canvas_w: int = WORLD_W) -> Backdrop:
             neon_rect(canvas, (x + ox, y, w, h), _scale(accent, 0.38))
             bars = 7
             for i in range(bars):
-                bh = (0.3 + 0.7 * abs(math.sin(frame * 0.008 + i * 1.3 + seed))) * (h - 16)
+                bh = min(1.0, (0.3 + 0.7 * abs(math.sin(frame * 0.008 + i * 1.3 + seed))) * (0.75 + 0.45 * REACT['energy'])) * (h - 16)
                 pd.fill(canvas, _scale(accent, 0.4), (x + ox + 5 + i * (w - 10) / bars, y + h - 5 - bh, (w - 10) / bars - 2, bh))
 
-    items = [Layer(far, 0.03, 0), Animated(floor_fn), Layer(reflection(mid, horizon + 6, strength=70), 0.09, horizon + 6),
+
+    def haze_fn(canvas, frame, cam):
+        haze_band(canvas, horizon, _scale(accent, 0.45), 80, 80)
+
+    items = [Layer(far, 0.03, 0), Animated(haze_fn), Animated(floor_fn), Layer(reflection(mid, horizon + 6, strength=70), 0.09, horizon + 6),
              Layer(mid, 0.09, 0), Animated(holo_fn), Animated(led_fn), Layer(near, 0.13, 0)]
-    return Backdrop(sky, items)
+    return Backdrop(sky, items, 'datacenter')
 
 
 # --- Control Plane: the core chamber with a hologram of the helm wheel -----------------------------
@@ -363,9 +425,24 @@ def build_controlplane(canvas_w: int = WORLD_W) -> Backdrop:
     def floor_fn(canvas, frame, cam):
         grid_floor(canvas, frame, cam, horizon, accent, speed=0.0025, fade=0.46)
 
-    items = [Layer(far, 0.02, 0), Animated(holo_fn), Animated(orbit_fn), Animated(floor_fn),
+    crown = {"x": 0.0}
+
+    def haze_fn(canvas, frame, cam):
+        haze_band(canvas, horizon, _scale(accent, 0.4), 80, 76)
+
+    def crown_fn(canvas, frame, cam):  # the leader's crown: it glides to whichever side is winning, slowly
+        crown["x"] += (REACT["leader"] - crown["x"]) * 0.01
+        cx = 320 - cam * 0.03 + crown["x"] * 112
+        cy = 30 + math.sin(frame * 0.03) * 2
+        col = _scale(gold, 0.6)
+        pd.polygon(canvas, col, [(cx - 9, cy + 8), (cx - 11, cy - 4), (cx - 5, cy + 2), (cx, cy - 8), (cx + 5, cy + 2),
+                                 (cx + 11, cy - 4), (cx + 9, cy + 8)])
+        pd.line(canvas, _scale(gold, 0.85), (cx - 9, cy + 8), (cx + 9, cy + 8), 2)
+        pd.circle(canvas, _scale(gold, 0.95), (cx, cy - 8), 2)
+
+    items = [Layer(far, 0.02, 0), Animated(haze_fn), Animated(holo_fn), Animated(orbit_fn), Animated(crown_fn), Animated(floor_fn),
              Layer(reflection(mid, horizon + 6, strength=70), 0.08, horizon + 6), Layer(mid, 0.08, 0), Layer(near, 0.13, 0)]
-    return Backdrop(sky, items)
+    return Backdrop(sky, items, 'controlplane')
 
 
 # --- Node Pool: an amber hot-aisle pod bay with honeycomb pod cells --------------------------------
@@ -428,7 +505,7 @@ def build_nodepool(canvas_w: int = WORLD_W) -> Backdrop:
 
     def led_fn(canvas, frame, cam):  # status lights: dim, and they change rarely
         for x, y, ph, col in leds:
-            if ((frame + ph * 9) // 50 + ph) % 5 != 0:  # staggered, so they never flip in unison
+            if ((frame + ph * 9) // 50 + ph) % (5 + int(REACT['energy'] * 3)) != 0:  # staggered, so they never flip in unison
                 pd.fill(canvas, _scale(col, 0.55), (int(x - MARGIN - cam * 0.09), y, 2, 1))
 
     fans = [(110, 78), (320, 62), (530, 84)]
@@ -458,10 +535,21 @@ def build_nodepool(canvas_w: int = WORLD_W) -> Backdrop:
     def floor_fn(canvas, frame, cam):
         grid_floor(canvas, frame, cam, horizon, accent, speed=0.003, fade=0.5)
 
-    items = [Layer(far, 0.03, 0), Animated(fan_fn), Animated(floor_fn),
+    def haze_fn(canvas, frame, cam):
+        haze_band(canvas, horizon, _scale(accent, 0.4), 80, 76)
+
+    def ko_lamps_fn(canvas, frame, cam):  # a row of pod lamps on the far wall: one lights up for every KO so far
+        ox = -cam * 0.05
+        for i in range(8):
+            lit = i < REACT["kos"]
+            x = 232 + i * 16 + ox
+            pd.rect(canvas, (6, 10, 24), (x - 1, 17, 12, 9))
+            pd.rect(canvas, _scale(accent, 0.8) if lit else _scale(accent, 0.18), (x + 1, 19, 8, 5))
+
+    items = [Layer(far, 0.03, 0), Animated(haze_fn), Animated(fan_fn), Animated(ko_lamps_fn), Animated(floor_fn),
              Layer(reflection(mid, horizon + 6, strength=70), 0.09, horizon + 6), Layer(mid, 0.09, 0),
              Animated(led_fn), Animated(steam_fn), Layer(near, 0.13, 0)]
-    return Backdrop(sky, items)
+    return Backdrop(sky, items, 'nodepool')
 
 
 BUILDERS = {"datacenter": build_datacenter, "controlplane": build_controlplane, "nodepool": build_nodepool}

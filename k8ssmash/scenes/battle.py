@@ -240,6 +240,18 @@ class Battle(Scene):
         if f.state == "hurt" and math.hypot(f.vx, f.vy) > 7 and self.frame % 2 == 0:
             self.fx.streak(f.x, f.y - 22, f.vx, f.vy, self.colors[f.slot])
 
+    def _feed_backdrop(self) -> None:
+        """Tell the scenery how the fight is going so it can respond: heat, who is leading, how many KOs."""
+        from k8ssmash import backdrops
+
+        avg = sum(f.percent for f in self.fighters) / max(1, len(self.fighters))
+        target = min(1.0, avg / 120.0)
+        backdrops.REACT["energy"] += (target - backdrops.REACT["energy"]) * 0.02
+        dealt = [f.dealt_damage for f in self.fighters]
+        lead = (dealt[0] - dealt[1]) / max(30.0, dealt[0] + dealt[1]) if len(dealt) > 1 else 0.0
+        backdrops.REACT["leader"] = max(-1.0, min(1.0, lead * 2.0))
+        backdrops.REACT["kos"] = sum(f.kos for f in self.fighters)
+
     def _count_combo(self, attacker: Fighter, victim: Fighter, chained: bool) -> None:
         """Hits that land while the victim is still reeling from the last one build a combo."""
         count, _, vslot = self.combos.get(attacker.slot, (0, 0, -1))
@@ -432,6 +444,7 @@ class Battle(Scene):
         live = [f for f in self.fighters if f.alive]
         cam = (sum(f.x for f in live) / len(live) - WORLD_W / 2) if live else 0.0
         self.cam += (cam - self.cam) * 0.05  # ease, so the scenery drifts rather than snaps
+        self._feed_backdrop()
         draw_backdrop(full, self.stage.theme, self.frame, self.cam)
         for plat in self.stage.platforms:
             draw_platform(canvas, plat, self.stage.theme)
