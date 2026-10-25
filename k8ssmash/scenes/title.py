@@ -167,8 +167,10 @@ class Title(Scene):
     def draw(self, canvas: pygame.Surface) -> None:
         self._background(canvas)
         t = self.frame
-        event = self.small.render(self.app.cfg.event_name.upper() + " EDITION", False, (255, 215, 90))
-        ui.blit_c(canvas, event, 8 + int(math.sin(t * 0.05) * 2))
+        name = self.app.cfg.event_name.strip().upper()
+        if name:  # an optional line for your own event; blank by default
+            event = self.small.render(f"{name} EDITION", False, (255, 215, 90))
+            ui.blit_c(canvas, event, 8 + int(math.sin(t * 0.05) * 2))
         draw_helm(canvas, CANVAS_W // 2, 98, 40, t * 0.025, CYAN)
         for runner in sorted(self.parade, key=lambda r: r.speed):
             runner.draw(canvas, t)

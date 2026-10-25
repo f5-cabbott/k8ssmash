@@ -1,6 +1,6 @@
 # K8s Smash
 
-A 2-player, Smash-style platform fighter with a 16-bit look, built for the KubeCon booth.
+A 2-player, Smash-style platform fighter with a 16-bit look, built for conference booths.
 **Pods vs. chaos**: eight Kubernetes-themed fighters, k8s power-ups, three stages, played with two SNES-style USB pads
 on a Raspberry Pi 5 (or any computer: the keyboard works too). Kubernetes is the *theme*; nothing here needs a cluster.
 

@@ -1,7 +1,7 @@
 # K8s Smash booth service (Raspberry Pi OS Lite, 64-bit, KMS/DRM kiosk).
 # Installed by deploy/setup-pi.sh, which fills in __USER__ and __APP_DIR__.
 [Unit]
-Description=K8s Smash (KubeCon booth game)
+Description=K8s Smash (booth game)
 After=sound.target systemd-udev-settle.service
 Wants=systemd-udev-settle.service
 # We own the screen on tty1, so keep the login prompt off it.

@@ -75,7 +75,7 @@ class Config:
     muted: bool = False
     swap_pads: bool = False  # P1/P2 pad order; fix it from the controller test screen
     colorblind: bool = False  # colorblind-safe player colors
-    event_name: str = "KubeCon"  # shown on the title and leaderboard
+    event_name: str = ""  # optional text for your own event, shown on the title and leaderboard (blank by default)
     metrics_port: int = 0  # 0 = no Prometheus endpoint
     metrics_host: str = "0.0.0.0"
     items: bool = True  # k8s power-ups drop during matches
@@ -100,6 +100,8 @@ class Config:
         for name in names:
             if name in data:
                 setattr(cfg, name, data[name])
+        if cfg.event_name.strip().lower() == "kubecon":
+            cfg.event_name = ""  # a trademark we leave off: older saved configs had it as the default
         for slot, keys in enumerate(data.get("keys", [])[:2]):
             cfg.keys[slot].update(keys)
         cfg.pad.update(data.get("pad", {}))

@@ -39,7 +39,7 @@ class HighScores(Scene):
 
     def draw(self, canvas: pygame.Surface) -> None:
         canvas.fill(BG)
-        head = self.big.render(f"{self.app.cfg.event_name.upper()} LEADERBOARD", False, GOLD)
+        head = self.big.render(f"{self.app.cfg.event_name.strip().upper()} LEADERBOARD".strip(), False, GOLD)
         ui.blit_c(canvas, head, 14)
         sub = self.small.render("K8S SMASH  -  PODS VS. CHAOS", False, (110, 130, 200))
         ui.blit_c(canvas, sub, 46)

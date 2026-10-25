@@ -5,7 +5,7 @@
   "version": 1,
   "tags": [
     "k8ssmash",
-    "kubecon"
+    "booth"
   ],
   "timezone": "browser",
   "refresh": "30s",
