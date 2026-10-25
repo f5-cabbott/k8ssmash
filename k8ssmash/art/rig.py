@@ -158,6 +158,22 @@ def _ramp(c: Color) -> np.ndarray:
     return _ramps[c]
 
 
+CARTOON = 1.0  # cartoon strength: 0 leaves the proportions as designed, 1 is full caricature
+
+
+def cartoonish(look: Look) -> Look:
+    """Cartoon proportions: a big head, a short chunky body and thick limbs, like a character model-sheet caricature."""
+    g = CARTOON
+    if g <= 0:
+        return look
+    head = 1 + 0.26 * g
+    return replace(look, head_r=look.head_r * head,
+                   head_w=look.head_w * head if look.head_w else 0, head_h=look.head_h * head if look.head_h else 0,
+                   torso_h=look.torso_h * (1 - 0.06 * g), leg_len=look.leg_len * (1 - 0.14 * g),
+                   leg_w=look.leg_w * (1 + 0.12 * g), arm_w=look.arm_w * (1 + 0.12 * g),
+                   arm_len=look.arm_len * (1 - 0.06 * g), torso_w=look.torso_w * (1 + 0.06 * g))
+
+
 def squashed(look: Look, k: float) -> Look:
     """Squash-and-stretch: scale the body vertically and widen it the other way so the volume feels constant."""
     if abs(k - 1.0) < 0.005:
@@ -183,7 +199,7 @@ def alternate_look(look: Look) -> Look:
 
 
 def render(look: Look, pose: Pose) -> pygame.Surface:
-    look = squashed(look, pose.squash)
+    look = squashed(cartoonish(look), pose.squash)
     r = solve(look, pose)
     arr = np.zeros((FRAME, FRAME, 4), dtype=np.uint8)
 
