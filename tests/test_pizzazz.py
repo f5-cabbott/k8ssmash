@@ -244,3 +244,25 @@ def test_last_stock_switches_to_the_hotter_stage_song():
     b.demo = False
     b._second_wind(a)
     assert b.app.audio.current == f"{theme}_hot"
+
+
+def test_hazard_warns_before_firing_and_hits_once():
+    from k8ssmash.stage import Hazard
+    hz = Hazard("DEPLOY", [300, 660], 400, period=500, telegraph=100, active=20, phase=0)
+    seen = [hz.state(f)[0] for f in range(500)]
+    assert seen.index("warn") < seen.index("fire") and seen.count("warn") == 100 and seen.count("fire") == 20
+    assert hz.state(490)[1] == 300 and hz.state(990)[1] == 660  # it visits each column in turn
+
+    b = _arena()
+    a, v = b.fighters
+    hz = b.stage.hazards[0]
+    start = next(f for f in range(5000) if hz.state(f)[0] == "fire")
+    col = hz.state(start)[1]
+    v.x, v.y, v.invuln = float(col), 400.0, 0
+    a.x = 100.0
+    b.frame = start
+    before = v.percent
+    for _ in range(3):
+        b.frame += 1
+        b._update_hazards()
+    assert v.percent == before + hz.damage  # struck exactly once for the shot

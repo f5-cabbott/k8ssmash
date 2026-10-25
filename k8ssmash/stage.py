@@ -36,6 +36,32 @@ class Platform:
 
 
 @dataclass
+class Hazard:
+    """A telegraphed beam: a warning mark grows on the floor, then a column of light fires and is gone."""
+    name: str
+    columns: list[int]  # the x positions it visits in turn
+    floor_y: int  # where the warning mark sits
+    width: int = 56
+    period: int = 840  # frames between shots
+    telegraph: int = 120
+    active: int = 22
+    phase: int = 300  # offset so the first shot is not at the start
+    damage: float = 9.0
+    hit: set = field(default_factory=set, hash=False, compare=False)  # fighters already struck by this shot
+
+    def state(self, frame: int) -> tuple[str, int, float]:
+        """("idle" | "warn" | "fire", column x, progress 0..1) for this frame."""
+        t = (frame + self.phase) % self.period
+        x = self.columns[((frame + self.phase) // self.period) % len(self.columns)]
+        fire_at = self.period - self.active
+        if t >= fire_at:
+            return "fire", x, (t - fire_at) / self.active
+        if t >= fire_at - self.telegraph:
+            return "warn", x, (t - (fire_at - self.telegraph)) / self.telegraph
+        return "idle", x, 0.0
+
+
+@dataclass
 class Stage:
     name: str
     platforms: list[Platform]
@@ -43,6 +69,7 @@ class Stage:
     blast: pygame.Rect = field(
         default_factory=lambda: pygame.Rect(-220, -280, WORLD_W + 440, WORLD_H + 400))
     theme: str = "datacenter"
+    hazards: list[Hazard] = field(default_factory=list)
 
     def tick(self, frame: int) -> None:
         for plat in self.platforms:
@@ -62,6 +89,7 @@ def datacenter_stage() -> Stage:
             Platform(pygame.Rect(585, 190, 120, 8), dropthrough=True),
         ],
         spawns=[(330, 400), (630, 400)],
+        hazards=[Hazard("DEPLOY", [300, 660, 480], 400)],
     )
 
 
@@ -80,6 +108,7 @@ def control_plane_stage() -> Stage:
         ],
         spawns=[(300, 400), (660, 400)],
         theme="controlplane",
+        hazards=[Hazard("ELECTION", [250, 480, 710], 400, period=780, phase=200)],
     )
 
 
@@ -98,6 +127,7 @@ def node_pool_stage() -> Stage:
         ],
         spawns=[(210, 400), (750, 400)],
         theme="nodepool",
+        hazards=[Hazard("DRAIN", [210, 750, 480], 400, period=900, phase=400)],
     )
 
 
