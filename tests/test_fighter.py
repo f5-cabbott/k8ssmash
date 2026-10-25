@@ -33,29 +33,46 @@ def test_lands_on_platform(stage):
     assert f.on_ground and f.y == stage.platforms[0].top
 
 
-def test_double_jump_exactly_two_jumps(stage):
+def test_air_jumps_are_limited_and_each_a_little_weaker(stage):
     f = make(stage)
+    n = f.stats.air_jumps
+    assert n >= 3  # Kirby-style: a recovery that can actually get you home
     tick(f, stage, frames=2)
-    tick(f, stage, {"JUMP"})
-    assert f.vy < 0 and f.aerial_jumps == 1
-    tick(f, stage, frames=3)
-    tick(f, stage, {"JUMP"})
+    tick(f, stage, {"JUMP"})  # the ground jump
+    assert f.vy < 0 and f.aerial_jumps == n
+    speeds = []
+    for _ in range(n):
+        tick(f, stage, frames=3)
+        tick(f, stage, {"JUMP"})
+        speeds.append(f.vy)
     assert f.aerial_jumps == 0
-    vy_after_double = f.vy
+    assert all(a < b < 0 for a, b in zip(speeds, speeds[1:]))  # each one a bit lower than the last
     tick(f, stage, frames=2)
-    tick(f, stage, {"JUMP"})  # third jump must do nothing
-    assert f.vy >= vy_after_double  # only gravity acted
-    tick(f, stage, frames=200)
-    assert f.on_ground and f.aerial_jumps == 1
+    before = f.vy
+    tick(f, stage, {"JUMP"})  # one more must do nothing
+    assert f.vy >= before
+    tick(f, stage, frames=300)
+    assert f.on_ground and f.aerial_jumps == n
 
 
-def test_walk_off_ledge_keeps_one_air_jump(stage):
+def test_holding_jump_while_falling_glides(stage):
+    f, g = make(stage), make(stage)
+    for k in (f, g):
+        k.y -= 600
+        k.on_ground, k.aerial_jumps, k.vy = False, 0, 0.0
+    for _ in range(30):
+        tick(f, stage)
+        tick(g, stage, held={"JUMP"})
+    assert g.vy <= g.stats.glide_fall + 0.01 < f.vy  # the float is slower than a plain fall
+
+
+def test_walk_off_ledge_keeps_all_air_jumps(stage):
     f = make(stage)
     f.x = stage.platforms[0].rect.right + 20
     f.on_ground = False
     f.y = stage.platforms[0].top
     tick(f, stage, frames=3)
-    assert not f.on_ground and f.aerial_jumps == 1
+    assert not f.on_ground and f.aerial_jumps == f.stats.air_jumps
 
 
 def test_dropthrough_platform(stage):
@@ -309,7 +326,7 @@ def test_double_jump_is_65_percent_of_the_first_jump(stage):
     first = apex(f, stage, {"JUMP"})
     g = make(stage)
     g.y -= 200
-    g.on_ground, g.aerial_jumps, g.vy = False, 1, 0.0
+    g.on_ground, g.aerial_jumps, g.vy = False, g.stats.air_jumps, 0.0
     start = g.y
     tick(g, stage, {"JUMP"})
     top = g.y

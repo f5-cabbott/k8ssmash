@@ -38,6 +38,9 @@ class FighterStats:
     air_accel: float = 0.3
     jump_vel: float = -9.0
     djump_ratio: float = 0.65  # the double jump reaches this fraction of the first jump's height
+    air_jumps: int = 3  # extra mid-air jumps (Kirby-style recovery); each is a little weaker than the one before
+    glide_fall: float = 3.4  # holding JUMP while falling floats down at this speed instead of plunging
+    air_drive: float = 1.7  # how hard a mid-air jump pushes you sideways toward the stage
     gravity: float = 0.38
     max_fall: float = 8.6
     fast_fall: float = 12.5
@@ -119,7 +122,7 @@ class Fighter:
         self.facing = 1
         self.on_ground = False
         self.standing_on = None  # the Platform underfoot, so moving platforms can carry us
-        self.aerial_jumps = 1
+        self.aerial_jumps = self.stats.air_jumps
         self.used_recovery = False
         self.drop_timer = 0
         self.invuln = 0
@@ -229,7 +232,7 @@ class Fighter:
         self.move = None
         self.shield_hp = SHIELD_MAX
         self.shield_break = 0
-        self.aerial_jumps = 1
+        self.aerial_jumps = self.stats.air_jumps
         self.used_recovery = False
         self.on_ground = False
         self.standing_on = None
@@ -312,7 +315,8 @@ class Fighter:
 
         if not self.on_ground:
             fast = inp.axis_y > 0 and self.vy > 0 and not stunned and self.move is None
-            self.vy = min(self.vy + s.gravity, s.fast_fall if fast else s.max_fall)
+            glide = "JUMP" in inp and self.vy > 0 and not fast and self.move is None
+            self.vy = min(self.vy + s.gravity, s.fast_fall if fast else (s.glide_fall if glide else s.max_fall))
         was_airborne, impact = not self.on_ground, self.vy
         self._move_and_collide(stage)
         if not stunned:
@@ -322,7 +326,7 @@ class Fighter:
             self.fx.append(("land", min(1.0, impact / 8.0)))
 
         if self.on_ground:
-            self.aerial_jumps = 1
+            self.aerial_jumps = self.stats.air_jumps
             self.used_recovery = False
         elif self.state in ("idle", "run", "shield", "duck"):
             self.state = "fall" if self.vy > 0 else "jump"
@@ -364,10 +368,11 @@ class Fighter:
                 self.events.append("jump")
                 self.fx.append(("jump", 0.5))
             elif self.aerial_jumps > 0:
+                used = s.air_jumps - self.aerial_jumps
                 self.aerial_jumps -= 1
-                self.vy = s.djump_vel
+                self.vy = s.djump_vel * (0.93 ** used)
                 # steer the jump: pushing a direction launches you that way, which is what gets you back to the stage
-                self.vx = ax * air * 1.1 if ax else self.vx * 0.5
+                self.vx = ax * air * s.air_drive if ax else self.vx * 0.5
                 self.state = "djump"
                 self.events.append("djump")
                 self.fx.append(("djump", 1.0))

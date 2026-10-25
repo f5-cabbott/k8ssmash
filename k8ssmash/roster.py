@@ -35,7 +35,7 @@ def statefulset() -> FighterStats:
     """Heavy keeper. Slow and sturdy, carries a storage drum, hits like a loaded pallet."""
     return FighterStats(
         "StatefulSet", (240, 204, 58), weight=122, run_speed=2.86, air_speed=2.6, jump_vel=-8.45,
-        gravity=0.4, width=28, height=50, blurb="Heavy keeper. Slow, sturdy, hits hard.",
+        gravity=0.4, width=28, height=50, air_jumps=2, blurb="Heavy keeper. Slow, sturdy, hits hard.",
         moves=moveset(**{
             "jab": Move("jab", 4, 3, 11, (8, -34, 26, 16), 4, 2.4, 0.02, 35, anim="jab"),
             "side": Move("side", 11, 4, 20, (8, -40, 38, 22), 12, 4.4, 0.07, 30, lunge=1.2, anim="side"),
@@ -75,7 +75,7 @@ def monkey() -> FighterStats:
     """Chaos Monkey: light and slippery, with trap-laying."""
     return FighterStats(
         "Chaos Monkey", (230, 130, 70), weight=84, width=22, height=42, run_speed=3.9, air_speed=3.51,
-        jump_vel=-9.4, gravity=0.37, blurb="Light trickster. Lays traps.",
+        jump_vel=-9.4, gravity=0.37, air_jumps=4, blurb="Light trickster. Lays traps.",
         moves=moveset(**{
             "special": Move("banana toss", 9, 1, 16, anim="cast", announce="Banana Toss", projectile=ProjectileDef(
                 speed=3.2, width=12, height=10, damage=7, base_kb=3.0, kb_growth=0.035, angle=60, life=420,
@@ -149,7 +149,7 @@ def operator() -> FighterStats:
 def oomkiller() -> FighterStats:
     """Heavy glass cannon. Huge damage, short reach, big recoveries."""
     return FighterStats(
-        "OOMKiller", (205, 60, 70), weight=110, run_speed=2.99, width=28, height=50, jump_vel=-8.2,
+        "OOMKiller", (205, 60, 70), weight=110, run_speed=2.99, width=28, height=50, jump_vel=-8.2, air_jumps=2,
         blurb="Glass cannon. Huge damage.",
         moves=moveset(**{
             "jab": Move("jab", 5, 3, 12, (8, -36, 28, 16), 4, 2.6, 0.022, 38, anim="jab"),
