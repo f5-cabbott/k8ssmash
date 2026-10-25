@@ -253,11 +253,11 @@ def _low_share(a, sr):
 
 
 def test_fighter_voices_are_distinct():
-    """Each fighter shouts in their own voice: a gravelly reaper and a deep keeper, mid robots, a squeaky monkey."""
+    """Each fighter shouts in their own voice: a gravelly reaper and a deep keeper, mid robots, a squeaky clockwork imp."""
     sr = pygame.mixer.get_init()[0] if pygame.mixer.get_init() else 44100
     low = {f: _low_share(_pcm(ASSETS / f"{slug(f)}__attack_heavy.wav").mean(axis=1), sr) for f in VOICES}
     assert low["OOMKiller"] > 0.5 and low["StatefulSet"] > 0.5  # deep voices
-    assert low["Chaos Monkey"] < 0.1 and low["Pod"] < 0.1 and low["Operator"] < 0.1  # high voices
+    assert low["CronJob"] < 0.1 and low["Pod"] < 0.1 and low["Operator"] < 0.1  # high voices
     assert low["OOMKiller"] > low["Kubectl"]  # and the reaper is the deepest
 
 

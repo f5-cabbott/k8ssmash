@@ -252,9 +252,9 @@ def test_menus_draw_at_native_resolution_with_no_rescaling(app):
     from k8ssmash.scenes.padtest import ControllerTest
     from k8ssmash.scenes.rebind import Rebind
     from k8ssmash.scenes.scoreboard import HighScores, NameEntry
-    from k8ssmash.scenes.settings import Settings
+    from k8ssmash.scenes.settings import Settings, SettingsPage
     from k8ssmash.scores import Prompt
-    scenes = [Title(app), CharacterSelect(app), CharacterSelect(app, training=True), Settings(app), ControllerTest(app),
+    scenes = [Title(app), CharacterSelect(app), CharacterSelect(app, training=True), Settings(app), SettingsPage(app, "audio"), ControllerTest(app),
               Rebind(app), HighScores(app, on_done=lambda: None), NameEntry(app, Prompt(0, ["streak"], "Pod"), lambda n: None)]
     for scene in scenes:
         assert scene.native == app.display.canvas.get_size(), type(scene).__name__

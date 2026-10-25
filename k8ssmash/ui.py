@@ -276,3 +276,27 @@ def dpad_glyph(canvas: pygame.Surface, x: int, y: int, direction: str | None = N
                          (X + round(ax * k), Y + round(ay * k), round(aw * k), round(ah * k)))
     pygame.draw.rect(canvas, (150, 158, 196), (X + round(5 * k), Y + round(5 * k), round(4 * k), round(4 * k)))
     return round(17 * s)
+
+
+_fit_fonts: dict[int, UIFont] = {}
+
+
+def fit(text: str, color: Color, max_w: float, size: int, min_size: int = 8) -> pygame.Surface:
+    """Render `text` at `size` (design units), shrinking one step at a time until it fits `max_w` design units."""
+    while True:
+        font = _fit_fonts.get(size)
+        try:
+            if font is None:
+                font = _fit_fonts[size] = UIFont(size)
+            fits = font.size(text)[0] <= max_w
+        except pygame.error:  # pygame was shut down and restarted since this font was cached
+            _fit_fonts.clear()
+            continue
+        if size <= min_size or fits:
+            return font.render(text, False, color)
+        size -= 1
+
+
+def reset_font_caches() -> None:
+    """Forget cached fonts (after pygame was shut down and restarted)."""
+    _fit_fonts.clear()

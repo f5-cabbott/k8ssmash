@@ -19,7 +19,7 @@ class ProjectileDef:
     spawn_dx: float = 14  # forward offset from fighter centre
     spawn_dy: float = -30  # offset from feet (chest height: a duck passes underneath)
     color: tuple[int, int, int] = (120, 200, 255)
-    shape: str = "orb"  # sprite flavour: orb, bolt, wheel, banana, bomb, drone, wall, skull
+    shape: str = "orb"  # sprite flavour: orb, bolt, wheel, clock, bomb, drone, wall, skull
     count: int = 1
     spread: float = 0.0  # total fan angle in degrees when count > 1
     boomerang: bool = False  # reverses at half life and returns to the owner

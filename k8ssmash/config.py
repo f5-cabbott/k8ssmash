@@ -79,6 +79,8 @@ class Config:
     metrics_port: int = 0  # 0 = no Prometheus endpoint
     metrics_host: str = "0.0.0.0"
     items: bool = True  # k8s power-ups drop during matches
+    stocks: int = 3  # lives per fighter in a versus match
+    match_seconds: int = 120  # time limit; the leader on stocks and then damage wins when it runs out
     dev_keys: bool = True  # Esc quits, F-keys active; disabled by the booth service
     # Only joysticks whose name contains one of these (case-insensitive) become players.
     # Keeps other attached pads (e.g. an Xbox-style controller) out of the game; [] accepts all.
@@ -94,7 +96,7 @@ class Config:
             data = json.loads(path.read_text())
         except (OSError, ValueError):
             return cfg
-        names = ["width", "height", "fullscreen", "shape", "pad_name_filter", "items", "muted", "swap_pads", "colorblind", "event_name", "metrics_port", "metrics_host"]
+        names = ["width", "height", "fullscreen", "shape", "pad_name_filter", "items", "muted", "swap_pads", "colorblind", "stocks", "match_seconds", "event_name", "metrics_port", "metrics_host"]
         if data.get("mix_version", 1) >= MIX_VERSION:
             names += ["master_volume", "sfx_volume", "music_volume"]
         for name in names:

@@ -107,7 +107,7 @@ class Projectile:
             self.x += self.vx
             self.y += self.vy
             if d.stick and self.vy >= 0:
-                for plat in stage.platforms:
+                for plat in stage.live:
                     r = plat.rect
                     if r.left <= self.x <= r.right and prev <= r.top <= self.y:
                         self.y, self.vx, self.vy, self.stuck = float(r.top - d.height / 2), 0.0, 0.0, True
@@ -382,7 +382,7 @@ class Fighter:
             self.facing = inward
             self.events.append("land")
             self.fx.append(("land", 0.6))
-        elif "DOWN" in inp.pressed or self.hang_timer <= 0:
+        elif "DOWN" in inp.pressed or self.hang_timer <= 0 or not plat.solid:
             self.hanging, self.regrab_timer = None, 30
 
     def _control(self, inp: PlayerInput) -> None:
@@ -553,7 +553,7 @@ class Fighter:
         if self.on_ground or self.move is not None or self.vy < -3.0 or self.regrab_timer > 0 or self.hanging is not None:
             return
         half = self.stats.width * self.scale / 2
-        for plat in stage.platforms:
+        for plat in stage.live:
             if plat.dropthrough:
                 continue
             r = plat.rect
@@ -582,7 +582,7 @@ class Fighter:
         if self.vy < 0:
             return
         half = self.stats.width * self.scale / 2
-        for plat in stage.platforms:
+        for plat in stage.live:
             if plat.dropthrough and self.drop_timer > 0:
                 continue
             r = plat.rect

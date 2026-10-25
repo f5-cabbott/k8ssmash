@@ -34,7 +34,7 @@ class SimpleAI:
             return held
         if self.tap_cooldown > 0:
             self.tap_cooldown -= 1
-        solid = [pl.rect for pl in self.stage.platforms if not pl.dropthrough]
+        solid = [pl.rect for pl in self.stage.live if not pl.dropthrough]
         main = min(solid, key=lambda r: abs(r.centerx - me.x))  # recover toward the nearest solid floor
 
         # Recovery: get back over the main platform first.

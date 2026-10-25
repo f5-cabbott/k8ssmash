@@ -5,7 +5,7 @@ import random
 
 import pygame
 
-from k8ssmash import ui
+from k8ssmash import logo, ui
 from k8ssmash.ui import pd
 from k8ssmash.backdrops import dither_gradient
 from k8ssmash.config import CANVAS_H, CANVAS_W, FPS, WORLD_H, WORLD_W
@@ -82,25 +82,51 @@ class Runner:
             anim, idx = "run", (frame * 16 // 60 + self.phase) % 8
         img = self.sprites.get(anim, idx, self.direction)
         ui.blit_sprite(canvas, img, int(self.x), int(FLOOR_Y - lift), self.sprites.feet)
+TAGLINES = ["PODS VS. CHAOS", "kubectl apply -f fight.yaml", "HIGH AVAILABILITY, LOW HP", "0/1 NODES ARE AVAILABLE TO SMASH",
+            "NOW SCHEDULING: VIOLENCE", "REPLICAS: 2   DESIRED: 1", "CRASHLOOPBACKOFF? NOT TODAY"]
+TAGLINE_FRAMES = 4 * FPS
+MENU = [("VERSUS", "versus"), ("TRAINING", "training"), ("LEADERBOARD", "scores"), ("SETTINGS", "settings")]
+_logo: dict | None = None
+
+
+def _logo_art() -> dict:
+    """The logo letters, built once: K8S in tube blue over a big hot SMASH."""
+    global _logo
+    if _logo is None:
+        _logo = {"top": logo.word("K8S", 78, logo.TUBE_BLUE, 7, gap=10), "main": logo.word("SMASH", 108, logo.HOT, 9, gap=8)}
+    return _logo
+
+
+def _burst(canvas: pygame.Surface, cx: float, cy: float, r: float, angle: float) -> None:
+    """A slowly turning impact star behind the logo: dark, wide spikes so it frames the letters without competing."""
+    for scale, color in ((1.0, (52, 24, 58)), (0.78, (86, 36, 56)), (0.54, (122, 54, 52))):
+        pts = []
+        for i in range(28):
+            a = angle + i * math.pi / 14
+            rr = r * scale * (1.0 if i % 2 == 0 else 0.62)
+            pts.append((cx + math.cos(a) * rr * 1.6, cy + math.sin(a) * rr * 0.62))
+        pygame.draw.polygon(canvas, color, [(round(x), round(y)) for x, y in pts])
+
+
 class Title(Scene):
     def __init__(self, app):
         super().__init__(app)
         self.frame = 0
+        self.row = 0
         self._select_since: int | None = None
         self._select_clean = True
-        self._shield_held = 0
         app.audio.music("splash")
-        self.huge = ui.UIFont(92)
-        self.big = ui.UIFont(36)
         self.font = ui.UIFont(22)
-        self.small = ui.UIFont(28)
+        self.menu_font = ui.UIFont(21)
+        self.small = ui.UIFont(13)
+        self.tag_font = ui.UIFont(15)
         self.rng = random.Random(7)
         self.fx = Particles(seed=3, scale=ui.SCALE)
         self.parade = [Runner(f.name, self.rng, i) for i, f in enumerate(roster())]
+        _logo_art()
 
     def update(self) -> None:
         from k8ssmash.scenes.attract import Attract
-        from k8ssmash.scenes.select import CharacterSelect
 
         self.frame += 1
         for runner in self.parade:
@@ -108,23 +134,36 @@ class Title(Scene):
         if self.frame % 5 == 0:
             self.fx.confetti(self.rng.uniform(20, CANVAS_W - 20), -6, 1)
         self.fx.update()
-        # START with SELECT held is the controller-test combo, not "start game".
-        starting = any("START" in p.pressed and "SELECT" not in p.held for p in self.app.input.players)
+        players = self.app.input.players
         self._check_leaderboard_tap()
-        self._shield_held = self._shield_held + 1 if any("SHIELD" in p.held for p in self.app.input.players) else 0
-        if self._shield_held >= 40:  # a deliberate hold of L/R, so nobody opens it by accident
-            from k8ssmash.scenes.settings import Settings
-
+        for inp in players:
+            if "UP" in inp.pressed:
+                self.row = (self.row - 1) % len(MENU)
+                self.app.audio.play("menu_move")
+            if "DOWN" in inp.pressed:
+                self.row = (self.row + 1) % len(MENU)
+                self.app.audio.play("menu_move")
+        # START with SELECT held is the controller-test combo, not "go".
+        go = any(("START" in p.pressed and "SELECT" not in p.held) or "SPECIAL" in p.pressed for p in players)
+        if go:
             self.app.audio.play("menu_select")
-            self.app.set_scene(Settings(self.app))
-        elif starting:
-            self.app.audio.play("menu_select")
-            self.app.set_scene(CharacterSelect(self.app))
-        elif any("SPECIAL" in p.pressed for p in self.app.input.players):
-            self.app.audio.play("menu_select")
-            self.app.set_scene(CharacterSelect(self.app, training=True))
+            self._enter(MENU[self.row][1])
         elif self.app.idle_frames >= ATTRACT_AFTER:
             self.app.set_scene(Attract(self.app))
+
+    def _enter(self, choice: str) -> None:
+        from k8ssmash.scenes.scoreboard import HighScores
+        from k8ssmash.scenes.select import CharacterSelect
+        from k8ssmash.scenes.settings import Settings
+
+        if choice == "versus":
+            self.app.set_scene(CharacterSelect(self.app))
+        elif choice == "training":
+            self.app.set_scene(CharacterSelect(self.app, training=True))
+        elif choice == "scores":
+            self.app.set_scene(HighScores(self.app, on_done=self.app.go_title))
+        else:
+            self.app.set_scene(Settings(self.app))
 
     def _check_leaderboard_tap(self) -> None:
         """A quick tap-and-release of SELECT opens the leaderboard (SELECT held with START is the test combo)."""
@@ -136,9 +175,7 @@ class Title(Scene):
         if any("SELECT" in p.released for p in players) and self._select_since is not None:
             quick = self.frame - self._select_since < 40
             if quick and self._select_clean:
-                from k8ssmash.scenes.scoreboard import HighScores
-
-                self.app.set_scene(HighScores(self.app, on_done=self.app.go_title))
+                self._enter("scores")
             self._select_since = None
 
     # --- drawing -------------------------------------------------------------------------
@@ -164,31 +201,88 @@ class Title(Scene):
                 pd.line(canvas, tuple(int(c * (1 - k * 0.12)) for c in color), (tx, y), (tx - direction * 12, y), 2)
             pd.rect(canvas, (255, 255, 255), (int(x) - 4, y - 3, 8, 4))
 
+    def _draw_word(self, canvas: pygame.Surface, letters, cx: float, y: float, base_frame: int, wave: float) -> None:
+        """Letters drop in one after another with a bounce, then settle into a gentle wave."""
+        width = letters[-1][1]
+        x0 = cx - width / 2
+        for i, (img, dx) in enumerate(letters[:-1]):
+            t = self.frame - (base_frame + i * 6)
+            if t < 0:
+                continue
+            drop = 220 * math.exp(-t * 0.13) * abs(math.cos(t * 0.27))
+            bob = math.sin(self.frame * 0.08 + i * 0.7) * wave if t > 40 else 0
+            canvas.blit(img, (round(x0 + dx), round(y - drop + bob)))
+
+    def _shine(self, canvas: pygame.Surface, rect: pygame.Rect) -> None:
+        """Every few seconds a soft diagonal sheen slides across the logo (a smooth sweep, never a flash)."""
+        cycle = (self.frame - 120) % (6 * FPS)
+        if self.frame < 120 or cycle > 50:
+            return
+        x = rect.x - 60 + cycle / 50 * (rect.w + 120)
+        band = pygame.Surface(rect.size, pygame.SRCALPHA)
+        for k in range(26):
+            a = 70 - abs(k - 13) * 5
+            if a > 0:
+                pygame.draw.line(band, (a, a, a), (x - rect.x + k, 0), (x - rect.x + k - 40, rect.h))
+        canvas.blit(band, rect.topleft, special_flags=pygame.BLEND_RGB_ADD)
+
     def draw(self, canvas: pygame.Surface) -> None:
         self._background(canvas)
         t = self.frame
+        cx = canvas.get_width() / 2
         name = self.app.cfg.event_name.strip().upper()
         if name:  # an optional line for your own event; blank by default
-            event = self.small.render(f"{name} EDITION", False, (255, 215, 90))
-            ui.blit_c(canvas, event, 8 + int(math.sin(t * 0.05) * 2))
-        draw_helm(canvas, CANVAS_W // 2, 98, 40, t * 0.025, CYAN)
+            event = self.tag_font.render(f"{name} EDITION", False, (255, 215, 90))
+            ui.blit_c(canvas, event, 4 + int(math.sin(t * 0.05) * 2))
+        art = _logo_art()
+        _burst(canvas, cx, 118 * ui.SCALE, 120 * ui.SCALE / 1.6, t * 0.004)
         for runner in sorted(self.parade, key=lambda r: r.speed):
             runner.draw(canvas, t)
         self.fx.draw(canvas)
-        # the logo: every letter bobs on its own beat, like a wave rolling through
-        text = "K8S SMASH"
-        glyphs = [self.huge.render(c, False, (255, 255, 255)) for c in text]
-        width = sum(g.get_width() for g in glyphs) - 6
-        x, base = (CANVAS_W - width) // 2, 124
-        for i, g in enumerate(glyphs):
-            bob = math.sin(t * 0.13 + i * 0.55) * 4
-            pd.blit(canvas, g, (x, base + bob))
-            x += g.get_width() - 1
-        sub = self.big.render("PODS  VS.  CHAOS", False, CYAN)
-        ui.blit_c(canvas, sub, base + 84 + int(math.sin(t * 0.1) * 2))
-        pulse = 1.0 + 0.07 * math.sin(t * 0.14)  # a smooth pulse, not a blink
-        press = self.big.render("PRESS START", False, (255, 224, 90))
-        press = ui.scale_surface(press, pulse)
-        ui.blit_c(canvas, press, 266 - press.get_height() // 2)
-        hint = self.font.render("A: training     SELECT: leaderboard     hold L/R: settings", False, (130, 146, 210))
-        ui.blit_c(canvas, hint, 336)
+        # K8S flanked by a pair of counter-rotating helm wheels, then SMASH big underneath
+        top_y = 12 * ui.SCALE
+        self._draw_word(canvas, art["top"], cx, top_y, 4, 2.0)
+        spread = art["top"][-1][1] / 2 + 34 * ui.SCALE
+        draw_helm(canvas, round((cx - spread) / ui.SCALE), 38, 13, t * 0.03, CYAN)
+        draw_helm(canvas, round((cx + spread) / ui.SCALE), 38, 13, -t * 0.03, (255, 140, 40))
+        main_y = 56 * ui.SCALE
+        self._draw_word(canvas, art["main"], cx, main_y, 30, 3.0)
+        main_w = art["main"][-1][1]
+        if t > 100:
+            self._shine(canvas, pygame.Rect(round(cx - main_w / 2), round(main_y), main_w, 118))
+        # a ribbon with a changing tagline
+        tag = TAGLINES[(t // TAGLINE_FRAMES) % len(TAGLINES)]
+        phase = t % TAGLINE_FRAMES
+        fade = min(1.0, phase / 20, (TAGLINE_FRAMES - phase) / 20)
+        ribbon = pygame.Rect(150, 150, 340, 17)
+        pd.rect(canvas, (14, 20, 70), (ribbon.x - 8, ribbon.y + 2, ribbon.w + 16, ribbon.h), border_radius=2)
+        pd.polygon(canvas, (14, 20, 70), [(ribbon.x - 8, ribbon.y + 2), (ribbon.x - 18, ribbon.y + 10), (ribbon.x - 8, ribbon.y + 18)])
+        pd.polygon(canvas, (14, 20, 70), [(ribbon.right + 8, ribbon.y + 2), (ribbon.right + 18, ribbon.y + 10), (ribbon.right + 8, ribbon.y + 18)])
+        pd.rect(canvas, (0, 170, 220), ribbon, border_radius=2)
+        pd.rect(canvas, (150, 245, 255), (ribbon.x, ribbon.y, ribbon.w, 2))
+        line = ui.fit(tag, tuple(int(255 * (0.25 + 0.75 * fade)) for _ in range(3)), ribbon.w - 16, 14)
+        pd.blit(canvas, line, (ribbon.centerx - line.get_width() / 2, ribbon.y + 1))
+        self._draw_menu(canvas)
+        hint = self.small.render("UP / DOWN choose      A or START go", False, (130, 146, 210))
+        ui.blit_c(canvas, hint, 340)
+
+    def _draw_menu(self, canvas: pygame.Surface) -> None:
+        w, row_h = 190, 22
+        x = (canvas.get_width() / ui.SCALE - w) / 2
+        y0 = 180
+        plate = pygame.Surface((round(w * ui.SCALE), round(row_h * len(MENU) * ui.SCALE + 8)), pygame.SRCALPHA)
+        plate.fill((4, 8, 30, 170))
+        canvas.blit(plate, (round(x * ui.SCALE), round((y0 - 3) * ui.SCALE)))
+        pd.rect(canvas, (0, 200, 255), (x, y0 - 3, w, row_h * len(MENU) + 5), 1, border_radius=3)
+        for i, (label, _) in enumerate(MENU):
+            y = y0 + i * row_h
+            active = i == self.row
+            if active:
+                pulse = 0.5 + 0.5 * math.sin(self.frame * 0.12)
+                pd.rect(canvas, (40 + int(20 * pulse), 80 + int(30 * pulse), 190), (x + 4, y, w - 8, row_h - 3), border_radius=3)
+                pd.rect(canvas, (255, 224, 90), (x + 4, y, w - 8, row_h - 3), 1, border_radius=3)
+                bob = math.sin(self.frame * 0.2) * 2
+                pd.polygon(canvas, (255, 224, 90), [(x + 12 + bob, y + 4), (x + 12 + bob, y + 15), (x + 20 + bob, y + 9.5)])
+                pd.polygon(canvas, (255, 224, 90), [(x + w - 12 - bob, y + 4), (x + w - 12 - bob, y + 15), (x + w - 20 - bob, y + 9.5)])
+            text = self.menu_font.render(label, False, (255, 255, 255) if active else (160, 176, 226))
+            pd.blit(canvas, text, (x + (w - text.get_width()) / 2, y + 1))

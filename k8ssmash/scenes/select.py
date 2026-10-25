@@ -20,6 +20,66 @@ TIMEOUT = 30 * FPS
 START_DELAY = 45
 
 
+_portraits: dict[tuple, pygame.Surface] = {}
+
+
+def _mix(a, b, t):
+    return tuple(int(x + (y - x) * t) for x, y in zip(a, b))
+
+
+def portrait(name: str, color, w: int, h: int, floor: int) -> pygame.Surface:
+    """A fighter's card art: a tinted Tron stage with a spotlight beam, a glowing podium and a perspective grid,
+    and a bevelled name plate. Built once per fighter, in world pixels."""
+    key = (name, tuple(color), w, h)
+    cached = _portraits.get(key)
+    if cached is not None:
+        return cached
+    surf = pygame.Surface((w, h), pygame.SRCALPHA)
+    base_top, base_bot = (6, 8, 26), _mix((8, 10, 30), color, 0.28)
+    for y in range(h):
+        pygame.draw.line(surf, _mix(base_top, base_bot, (y / h) ** 1.3), (0, y), (w, y))
+    cx = w // 2
+    # a soft beam of light dropping onto the podium
+    beam = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.polygon(beam, _mix(color, (255, 255, 255), 0.25) + (46,), [(cx - 14, 0), (cx + 14, 0), (cx + 58, floor), (cx - 58, floor)])
+    pygame.draw.polygon(beam, _mix(color, (255, 255, 255), 0.5) + (34,), [(cx - 6, 0), (cx + 6, 0), (cx + 26, floor), (cx - 26, floor)])
+    surf.blit(beam, (0, 0))
+    # halo behind the fighter, stepped so it stays pixel-crisp
+    halo = pygame.Surface((w, h), pygame.SRCALPHA)
+    for r, a in ((54, 14), (42, 20), (30, 28), (18, 36)):
+        pygame.draw.ellipse(halo, color + (a,), (cx - r * 1.2, floor - 38 - r * 0.8, r * 2.4, r * 1.6))
+    surf.blit(halo, (0, 0))
+    # perspective grid on the floor
+    grid = _mix(color, (255, 255, 255), 0.1)
+    for k in range(-9, 10):
+        pygame.draw.line(surf, _mix(base_bot, grid, 0.5), (cx + k * 3, floor), (cx + k * 26, h), 1)
+    for i in range(1, 5):
+        y = floor + round((h - floor) * (i / 4) ** 1.7)
+        pygame.draw.line(surf, _mix(base_bot, grid, 0.35 + 0.1 * i), (0, y), (w, y), 1)
+    # the podium: a glowing ellipse the fighter stands on
+    for k, a in ((16, 36), (11, 70), (7, 140)):
+        glow = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.draw.ellipse(glow, _mix(color, (255, 255, 255), 0.2) + (a,), (cx - 34 - k, floor - 5 - k // 3, 68 + 2 * k, 10 + 2 * (k // 3)))
+        surf.blit(glow, (0, 0))
+    pygame.draw.ellipse(surf, _mix(color, (255, 255, 255), 0.6), (cx - 34, floor - 5, 68, 10), 1)
+    # scanlines, so the art reads like a CRT card
+    for y in range(0, h, 3):
+        pygame.draw.line(surf, (0, 0, 0, 22), (0, y), (w, y))
+    # name plate along the bottom
+    plate_h = round(19 * ui.SCALE)
+    plate = pygame.Surface((w, plate_h), pygame.SRCALPHA)
+    for y in range(plate_h):
+        pygame.draw.line(plate, _mix(_mix(color, (255, 255, 255), 0.18), (8, 10, 30), y / plate_h) + (255,), (0, y), (w, y))
+    pygame.draw.line(plate, _mix(color, (255, 255, 255), 0.7), (0, 0), (w, 0), 2)
+    surf.blit(plate, (0, h - plate_h))
+    label = ui.fit(name, (255, 255, 255), w / ui.SCALE - 16, 13, 9)
+    surf.blit(label, ((w - pygame.Surface.get_width(label)) // 2, h - plate_h + (plate_h - pygame.Surface.get_height(label)) // 2 + 1))
+    pygame.draw.rect(surf, (6, 8, 30), (0, 0, w, h), 1)
+    pygame.draw.rect(surf, _mix(color, (255, 255, 255), 0.35), (1, 1, w - 2, h - 2), 1)
+    _portraits[key] = surf
+    return surf
+
+
 class CharacterSelect(Scene):
     def __init__(self, app, training: bool = False):
         super().__init__(app)
@@ -129,17 +189,13 @@ class CharacterSelect(Scene):
         for i, st in enumerate(self.roster):
             cx = x0 + (i % cols) * (card_w + gap)
             cy = 32 + (i // cols) * (card_h + 6)
-            card = pygame.Rect(cx, cy, card_w, card_h)
-            ui.window_d(canvas, card)
-            floor_y = cy + card_h - 22  # where the fighter stands: always fully inside the card
-            pd.line(canvas, _dim(st.color), (cx + 14, floor_y + 1), (cx + card_w - 14, floor_y + 1), 2)
+            floor_y = cy + card_h - 24  # where the fighter stands: always fully inside the card
+            canvas.blit(portrait(st.name, st.color, round(card_w * ui.SCALE), round(card_h * ui.SCALE),
+                                 round((floor_y - cy) * ui.SCALE)), (round(cx * ui.SCALE), round(cy * ui.SCALE)))
             sprites = sprite_set(st.name)
             if sprites is not None:  # the whole fighter at native pixel size, so it stays crisp and never gets cropped
                 img = sprites.get("idle", (self.frame // 12) % 4, 1)
                 ui.blit_sprite(canvas, img, cx + card_w // 2, floor_y, sprites.feet)
-            pd.rect(canvas, _dim(st.color), (cx + 3, cy + card_h - 19, card_w - 6, 16))
-            label = self.small.render(st.name, False, (240, 240, 255))
-            pd.blit(canvas, label, (cx + (card_w - label.get_width()) // 2, cy + card_h - 18))
             for slot in (0, 1):
                 if self._active(slot) and self.cursor[slot] == i:
                     off = slot * 3
@@ -149,7 +205,7 @@ class CharacterSelect(Scene):
             self._draw_panel(canvas, pygame.Rect(12 + slot * 316, 214, 304, 86), slot, colors[slot])
         self._draw_legend(canvas)
         stage = STAGES[self.stage_idx]().name
-        hint = self.tiny.render(f"START join/ready    A back / leave    SELECT add CPU    L/R stage: {stage}", False, (126, 134, 176))
+        hint = ui.fit(f"START join/ready    A back / leave    SELECT add CPU    L/R stage: {stage}", (126, 134, 176), 600, 10, 8)
         ui.blit_c(canvas, hint, 335)
 
     def _draw_panel(self, canvas: pygame.Surface, rect: pygame.Rect, slot: int, color) -> None:
@@ -164,15 +220,18 @@ class CharacterSelect(Scene):
             return
         st = self.roster[self.cursor[slot]]
         status = "CPU" if self.cpu[slot] else ("READY!" if self.locked[slot] else "")
-        pd.blit(canvas, self.font.render(st.name, False, (255, 255, 255)), (rect.x + 32, rect.y + 5))
+        status_w = 0
         if status:
             s = self.small.render(status, False, (120, 230, 140) if status == "READY!" else (180, 184, 210))
             pd.blit(canvas, s, (rect.right - s.get_width() - 10, rect.y + 7))
-        pd.blit(canvas, self.small.render(st.blurb, False, (170, 178, 214)), (rect.x + 32, rect.y + 22))
+            status_w = s.get_width() + 8
+        pd.blit(canvas, ui.fit(st.name, (255, 255, 255), rect.w - 44 - status_w, 15, 10), (rect.x + 32, rect.y + 5))
+        pd.blit(canvas, ui.fit(st.blurb, (170, 178, 214), rect.w - 44, 12, 9), (rect.x + 32, rect.y + 22))
         for i, (direction, key, tag_text) in enumerate(MOVE_ROWS):
-            self._move_row(canvas, rect.x + 10, rect.y + 39 + i * 12, direction, st, key, tag_text)
+            self._move_row(canvas, rect.x + 10, rect.y + 39 + i * 12, direction, st, key, tag_text, rect.right - 10)
 
-    def _move_row(self, canvas, x: int, y: int, direction: str | None, st: FighterStats, key: str, tag_text: str) -> None:
+    def _move_row(self, canvas, x: int, y: int, direction: str | None, st: FighterStats, key: str, tag_text: str,
+                  right: int) -> None:
         move = st.moves.get(key)
         if move is None:
             return
@@ -184,13 +243,15 @@ class CharacterSelect(Scene):
             x += plus.get_width() + 2
         x += ui.button_glyph(canvas, x, y, "A", g) + 4
         text = move.announce or move.name
-        t = self.small.render(text[0].upper() + text[1:], False, (240, 242, 255))
+        tag = self.tiny.render(tag_text, False, (255, 214, 120)) if tag_text else None
+        room = right - x - (tag.get_width() + 8 if tag else 0)
+        t = ui.fit(text[0].upper() + text[1:], (240, 242, 255), room, 12, 8)
         pd.blit(canvas, t, (x, y))
-        if tag_text:
-            pd.blit(canvas, self.tiny.render(tag_text, False, (255, 214, 120)), (x + t.get_width() + 6, y + 1))
+        if tag:
+            pd.blit(canvas, tag, (x + t.get_width() + 6, y + 1))
 
     def _center_text(self, canvas, rect: pygame.Rect, text: str, color) -> None:
-        t = self.small.render(text, False, color)
+        t = ui.fit(text, color, rect.w - 20, 12, 8)
         pd.blit(canvas, t, (rect.centerx - t.get_width() // 2, rect.centery - t.get_height() // 2 + 6))
 
     def _draw_legend(self, canvas: pygame.Surface) -> None:
@@ -203,6 +264,9 @@ class CharacterSelect(Scene):
             ("Special", ("btn", "A")), ("+ dir = more moves", ("dpad", "right")), ("Shield", ("btn", "L", "R")),
             ("Duck", ("dpad", "down")),
         ]
+        used = sum(self.tiny.render(label, False, (226, 230, 250)).get_width() + 4
+                   + (17 + 2 if spec[0] == "dpad" else 17 * (len(spec) - 1)) for label, spec in parts)
+        gap = max(4, min(14, (bar.w - 20 - used) // len(parts)))
         for label, spec in parts:
             if spec[0] == "dpad":
                 x += ui.dpad_glyph(canvas, x, y, spec[1], g) + 2
@@ -211,12 +275,9 @@ class CharacterSelect(Scene):
                     x += ui.button_glyph(canvas, x, y, b, g) + 1
             t = self.tiny.render(label, False, (226, 230, 250))
             pd.blit(canvas, t, (x + 2, y + 1))
-            x += t.get_width() + 14
+            x += t.get_width() + gap
 
 
 MOVE_ROWS = [(None, "special", ""), ("right", "special_side", ""), ("up", "special_up", "recovery"),
              ("down", "special_down", "")]
 
-
-def _dim(color):
-    return tuple(int(c * 0.45) for c in color)

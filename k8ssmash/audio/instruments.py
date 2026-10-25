@@ -467,3 +467,5 @@ def rim() -> np.ndarray:
 
 
 DRUMS.update({"cowbell": cowbell, "wood": woodblock, "triangle": triangle, "boing": boing, "rim": rim})
+
+from k8ssmash.audio import orchestra  # noqa: E402,F401  (registers the lifelike voices)

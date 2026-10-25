@@ -1,6 +1,7 @@
 """Turns a Song description (sections of chords, layers, meters, instruments) into stereo audio."""
 from __future__ import annotations
 
+import itertools
 import random
 import zlib
 from dataclasses import dataclass, field
@@ -31,6 +32,9 @@ class Sec:
     gain: float = 1.0
     busy: float = 0.5
     crash: bool = True
+    double: str = ""  # an instrument doubling the lead an octave down, for weight
+    harm: str = ""  # an instrument shadowing the lead in parallel thirds below
+    orn: float = 0.14  # chance a longer lead note gets a grace note (and long ones a trill)
 
 
 @dataclass
@@ -124,21 +128,47 @@ def _drum(name: str) -> np.ndarray:
 
 
 class Bus:
+    """A mono or stereo accumulation buffer; stereo buses place every note at its own pan position."""
+
     def __init__(self, n: int, stereo: bool = False):
         self.buf = np.zeros((n, 2) if stereo else n, dtype=np.float32)
 
     def add(self, start: int, wave: np.ndarray, gain: float, pan: float = 0.0) -> None:
         if start >= len(self.buf):
             return
+        start = max(0, start)
         n = min(len(wave), len(self.buf) - start)
         if n <= 0:
             return
         if self.buf.ndim == 1:
             self.buf[start:start + n] += wave[:n] * gain
         else:
-            a = (pan + 1) * np.pi / 4
+            a = (max(-1.0, min(1.0, pan)) + 1) * np.pi / 4
             self.buf[start:start + n, 0] += wave[:n] * gain * np.cos(a)
             self.buf[start:start + n, 1] += wave[:n] * gain * np.sin(a)
+
+
+def voice_lead(tonic: int, chord: Chord, prev: list[int] | None, lo: int, hi: int) -> list[int]:
+    """Four chord tones placed as close as possible to the previous chord's notes, so chords glide instead of jumping."""
+    pcs = [(tonic + chord[0] + i) % 12 for i in T.CHORDS[chord[1]]][:4]
+    while len(pcs) < 4:
+        pcs.append(pcs[len(pcs) - 2] if len(pcs) > 2 else pcs[0])
+    if prev is None:
+        base = T.chord_midi(tonic, chord, lo + 5)
+        while len(base) < 4:
+            base.append(base[0] + 12)
+        return sorted(base[:4])
+    best, best_cost = None, 1e9
+    for perm in itertools.permutations(pcs):
+        notes, cost = [], 0
+        for pc, old in zip(perm, prev):
+            options = [m for m in range(lo, hi + 1) if m % 12 == pc]
+            m = min(options, key=lambda x: abs(x - old))
+            notes.append(m)
+            cost += abs(m - old)
+        if len(set(notes)) == 4 and cost < best_cost:
+            best, best_cost = notes, cost
+    return sorted(best or prev)
 
 
 def _bass_midi(tonic: int, chord: Chord, kind: str) -> int:
@@ -150,23 +180,38 @@ def _bass_midi(tonic: int, chord: Chord, kind: str) -> int:
     return m
 
 
+_APPROACH_PATTERNS = ("bounce", "funk", "walk", "drive8", "rootfifth", "oompah")
+_GHOST_DRUMS = ("funk", "half", "drive", "swing")
+
+
 def render(song: Song, return_events: bool = False):
     rng_master = random.Random(song.seed)
+    human = random.Random(song.seed * 31 + 7)  # the same "performance" every build
     scale = T.SCALES[song.scale]
     spstep = 60.0 / song.bpm / 4
     total_steps = sum(sec.bars * T.steps_per_bar(sec.meter) for sec in song.sections)
     n_loop = int(total_steps * spstep * SR)
     tail = int(3.0 * SR)
-    buses = {name: Bus(n_loop + tail) for name in ("lead", "counter", "pad", "comp", "arp", "bass")}
+    layer_names = ("lead", "counter", "pad", "comp", "arp", "bass", "double", "harm")
+    buses = {name: Bus(n_loop + tail, stereo=True) for name in layer_names}
     drums = Bus(n_loop + tail, stereo=True)
     mix = {**DEFAULT_MIX, **song.mix}
+    mix.setdefault("double", (0.5, -0.15, 0.3))
+    mix.setdefault("harm", (0.5, 0.2, 0.34))
     melodies: dict[str, list[T.Note]] = {}
     events: dict[str, list] = {k: [] for k in ("lead", "counter", "pad", "comp", "arp", "bass")}
 
-    def at(step: float, swing: float) -> int:
+    def at(step: float, swing: float, loose: float = 0.0045) -> int:
+        """Sample position of a step: swing applied, then a few milliseconds of human looseness."""
         shifted = step + (swing * 0.66 if int(step) % 4 == 2 else 0.0)
-        return int(shifted * spstep * SR)
+        jitter = max(-0.012, min(0.012, human.gauss(0, loose))) if loose else 0.0
+        return max(0, int(shifted * spstep * SR + jitter * SR))
 
+    def vel(base: float, spread: float = 0.08) -> float:
+        return base * (1 + human.uniform(-spread, spread))
+
+    comp_prev: list[int] | None = None
+    pad_prev: list[int] | None = None
     cursor = 0
     for si, sec in enumerate(song.sections):
         spb = T.steps_per_bar(sec.meter)
@@ -174,26 +219,31 @@ def render(song: Song, return_events: bool = False):
         inst = {**song.inst, **sec.inst}
         bars = [(sec.meter, sec.prog[b % len(sec.prog)]) for b in range(sec.bars)]
         g = sec.gain
+        nxt_first = (song.sections[si + 1] if si + 1 < len(song.sections) else song.sections[0]).prog[0]
         for b, (meter, chord) in enumerate(bars):
             bar0 = cursor + b * spb
-            chord_notes = T.chord_midi(tonic, chord, 60)
-            # pad: the whole bar
+            swell = 1.0 + 0.12 * (b / max(1, sec.bars - 1) - 0.5)  # a gentle crescendo through each section
+            # pad: open voicing, spread across the stereo field, gliding from chord to chord
             if "pad" in sec.layers:
-                for m in T.chord_midi(tonic, chord, 52):
-                    d = spb * spstep
-                    buses["pad"].add(at(bar0, 0), _voice(inst["pad"], m, d), mix["pad"][0] * g * 0.55)
+                pad_prev = voice_lead(tonic, chord, pad_prev, 47, 68)
+                d = spb * spstep
+                for k, m in enumerate(pad_prev):
+                    buses["pad"].add(at(bar0, 0, 0.0), _voice(inst["pad"], m, d), mix["pad"][0] * g * 0.5 * swell,
+                                     mix["pad"][1] + (-0.45, -0.15, 0.15, 0.45)[k])
                     events["pad"].append((bar0, m))
-            # comp
+            # comp: voice-led chords, a touch of strum between the notes
             if "comp" in sec.layers:
                 pats = COMP[meter]
                 pat = pats.get(sec.comp) or next(iter(pats.values()))
-                for s, ln in pat:
-                    if s >= spb:
+                comp_prev = voice_lead(tonic, chord, comp_prev, 52, 76)
+                for s_, ln in pat:
+                    if s_ >= spb:
                         continue
-                    for m in T.chord_midi(tonic, chord, 55):
-                        buses["comp"].add(at(bar0 + s, sec.swing), _voice(inst["comp"], m, ln * spstep),
-                                          mix["comp"][0] * g * 0.5, mix["comp"][1])
-                    events["comp"].append((bar0 + s, chord))
+                    hit = vel(1.0 if s_ % 4 == 0 else 0.82, 0.1)
+                    for k, m in enumerate(comp_prev):
+                        buses["comp"].add(at(bar0 + s_, sec.swing) + int(k * 0.004 * SR), _voice(inst["comp"], m, ln * spstep),
+                                          mix["comp"][0] * g * 0.5 * hit * swell, mix["comp"][1] + (k - 1.5) * 0.12)
+                    events["comp"].append((bar0 + s_, chord))
             # arp
             if "arp" in sec.layers:
                 tones = T.chord_midi(tonic, chord, 64)
@@ -201,88 +251,139 @@ def render(song: Song, return_events: bool = False):
                 pattern = sec.arp or "up"
                 spacing = 2 if pattern in ("up", "broken") else 1
                 order = {"up": [0, 1, 2, 3], "broken": [0, 2, 1, 3], "updown": [0, 1, 2, 3, 2, 1]}[pattern]
-                for k, s in enumerate(range(0, spb, spacing)):
+                for k, s_ in enumerate(range(0, spb, spacing)):
                     m = tones[order[k % len(order)] % len(tones)]
-                    buses["arp"].add(at(bar0 + s, sec.swing), _voice(inst["arp"], m, spacing * spstep * 1.5),
-                                     mix["arp"][0] * g * (0.9 if k % 2 == 0 else 0.65), mix["arp"][1] * (1 if k % 2 else -1))
-            # bass
+                    buses["arp"].add(at(bar0 + s_, sec.swing), _voice(inst["arp"], m, spacing * spstep * 1.5),
+                                     mix["arp"][0] * g * vel(0.9 if k % 2 == 0 else 0.65, 0.12), mix["arp"][1] * (1 if k % 2 else -1))
+            # bass: the pattern, with the last note of the bar often walking up or down into the next chord
             if "bass" in sec.layers:
                 pats = BASS[meter]
                 pat = pats.get(sec.bass) or next(iter(pats.values()))
-                for s, kind, ln in pat:
-                    if s >= spb:
+                nxt = bars[b + 1][1] if b + 1 < len(bars) else nxt_first
+                for ni, (s_, kind, ln) in enumerate(pat):
+                    if s_ >= spb:
                         continue
                     m = _bass_midi(tonic, chord, kind) - 12
-                    buses["bass"].add(at(bar0 + s, sec.swing), _voice(inst["bass"], m, ln * spstep * 0.95),
-                                      mix["bass"][0] * g * 0.8)
-                    events["bass"].append((bar0 + s, m))
-            # drums
+                    if (sec.bass in _APPROACH_PATTERNS and ni == len(pat) - 1 and spb - s_ <= 5 and human.random() < 0.6):
+                        target = _bass_midi(tonic, nxt, "r") - 12
+                        m = target + human.choice([-1, -1, 1, -2])
+                    buses["bass"].add(at(bar0 + s_, sec.swing, 0.003), _voice(inst["bass"], m, ln * spstep * 0.95),
+                                      mix["bass"][0] * g * 0.8 * vel(1.0 if s_ % 4 == 0 else 0.88, 0.07))
+                    events["bass"].append((bar0 + s_, m))
+            # drums: accented hats, ghost snares and a small fill every fourth bar
             if "drums" in sec.layers:
                 dp = DRUMPAT.get(sec.drums or "calm")
                 if dp and dp["meter"] == meter:
+                    fill = meter == "4/4" and b % 4 == 3 and b != sec.bars - 1 and sec.drums != "tag"
                     for dname, steps in dp.items():
                         if dname == "meter":
                             continue
-                        for s in steps:
-                            if s >= spb or (dname == "crash" and not (b == 0 and sec.crash)):
+                        for s_ in steps:
+                            if s_ >= spb or (dname == "crash" and not (b == 0 and sec.crash)):
                                 continue
-                            vel = DRUM_VEL.get(dname, 0.8) * (1.0 if s % 4 == 0 else 0.8) * g
-                            drums.add(at(bar0 + s, sec.swing), _drum(dname), mix["drums"][0] * vel, DRUM_PAN.get(dname, 0.0))
+                            if fill and s_ >= 12 and dname in ("hat", "ohat", "shaker", "kick"):
+                                continue  # make room for the fill
+                            accent = 1.0 if s_ % 4 == 0 else 0.82 if s_ % 2 == 0 else 0.55
+                            if dname in ("kick", "snare", "clap", "timpani", "crash"):
+                                accent = 1.0 if s_ % 4 == 0 else 0.85
+                            v = DRUM_VEL.get(dname, 0.8) * accent * g * vel(1.0, 0.08)
+                            drums.add(at(bar0 + s_, sec.swing, 0.002), _drum(dname), mix["drums"][0] * v, DRUM_PAN.get(dname, 0.0))
+                    if sec.drums in _GHOST_DRUMS and meter == "4/4":
+                        for gs in (7, 15, 3):
+                            if human.random() < 0.38 and not (fill and gs >= 12):
+                                drums.add(at(bar0 + gs, sec.swing, 0.002), _drum("snare"), mix["drums"][0] * 0.2 * g,
+                                          DRUM_PAN.get("snare", 0.0))
                     if sec.crash and b == 0 and si > 0 and "crash" not in dp:
-                        drums.add(at(bar0, 0), _drum("crash"), mix["drums"][0] * 0.45, 0.2)
-                    if b == sec.bars - 1 and meter == "4/4" and sec.drums not in ("tag",):  # a little fill into the next section
+                        drums.add(at(bar0, 0, 0.0), _drum("crash"), mix["drums"][0] * 0.45, 0.2)
+                    if fill:  # a quick snare run
+                        for k, vv in zip((12, 13, 14, 15), (0.3, 0.45, 0.6, 0.85)):
+                            drums.add(at(bar0 + k, 0, 0.002), _drum("snare"), mix["drums"][0] * vv * g, 0.0)
+                    if b == sec.bars - 1 and meter == "4/4" and sec.drums not in ("tag",):  # a bigger fill into the next section
                         for k, name in enumerate(("tom_hi", "tom_mid", "tom_lo", "snare")):
-                            drums.add(at(bar0 + 12 + k, 0), _drum(name), mix["drums"][0] * 0.7, DRUM_PAN.get(name, 0.0))
+                            drums.add(at(bar0 + 12 + k, 0, 0.002), _drum(name), mix["drums"][0] * 0.7, DRUM_PAN.get(name, 0.0))
         # lead + counter-melody share one generated line so repeats are exact
-        if "lead" in sec.layers or "counter" in sec.layers:
+        if {"lead", "counter"} & set(sec.layers):
             key = f"{si if sec.mel == '' else sec.mel}|{sec.transpose}|{sec.bars}|{sec.meter}"
             if key not in melodies:
                 rng = random.Random(zlib.crc32(f"{song.seed}:{key}".encode()))
                 melodies[key] = T.melody(rng, tonic, scale, bars, song.lead_center + sec.transpose, busy=sec.busy)
-            for note in melodies[key]:
+            notes = melodies[key]
+            for ni, note in enumerate(notes):
                 start = at(cursor + note.step, sec.swing)
+                bar_i = min(sec.bars - 1, int(note.step // spb))
+                swell = 1.0 + 0.12 * (bar_i / max(1, sec.bars - 1) - 0.5)
+                orn = random.Random(zlib.crc32(f"{song.seed}:{key}:{note.step}".encode()))
+                idx = T.nearest_index(tonic, scale, note.midi)
+                dur_steps = note.dur
+                trill = note.dur >= 8 and orn.random() < sec.orn * 1.5
                 if "lead" in sec.layers:
-                    buses["lead"].add(start, _voice(inst["lead"], note.midi, note.dur * spstep),
-                                      mix["lead"][0] * g * note.vel, mix["lead"][1])
+                    if trill:
+                        dur_steps = note.dur * 0.45
+                    buses["lead"].add(start, _voice(inst["lead"], note.midi, dur_steps * spstep),
+                                      mix["lead"][0] * g * note.vel * swell * vel(1.0, 0.06), mix["lead"][1])
                     events["lead"].append((cursor + note.step, note.midi, note.dur))
-                if "counter" in sec.layers and note.dur >= 2:
-                    idx = T.nearest_index(tonic, scale, note.midi)
-                    low = T.scale_note(tonic, scale, idx - 2)
-                    buses["counter"].add(start, _voice(inst["counter"], low, note.dur * spstep),
-                                         mix["counter"][0] * g * note.vel * 0.8, mix["counter"][1])
-                    events["counter"].append((cursor + note.step, low, note.dur))
+                    if trill:  # alternate with the note above for the rest of the held note
+                        upper = T.scale_note(tonic, scale, idx + 1)
+                        k = int(note.dur * 0.45)
+                        while k < int(note.dur) - 1:
+                            m = upper if (k - int(note.dur * 0.45)) % 2 == 0 else note.midi
+                            buses["lead"].add(at(cursor + note.step + k, sec.swing), _voice(inst["lead"], m, spstep * 1.1),
+                                              mix["lead"][0] * g * 0.7 * swell, mix["lead"][1])
+                            k += 1
+                    elif note.dur >= 3 and note.step % 4 == 0 and orn.random() < sec.orn:  # a grace note leaning in
+                        grace = T.scale_note(tonic, scale, idx + 1)
+                        buses["lead"].add(max(0, start - int(0.55 * spstep * SR)), _voice(inst["lead"], grace, 0.6 * spstep),
+                                          mix["lead"][0] * g * 0.5 * swell, mix["lead"][1])
+                    if sec.double:
+                        buses["double"].add(start, _voice(sec.double, note.midi - 12, note.dur * spstep),
+                                            mix["double"][0] * g * note.vel * 0.7, mix["double"][1])
+                    if sec.harm and note.dur >= 1.5:
+                        low = T.scale_note(tonic, scale, idx - 2)
+                        buses["harm"].add(start + int(0.006 * SR), _voice(sec.harm, low, note.dur * spstep),
+                                          mix["harm"][0] * g * note.vel * 0.8, mix["harm"][1])
+                if "counter" in sec.layers:
+                    if note.dur >= 2:
+                        low = T.scale_note(tonic, scale, idx - 5)
+                        buses["counter"].add(start + int(0.004 * SR), _voice(inst["counter"], low, note.dur * spstep),
+                                             mix["counter"][0] * g * note.vel * 0.8 * swell, mix["counter"][1])
+                        events["counter"].append((cursor + note.step, low, note.dur))
+                    if note.dur >= 8:  # the counter-voice answers while the lead holds
+                        direction = 1 if orn.random() < 0.5 else -1
+                        base = idx - 3
+                        for k in range(3):
+                            m = T.scale_note(tonic, scale, base + direction * k)
+                            s_ = note.dur - 4 + k * 1.3
+                            buses["counter"].add(at(cursor + note.step + s_, sec.swing),
+                                                 _voice(inst["counter"], m, 1.4 * spstep),
+                                                 mix["counter"][0] * g * 0.7 * swell, mix["counter"][1])
         cursor += sec.bars * spb
 
     # --- mix: dry + convolution reverb, then master ------------------------------------------
     ir = I.make_ir(song.reverb, seed=song.seed)
-    dry = np.zeros((n_loop + tail, 2), dtype=np.float32)
+    size = n_loop + tail
+    dry = np.zeros((size, 2), dtype=np.float32)
     send = np.zeros_like(dry)
     for name, bus in buses.items():
-        gain, pan, rv = mix[name]
-        a = (pan + 1) * np.pi / 4
-        dry[:, 0] += bus.buf * np.cos(a)
-        dry[:, 1] += bus.buf * np.sin(a)
-        send[:, 0] += bus.buf * rv * np.cos(a)
-        send[:, 1] += bus.buf * rv * np.sin(a)
+        rv = mix[name][2]
+        dry += bus.buf
+        send += bus.buf * rv
     dry += drums.buf
     send += drums.buf * mix["drums"][2]
-    wet = I.reverb(send, ir)[: n_loop + tail]
+    wet = I.reverb(send, ir)[:size]
     # the console-style ping-pong echo on the melodic voices, timed to a dotted eighth note
     echo_in = np.zeros_like(dry)
-    for name in ("lead", "counter", "arp"):
-        a = (mix[name][1] + 1) * np.pi / 4
-        echo_in[:, 0] += buses[name].buf * np.cos(a)
-        echo_in[:, 1] += buses[name].buf * np.sin(a)
+    for name in ("lead", "counter", "arp", "harm"):
+        echo_in += buses[name].buf
     echo = I.echo(echo_in, spstep * 3, feedback=0.45, tone=2800.0)
     out = dry + wet * song.wet * 2.2 + echo * 0.5
-    out = out[: n_loop + tail].copy()
+    out = out[:size].copy()
     if song.loop:
         out[:tail] += out[n_loop:n_loop + tail]  # fold the reverb tail back onto the start so it loops
         out = out[:n_loop]
-    out = I.chorus(out, mix=0.45)  # ensemble shimmer across the whole mix
-    out = I.lp(out.T, 13000).T
+    out = I.chorus(out, mix=0.35)  # ensemble shimmer across the whole mix
+    out = I.lp(out.T, 12500).T
     # warm master: a full low end, a gentle low-mid body, and presence kept soft so nothing sounds buzzy or "chippy"
-    out = out + 0.5 * I.lp(out.T, 150).T + 0.22 * I.bp(out.T, 250, 900).T + 0.28 * I.bp(out.T, 3000, 6500).T
+    out = out + 0.5 * I.lp(out.T, 150).T + 0.22 * I.bp(out.T, 250, 900).T + 0.2 * I.bp(out.T, 3000, 6500).T
     mid, side = (out[:, 0] + out[:, 1]) / 2, (out[:, 0] - out[:, 1]) / 2
     out = np.stack([mid + side * 1.0, mid - side * 1.0], axis=1)  # full stereo width
     out = np.tanh(out * 1.25) / 1.25  # soft saturation glues the mix like tape

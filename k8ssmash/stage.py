@@ -8,17 +8,36 @@ import pygame
 from k8ssmash.config import WORLD_H, WORLD_W
 
 
+WARN, FADE = 150, 150  # frames a set-piece platform shows as a ghost before it is solid, and dims before it goes
+
+
 @dataclass
 class Platform:
     rect: pygame.Rect
     dropthrough: bool = False
     # Optional back-and-forth motion: (axis 'x'|'y', amplitude px, period frames).
     motion: tuple[str, float, int] | None = None
+    # Optional set piece: (period, solid frames, offset). The platform fades in as a ghost (warning), is solid for the
+    # solid frames, dims for its last two seconds, then vanishes until the next period.
+    schedule: tuple[int, int, int] | None = None
+    solid: bool = True
+    glow: float = 1.0  # how strongly it is drawn: a ghost while warning, fading as it is about to retract
     dx: float = 0.0  # how far the platform moved this frame, used to carry riders
     dy: float = 0.0
     _origin: tuple[int, int] | None = None
 
     def tick(self, frame: int) -> None:
+        if self.schedule is not None:
+            period, on, offset = self.schedule
+            cycle = (frame + offset) % period
+            self.solid = WARN <= cycle < WARN + on
+            if cycle < WARN:  # a steady ghost with a slow breath, so it is clearly "coming"
+                self.glow = 0.22 + 0.12 * math.sin(frame * 0.07) + 0.2 * cycle / WARN
+            elif cycle < WARN + on:
+                left = WARN + on - cycle
+                self.glow = 1.0 if left > FADE else 0.5 + 0.5 * left / FADE
+            else:
+                self.glow = 0.0
         if self.motion is None:
             return
         if self._origin is None:
@@ -48,6 +67,11 @@ class Stage:
         for plat in self.platforms:
             plat.tick(frame)
 
+    @property
+    def live(self) -> list[Platform]:
+        """The platforms that can be stood on right now (set-piece platforms come and go)."""
+        return [p for p in self.platforms if p.solid]
+
 
 def datacenter_stage() -> Stage:
     """Server hall: a main floor with three tiers of planks above it, a body's-jump apart."""
@@ -60,6 +84,8 @@ def datacenter_stage() -> Stage:
             Platform(pygame.Rect(385, 260, 190, 8), dropthrough=True, motion=("x", 55, 560)),
             Platform(pygame.Rect(255, 190, 120, 8), dropthrough=True),
             Platform(pygame.Rect(585, 190, 120, 8), dropthrough=True),
+            # set piece: a hot-swapped server rack slides into the middle of the hall
+            Platform(pygame.Rect(375, 330, 210, 8), dropthrough=True, schedule=(1800, 780, 900)),
         ],
         spawns=[(330, 400), (630, 400)],
     )
@@ -77,6 +103,9 @@ def control_plane_stage() -> Stage:
             Platform(pygame.Rect(290, 260, 130, 8), dropthrough=True),
             Platform(pygame.Rect(540, 260, 130, 8), dropthrough=True),
             Platform(pygame.Rect(415, 190, 130, 8), dropthrough=True, motion=("y", 22, 420)),
+            # set piece: a leader election hands the crown from one outer perch to the other
+            Platform(pygame.Rect(30, 255, 120, 8), dropthrough=True, schedule=(2400, 1000, 700)),
+            Platform(pygame.Rect(810, 255, 120, 8), dropthrough=True, schedule=(2400, 1000, 1900)),
         ],
         spawns=[(300, 400), (660, 400)],
         theme="controlplane",
@@ -95,6 +124,8 @@ def node_pool_stage() -> Stage:
             Platform(pygame.Rect(700, 330, 120, 8), dropthrough=True),
             Platform(pygame.Rect(330, 260, 300, 8), dropthrough=True),
             Platform(pygame.Rect(420, 190, 120, 8), dropthrough=True, motion=("x", 70, 420)),
+            # set piece: the scheduler lays a bridge across the gap between the two floors
+            Platform(pygame.Rect(360, 400, 240, 40), schedule=(2100, 720, 1100)),
         ],
         spawns=[(210, 400), (750, 400)],
         theme="nodepool",

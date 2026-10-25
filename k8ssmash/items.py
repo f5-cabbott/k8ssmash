@@ -101,7 +101,7 @@ class Item:
         prev = self.y
         self.vy = min(self.vy + 0.22, 3.2)
         self.y += self.vy
-        for plat in stage.platforms:
+        for plat in stage.live:
             r = plat.rect
             if r.left <= self.x <= r.right and prev <= r.top + 0.01 <= self.y:
                 self.y, self.landed = float(r.top), True
@@ -116,7 +116,7 @@ class ItemSpawner:
         self.timer = FIRST_SPAWN
 
     def spawn(self, stage: Stage, key: str | None = None) -> Item:
-        plat = self.rng.choice(stage.platforms)
+        plat = self.rng.choice(stage.live)
         x = self.rng.uniform(plat.rect.left + 12, plat.rect.right - 12)
         defn = ITEMS[key] if key else self.rng.choice(list(ITEMS.values()))
         item = Item(defn, x, 10.0)

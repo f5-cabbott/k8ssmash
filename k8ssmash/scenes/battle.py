@@ -5,7 +5,7 @@ import random
 
 import pygame
 
-from k8ssmash import ui
+from k8ssmash import backdrops, ui
 from k8ssmash.ai import SimpleAI
 from k8ssmash.audio_manager import MUSIC_FOR_THEME
 from k8ssmash.backdrops import draw_backdrop, draw_platform
@@ -58,14 +58,14 @@ class Battle(Scene):
     wide = True  # takes the whole (possibly ultrawide) canvas: scenery fills it, the arena sits in the middle
     metrics_mode: str | None = None  # None: derived from who is human
 
-    def __init__(self, app, stats: list[FighterStats], stage: Stage | None = None, stocks: int = 3,
+    def __init__(self, app, stats: list[FighterStats], stage: Stage | None = None, stocks: int | None = None,
                  human: list[bool] | None = None, demo: bool = False, items: bool | None = None):
         super().__init__(app)
         self.spawner = ItemSpawner(enabled=app.cfg.items if items is None else items)
         self.stage = stage or datacenter_stage()
         self.human = human or [True, True]
         self.demo = demo
-        self.fighters = [Fighter(st, i, stocks) for i, st in enumerate(stats)]
+        self.fighters = [Fighter(st, i, app.cfg.stocks if stocks is None else stocks) for i, st in enumerate(stats)]
         for i, f in enumerate(self.fighters):
             f.spawn(self.stage.spawns[i], 1 if i == 0 else -1)
         # Human slots read the shared pads; CPU slots get their own PlayerInput driven by an AI.
@@ -74,7 +74,7 @@ class Battle(Scene):
         self.projectiles: list[Projectile] = []
         self.effects: list[tuple[str, float, float, int]] = []  # (kind, x, y, frames left)
         self.frame = 0
-        self.time_left = MATCH_SECONDS * FPS
+        self.time_left = (app.cfg.match_seconds or MATCH_SECONDS) * FPS
         self.hitstop = 0
         self.combos: dict[int, tuple[int, int, int]] = {}  # attacker slot -> (hits, frames to show, victim slot)
         self.winner: int | None = None  # fighter slot, -1 for a draw
@@ -86,6 +86,9 @@ class Battle(Scene):
             for f in self.fighters:
                 METRICS.inc("fighter_picks_total", fighter=f.stats.name)
         self.cam = 0.0
+        backdrops.REACT["ripples"].clear()
+        self.hot = False  # the final-stock version of the music is playing
+        self.motif_ready = [0] * len(self.fighters)  # frame when each fighter's leitmotif may play again
         self.fx = Particles()
         self.ghosts: list[list] = [[] for _ in self.fighters]  # dash afterimages: [surface, x, y, logic frame]
         self.slowmo = 0
@@ -242,8 +245,6 @@ class Battle(Scene):
 
     def _feed_backdrop(self) -> None:
         """Tell the scenery how the fight is going so it can respond: heat, who is leading, how many KOs."""
-        from k8ssmash import backdrops
-
         avg = sum(f.percent for f in self.fighters) / max(1, len(self.fighters))
         target = min(1.0, avg / 120.0)
         backdrops.REACT["energy"] += (target - backdrops.REACT["energy"]) * 0.02
@@ -251,6 +252,7 @@ class Battle(Scene):
         lead = (dealt[0] - dealt[1]) / max(30.0, dealt[0] + dealt[1]) if len(dealt) > 1 else 0.0
         backdrops.REACT["leader"] = max(-1.0, min(1.0, lead * 2.0))
         backdrops.REACT["kos"] = sum(f.kos for f in self.fighters)
+        backdrops.tick_ripples()
 
     def _count_combo(self, attacker: Fighter, victim: Fighter, chained: bool) -> None:
         """Hits that land while the victim is still reeling from the last one build a combo."""
@@ -260,6 +262,15 @@ class Battle(Scene):
         if count >= 3:
             self.fx.ring(victim.x, victim.y - victim.stats.height - 8, (255, 214, 90), 20 + count * 3, 16)
             self.app.audio.play("counter", pan=self.pan_of(victim))
+            self._leitmotif(attacker)
+
+    def _leitmotif(self, f: Fighter) -> None:
+        """A fighter on a roll gets their own tune over the stage music, in the song's key, at most every ten seconds."""
+        if self.demo or self.frame < self.motif_ready[f.slot]:
+            return
+        self.motif_ready[f.slot] = self.frame + 10 * FPS
+        shift = {"controlplane": 2}.get(self.stage.theme, 0) + (2 if self.hot else 0)
+        self.app.audio.play(f"motif{shift}", 0.55, pan=self.pan_of(f), fighter=f.stats.name)
 
     def _second_wind(self, f: Fighter) -> None:
         """Down to the last stock while the other fighter still has spare ones: a modest comeback boost."""
@@ -267,6 +278,7 @@ class Battle(Scene):
         if f.stocks == 1 and not f.eliminated and not f.comeback and others and max(o.stocks for o in others) >= 2:
             f.comeback = True
             self.announce("LAST STOCK: SECOND WIND!", self.colors[f.slot])
+            self.hot = True
             if not self.demo:  # the stage music lifts: faster and higher for the final stretch
                 self.app.audio.music(MUSIC_FOR_THEME.get(self.stage.theme, "datacenter") + "_hot")
 
@@ -335,6 +347,8 @@ class Battle(Scene):
             self.hud_pulse[victim.slot] = 12
             self.hitstop = 3 + int(damage // 3)  # a longer freeze on big hits sells the weight
             heavy = damage >= 7
+            if heavy:
+                        backdrops.hit_ripple(victim.x)
             self.effects.append(("hit_heavy" if heavy else "hit", victim.x, victim.y - victim.stats.height / 2,
                                  14 if heavy else 10))
             self._hit_burst(victim, attacker, damage, angle, direction)
@@ -446,6 +460,7 @@ class Battle(Scene):
         self.cam += (cam - self.cam) * 0.05  # ease, so the scenery drifts rather than snaps
         self._feed_backdrop()
         draw_backdrop(full, self.stage.theme, self.frame, self.cam)
+        backdrops.draw_ripples(canvas, self.stage.theme, self.stage.platforms[0].rect.top)
         for plat in self.stage.platforms:
             draw_platform(canvas, plat, self.stage.theme)
         for item in self.spawner.items:

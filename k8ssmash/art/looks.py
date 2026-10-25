@@ -222,41 +222,55 @@ def kubectl() -> Look:
                 front=[(antenna, "acc")], details=details)
 
 
-# --- Chaos Monkey ------------------------------------------------------------------------------
-def monkey() -> Look:
-    pal = with_back_palettes({"body": (226, 128, 70), "face": (250, 214, 168), "ear": (240, 160, 110),
-                              "banana": (255, 222, 70)})
+# --- CronJob -----------------------------------------------------------------------------------
+def cronjob() -> Look:
+    pal = with_back_palettes({"body": (240, 168, 60), "face": (250, 244, 224), "bell": (255, 214, 90),
+                              "key": (200, 206, 224), "spring": (150, 160, 190)})
 
-    def banana_hat(s, r: Rig) -> None:  # a banana worn like a jaunty hat
+    def bells(s, r: Rig) -> None:  # twin alarm bells on top of the head, rattling as it moves
         cx, cy = r.head
-        tilt = r.pose.lean * 0.3 + math.sin(r.pose.bob * 2) * 0.8
-        draw.limb(s, [(cx - 8, cy - 7 - tilt), (cx - 3, cy - 14), (cx + 5, cy - 15 + tilt), (cx + 11, cy - 10 + tilt)], 4)
+        rattle = math.sin(r.pose.bob * 4) * 1.2 + r.pose.lean * 0.15
+        draw.circle(s, (cx - 6 - rattle * 0.4, cy - 11 + rattle * 0.3), 4.2)
+        draw.circle(s, (cx + 6 - rattle * 0.4, cy - 11 - rattle * 0.3), 4.2)
+        draw.line(s, (cx - 3, cy - 12), (cx + 3, cy - 12), 1.6)  # the striker bar between them
 
-    def tail(s, r: Rig) -> None:
+    def dial(s, r: Rig) -> None:  # the clock face on the front of the head
+        cx, cy = r.head
+        draw.ellipse(s, cx - 2, cy - 7, 13.5, 14)
+
+    def key(s, r: Rig) -> None:  # a wind-up key that turns in the back
         hx, hy = r.hip
-        sway = math.sin(r.pose.lean * 0.7 + r.pose.bob) * 2.5 + r.pose.lean * 0.4  # the tail swings against the motion
-        draw.limb(s, [(hx - 5, hy), (hx - 13, hy + 2 - sway * 0.3), (hx - 20 - sway, hy - 5), (hx - 19 - sway * 1.4, hy - 15),
-                      (hx - 13 - sway, hy - 20)], 4)
+        sx, sy = r.shoulder
+        a = r.pose.bob * 2.2
+        kx, ky = (hx + sx) / 2 - 8, (hy + sy) / 2
+        draw.line(s, (kx + 5, ky), (kx - 1, ky), 1.8)
+        draw.ellipse(s, kx - 8, ky - 4 + math.sin(a) * 0.6, 7, 8 * abs(math.cos(a)) + 1.5)
+        draw.ellipse(s, kx - 8, ky - 4 - math.sin(a) * 0.6, 7, 3)
 
-    def ears(s, r: Rig) -> None:
-        cx, cy = r.head
-        draw.circle(s, (cx - 6, cy - 3), 5)
-        draw.circle(s, (cx + 5, cy - 7), 4)
-
-    def face_patch(s, r: Rig) -> None:
-        cx, cy = r.head
-        draw.ellipse(s, cx - 1, cy - 4.5, 12.5, 12)
-
-    def belly(s, r: Rig) -> None:
-        hx, hy = r.hip[0] + r.pose.lean * 0.4, r.hip[1] - 8
-        draw.ellipse(s, hx - 3, hy - 3, 8.5, 9.5)
+    def spring(s, r: Rig) -> None:  # a coiled-spring tail that bounces behind
+        hx, hy = r.hip
+        sway = math.sin(r.pose.bob * 2 + r.pose.lean * 0.5) * 2 + r.pose.lean * 0.4
+        pts = [(hx - 5, hy)]
+        for i in range(1, 6):
+            pts.append((hx - 5 - i * 3.2 - sway * i * 0.15, hy - 1 - i * 2.2 + (3 if i % 2 else -3)))
+        draw.limb(s, pts, 2.2)
 
     def details(f: pygame.Surface, r: Rig) -> None:
-        face(f, r, [(1, -3), (6, -3)], (3, 4), (110, 70, 30), (3, 5, 5), (150, 70, 40))
+        cx, cy = r.head
+        x, y = round(cx), round(cy)
+        tick = (110, 80, 50)
+        for dx, dy in ((4, -6), (9, -1), (4, 5), (-1, -1)):  # hour ticks around the dial
+            f.set_at((x + dx, y + dy), tick)
+        face(f, r, [(1, -3), (6, -3)], (3, 3), (110, 70, 30), (3, 5, 5), (150, 70, 40))
+        hx, hy = r.hip[0] + r.pose.lean * 0.4, r.hip[1] - 8
+        pygame.draw.circle(f, (252, 250, 240), (round(hx + 1), round(hy)), 3)  # a little belly dial
+        pygame.draw.line(f, (90, 60, 40), (round(hx + 1), round(hy)), (round(hx + 1), round(hy - 2)), 1)
+        pygame.draw.line(f, (200, 50, 50), (round(hx + 1), round(hy)), (round(hx + 3), round(hy)), 1)
 
-    return Look("Chaos Monkey", pal, torso_w=13, torso_h=14, leg_len=13, leg_w=5, arm_w=5, arm_len=17,
-                head_r=9, head_pal="body", textures={"body": "fur", "ear": "fur"}, no_hue_shift=("face", "banana"),
-                back=[(tail, "body")], front=[(ears, "ear"), (face_patch, "face"), (belly, "face"), (banana_hat, "banana")],
+    return Look("CronJob", pal, torso_w=13, torso_h=14, leg_len=13, leg_w=5, arm_w=5, arm_len=17,
+                head_r=9, head_pal="body", textures={"body": "metal", "key": "metal"},
+                no_hue_shift=("face", "bell", "key", "spring"),
+                back=[(spring, "spring"), (key, "key")], front=[(dial, "face"), (bells, "bell")],
                 details=details)
 
 
@@ -460,5 +474,5 @@ def oomkiller() -> Look:
                 front=[(skull, "bone"), (horns, "bone"), (scythe, "wood"), (blade, "pcb")], details=details)
 
 
-LOOKS = {"Pod": pod, "StatefulSet": statefulset, "Kubectl": kubectl, "Chaos Monkey": monkey, "Sidecar": sidecar,
+LOOKS = {"Pod": pod, "StatefulSet": statefulset, "Kubectl": kubectl, "CronJob": cronjob, "Sidecar": sidecar,
          "Ingress": ingress, "Operator": operator, "OOMKiller": oomkiller}

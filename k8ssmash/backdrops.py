@@ -63,7 +63,7 @@ def dither_gradient(w: int, h: int, stops, bands: int = 20) -> pygame.Surface:
 
 
 # --- match-reactive state and slow moods -----------------------------------------------------------------------
-REACT = {"energy": 0.0, "leader": 0.0, "kos": 0}  # set by the battle: how heated the fight is, who leads (-1..1), KOs so far
+REACT = {"energy": 0.0, "leader": 0.0, "kos": 0, "ripples": []}  # set by the battle: how heated the fight is, who leads (-1..1), KOs so far
 
 # Each stage drifts through a few lighting moods, like Final Destination's cycling nebulae: very slow, never flashing.
 MOODS = {
@@ -567,6 +567,35 @@ def draw_backdrop(canvas: pygame.Surface, theme: str, frame: int, cam: float = 0
     get_backdrop(theme, canvas.get_width()).draw(canvas, frame, cam)
 
 
+RIPPLE_LIFE = 56
+
+
+def hit_ripple(x: float) -> None:
+    """A heavy hit sends a slow ring across the floor grid under the victim (scenery reacting, never flashing)."""
+    ripples = REACT["ripples"]
+    ripples.append([x, 0])
+    del ripples[:-5]
+
+
+def draw_ripples(canvas: pygame.Surface, theme: str, floor_y: int) -> None:
+    c = ACCENT.get(theme, ACCENT["datacenter"])
+    for rip in REACT["ripples"]:
+        age = rip[1]
+        u = age / RIPPLE_LIFE
+        r = 14 + 120 * (1 - (1 - u) ** 2)
+        color = _scale(c, 0.55 * (1 - u))
+        pygame.draw.ellipse(canvas, color, (rip[0] - r, floor_y + 4 - r * 0.1, 2 * r, r * 0.2 + 2), 2)
+        if u < 0.7:
+            r2 = r * 0.6
+            pygame.draw.ellipse(canvas, _scale(c, 0.3 * (1 - u)), (rip[0] - r2, floor_y + 4 - r2 * 0.1, 2 * r2, r2 * 0.2 + 2), 1)
+
+
+def tick_ripples() -> None:
+    for rip in REACT["ripples"]:
+        rip[1] += 1
+    REACT["ripples"][:] = [r for r in REACT["ripples"] if r[1] < RIPPLE_LIFE]
+
+
 def neon_px(surf: pygame.Surface, a, b, color: Color, w: int = 1) -> None:
     """neon() for surfaces that are already in world pixels (platform art)."""
     pygame.draw.line(surf, _scale(color, 0.2), a, b, w + 4)
@@ -625,8 +654,17 @@ def _platform_surface(w: int, h: int, theme: str, thin: bool) -> pygame.Surface:
 
 def draw_platform(canvas: pygame.Surface, plat: Platform, theme: str) -> None:
     r = plat.rect
+    if plat.glow <= 0.01:
+        return  # a set-piece platform that is currently away
     key = (r.w, r.h, theme, plat.dropthrough)
     surf = _platform_cache.get(key)
     if surf is None:
         surf = _platform_cache[key] = _platform_surface(r.w, r.h, theme, plat.dropthrough)
+    if plat.glow < 0.99:
+        ghost = surf.copy()
+        ghost.set_alpha(int(255 * max(0.0, min(1.0, plat.glow))))
+        canvas.blit(ghost, r.topleft)
+        if not plat.solid:  # the warning outline: where it is about to appear
+            pygame.draw.rect(canvas, ACCENT.get(theme, ACCENT["datacenter"]), r.inflate(2, 2), 1)
+        return
     canvas.blit(surf, r.topleft)

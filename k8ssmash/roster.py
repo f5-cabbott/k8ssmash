@@ -71,21 +71,21 @@ def kubectl() -> FighterStats:
         }))
 
 
-def monkey() -> FighterStats:
-    """Chaos Monkey: light and slippery, with trap-laying."""
+def cronjob() -> FighterStats:
+    """CronJob: light and slippery, with scheduled trap-laying."""
     return FighterStats(
-        "Chaos Monkey", (230, 130, 70), weight=84, width=22, height=42, run_speed=3.9, air_speed=3.51,
-        jump_vel=-9.4, gravity=0.37, air_jumps=4, blurb="Light trickster. Lays traps.",
+        "CronJob", (240, 170, 60), weight=84, width=22, height=42, run_speed=3.9, air_speed=3.51,
+        jump_vel=-9.4, gravity=0.37, air_jumps=4, blurb="Light trickster. Sets timed traps.",
         moves=moveset(**{
-            "special": Move("banana toss", 9, 1, 16, anim="cast", announce="Banana Toss", projectile=ProjectileDef(
+            "special": Move("scheduled job", 9, 1, 16, anim="cast", announce="Scheduled Job", projectile=ProjectileDef(
                 speed=3.2, width=12, height=10, damage=7, base_kb=3.0, kb_growth=0.035, angle=60, life=420,
-                gravity=0.16, vy=-3.2, color=(255, 225, 80), shape="banana", stick=True,
+                gravity=0.16, vy=-3.2, color=(255, 225, 80), shape="clock", stick=True,
                 replace_existing=True)),
-            "special_side": Move("vine swing", 7, 6, 12, (6, -34, 26, 22), 6, 3.4, 0.05, 40, blink=70,
-                                 anim="dash", announce="Vine Swing"),
-            "special_up": Move("tree hop", 5, 8, 12, (-10, -62, 22, 40), 6, 3.0, 0.05, 82, rise=10.1,
-                               once_per_air=True, anim="rise", announce="Tree Hop"),
-            "special_down": Move("chaos!", 14, 1, 22, anim="cast", announce="CHAOS!", projectile=ProjectileDef(
+            "special_side": Move("next run", 7, 6, 12, (6, -34, 26, 22), 6, 3.4, 0.05, 40, blink=70,
+                                 anim="dash", announce="Next Run"),
+            "special_up": Move("snooze", 5, 8, 12, (-10, -62, 22, 40), 6, 3.0, 0.05, 82, rise=10.1,
+                               once_per_air=True, anim="rise", announce="Snooze"),
+            "special_down": Move("time bomb", 14, 1, 22, anim="cast", announce="Cron Bomb", projectile=ProjectileDef(
                 speed=0, width=14, height=14, damage=0, base_kb=0, kb_growth=0, angle=0, life=70,
                 gravity=0.3, spawn_dx=16, spawn_dy=-8, color=(240, 90, 60), shape="bomb", stick=True,
                 explode_radius=54, explode_damage=16, harmless_to_owner=False, replace_existing=True)),
@@ -167,4 +167,4 @@ def oomkiller() -> FighterStats:
 
 
 def roster() -> list[FighterStats]:
-    return [pod(), statefulset(), kubectl(), monkey(), sidecar(), ingress(), operator(), oomkiller()]
+    return [pod(), statefulset(), kubectl(), cronjob(), sidecar(), ingress(), operator(), oomkiller()]

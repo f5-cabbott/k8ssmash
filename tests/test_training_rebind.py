@@ -31,7 +31,8 @@ def tap(app, p0=(), p1=()):
     frame(app)
 
 
-def test_title_special_opens_training_select_and_starts_training(app):
+def test_title_menu_opens_training_select_and_starts_training(app):
+    tap(app, {"DOWN"})  # VERSUS -> TRAINING
     tap(app, {"SPECIAL"})
     assert isinstance(app.scene, CharacterSelect) and app.scene.training
     tap(app, {"START"})

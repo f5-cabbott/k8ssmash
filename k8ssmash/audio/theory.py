@@ -84,40 +84,67 @@ def _bar_rhythm(rng: random.Random, meter: str, busy: float) -> list[tuple[int, 
     return out
 
 
+def _motif_steps(rng: random.Random, n: int = 9) -> list[int]:
+    """A hook's pitch contour as scale-step moves. Leaps are answered by a step back the other way, and a repeated note
+    now and then gives it the 'da-da-da-DAA' shape that makes a tune stick."""
+    out: list[int] = []
+    for _ in range(n):
+        if out and out[-1] >= 3:
+            out.append(rng.choice([-1, -2, -1]))
+        elif out and out[-1] <= -3:
+            out.append(rng.choice([1, 2, 1]))
+        else:
+            out.append(rng.choice([-2, -1, -1, 0, 0, 1, 1, 2, 3, -3, 4]))
+    return out
+
+
 def melody(rng: random.Random, tonic: int, scale: list[int], bars: list[tuple[str, Chord]], center: int,
            busy: float = 0.5, chromatic: float = 0.12, rest_prob: float = 0.08) -> list[Note]:
-    """A four-bar-phrase melody: motif, repeat, variation, cadence. Chord tones fall on strong beats,
-    other notes move by step, and now and then a chromatic approach note adds some mischief."""
+    """Four-bar phrases built like a real tune: bar 1 states a hook, bar 2 answers it as a sequence a step or two away,
+    bar 3 reaches higher with a varied ending and bar 4 falls home to a chord tone. Chord tones land on strong beats."""
     notes: list[Note] = []
     cursor = 0
     idx = nearest_index(tonic, scale, center)
-    motif: list[list[tuple[int, int]]] = []
+    rhythms: list[list[tuple[int, int]]] = []
+    steps: list[int] = []
+    bar0 = idx
     for bi, (meter, chord) in enumerate(bars):
         spb = steps_per_bar(meter)
-        phrase_pos = bi % 4
-        if phrase_pos == 0 or not motif:
-            motif = [_bar_rhythm(rng, meter, busy), _bar_rhythm(rng, meter, busy)]
-        if phrase_pos in (0, 2):
-            rhythm = motif[0]
-        elif phrase_pos == 1:
-            rhythm = motif[1]
+        pp = bi % 4
+        if pp == 0 or not rhythms:
+            rhythms = [_bar_rhythm(rng, meter, busy), _bar_rhythm(rng, meter, busy)]
+            steps = _motif_steps(rng)
+            idx = max(idx - rng.choice([0, 0, 1]), nearest_index(tonic, scale, center) - 3)  # start near the middle
+            bar0 = idx
+        if pp in (0, 2):
+            rhythm = rhythms[0]
+        elif pp == 1:
+            rhythm = rhythms[1]
         else:  # the cadence bar: a quick figure, then a held note on the last group
-            rhythm = motif[0][: max(1, len(motif[0]) // 2)]
+            rhythm = rhythms[0][: max(1, len(rhythms[0]) // 2)]
             last = spb - groups(meter)[-1]
             rhythm = [r for r in rhythm if r[0] < last] + [(last, groups(meter)[-1])]
-        target_dir = 1 if phrase_pos < 2 else -1  # an arch: rise through the phrase, then settle
+        if pp == 1:
+            idx = bar0 + rng.choice([-1, 1, 1, 2])  # the answer: the same shape, shifted
+        elif pp == 2:
+            idx = bar0 + rng.choice([2, 3, 3, 4])  # the reach
+        elif pp == 3:
+            idx = max(bar0 + 1, idx - 1)
+        contour = steps if pp < 3 else [-1, -1, -2, -1, 0, -1, -2, -1, -1]
+        if pp == 2:  # a varied ending: the last moves of the hook flip direction
+            contour = steps[:-3] + [-s if s else 1 for s in steps[-3:]]
         pcs = chord_pcs(tonic, chord)
         for ni, (s, ln) in enumerate(rhythm):
             strong = s in _strong_steps(meter)
-            if ni > 0 and rng.random() < rest_prob and not (phrase_pos == 3 and ni == len(rhythm) - 1):
+            last_note = pp == 3 and ni == len(rhythm) - 1
+            if ni > 0 and rng.random() < rest_prob and not last_note:
                 continue
-            step_choice = rng.choice([-2, -1, -1, 0, 1, 1, 2]) if target_dir else 0
-            cand = idx + step_choice + (1 if target_dir > 0 and rng.random() < .3 else 0)
-            if phrase_pos == 3 and ni == len(rhythm) - 1:  # land the cadence on the chord root or fifth
+            cand = idx + (contour[(ni - 1) % len(contour)] if ni > 0 else 0)
+            if last_note:  # land the cadence on the chord root or fifth
                 cand = _nearest_chord_tone(tonic, scale, cand, {(tonic + chord[0]) % 12, (tonic + chord[0] + 7) % 12})
             elif strong:
                 cand = _nearest_chord_tone(tonic, scale, cand, pcs)
-            cand = max(-5, min(14, cand))
+            cand = max(-5, min(15, cand))
             midi = scale_note(tonic, scale, cand)
             idx = cand
             if not strong and ni > 0 and rng.random() < chromatic and ln <= 2:

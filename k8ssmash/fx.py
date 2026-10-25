@@ -44,9 +44,18 @@ def draw_projectile(canvas: pygame.Surface, p: Projectile) -> None:
         for i in range(6):
             a = t * 0.3 + i * math.pi / 3
             pygame.draw.line(canvas, c, (x, y), (x + math.cos(a) * r, y + math.sin(a) * r), 2)
-    elif shape == "banana":
-        pygame.draw.arc(canvas, OUTLINE, (x - 8, y - 7, 16, 14), 3.4, 6.0, 5)
-        pygame.draw.arc(canvas, c, (x - 8, y - 7, 16, 14), 3.4, 6.0, 3)
+    elif shape == "clock":  # a little alarm clock: ringing bells, a face and hands that sweep as it flies
+        shake = (t // 2) % 2
+        pygame.draw.circle(canvas, OUTLINE, (x - 5, y - 8 + shake), 3)
+        pygame.draw.circle(canvas, OUTLINE, (x + 5, y - 8 + shake), 3)
+        pygame.draw.circle(canvas, c, (x - 5, y - 8 + shake), 2)
+        pygame.draw.circle(canvas, c, (x + 5, y - 8 + shake), 2)
+        pygame.draw.circle(canvas, OUTLINE, (x, y), 9)
+        pygame.draw.circle(canvas, c, (x, y), 8)
+        pygame.draw.circle(canvas, (252, 250, 240), (x, y), 6)
+        a = t * 0.35
+        pygame.draw.line(canvas, OUTLINE, (x, y), (x + math.cos(a) * 5, y + math.sin(a) * 5), 1)
+        pygame.draw.line(canvas, (200, 50, 50), (x, y), (x + math.cos(a * 0.12) * 3, y + math.sin(a * 0.12) * 3), 1)
     elif shape == "bomb":
         flash = d.explode_radius and p.life < 30 and (t // 3) % 2 == 0
         body = (255, 255, 255) if flash else _dark(c, 0.7)

@@ -10,7 +10,7 @@ SR = I.SR
 EVENTS = ("jump", "djump", "attack_light", "attack_heavy", "special", "hit_light", "hit_heavy", "ko", "taunt", "win")
 
 VOICES = {  # fighter -> (timbre, base frequency)
-    "Pod": ("bubble", 520), "StatefulSet": ("horn", 130), "Kubectl": ("digital", 880), "Chaos Monkey": ("squeak", 900),
+    "Pod": ("bubble", 520), "StatefulSet": ("horn", 130), "Kubectl": ("digital", 880), "CronJob": ("squeak", 900),
     "Sidecar": ("servo", 300), "Ingress": ("portal", 440), "Operator": ("dtmf", 697), "OOMKiller": ("growl", 62),
 }
 
@@ -209,7 +209,7 @@ VOWELS = {  # formant frequencies (F1, F2, F3) in Hz
 # fighter -> (pitch Hz, light vowel, shout vowel, grit 0..1, ring-mod Hz for robot voices, breathiness)
 VOX = {
     "Pod": (300, "eh", "ee", 0.1, 0, 0.5), "StatefulSet": (118, "uh", "ah", 0.5, 0, 0.6),
-    "Kubectl": (190, "eh", "ah", 0.2, 72, 0.2), "Chaos Monkey": (430, "ee", "oh", 0.1, 0, 0.7),
+    "Kubectl": (190, "eh", "ah", 0.2, 72, 0.2), "CronJob": (430, "ee", "oh", 0.1, 0, 0.7),
     "Sidecar": (235, "eh", "ah", 0.25, 0, 0.5), "Ingress": (160, "oh", "ah", 0.3, 0, 0.4),
     "Operator": (335, "eh", "ee", 0.1, 0, 0.5), "OOMKiller": (84, "uh", "oh", 0.9, 0, 0.8),
 }
@@ -311,7 +311,7 @@ MOTIFS = {
     "Pod": ("marimba", [(72, .13), (76, .13), (79, .13), (84, .5)]),
     "StatefulSet": ("brass", [(48, .3), (55, .22), (52, .22), (60, .7)]),
     "Kubectl": ("lead_synth", [(76, .1), (79, .1), (83, .1), (88, .1), (83, .1), (88, .5)]),
-    "Chaos Monkey": ("steel", [(79, .1), (72, .1), (79, .1), (74, .1), (81, .1), (76, .1), (84, .5)]),
+    "CronJob": ("steel", [(79, .1), (72, .1), (79, .1), (74, .1), (81, .1), (76, .1), (84, .5)]),
     "Sidecar": ("flute", [(67, .16), (71, .16), (74, .16), (79, .6)]),
     "Ingress": ("bell", [(72, .18), (79, .18), (84, .18), (91, .8)]),
     "Operator": ("epiano", [(64, .14), (67, .14), (71, .14), (76, .14), (71, .14), (76, .6)]),
@@ -319,15 +319,21 @@ MOTIFS = {
 }
 
 
-def motif(fighter: str, short: bool = False) -> np.ndarray:
+MOTIF_SHIFTS = (0, 2, 4)  # the leitmotif is cut in three keys to sit with the stage songs (and their final-stock lifts)
+
+
+def motif(fighter: str, short: bool = False, shift: int = 0, speed: float = 1.0) -> np.ndarray:
+    """A fighter's tune: played slowly as a victory fanfare, in two notes as a taunt, or quick and in the stage's key as
+    the leitmotif that rides over the battle music."""
     name, notes = MOTIFS[fighter]
     notes = notes[:2] if short else notes
     make = I.INSTRUMENTS[name]
-    total = sum(d for _, d in notes) + 1.2
+    total = sum(d for _, d in notes) * speed + 1.2
     out = np.zeros(int(total * SR))
     t = 0.0
     for midi, dur in notes:
-        voice_ = make(midi, dur)
+        dur = dur * speed
+        voice_ = make(midi + shift, dur)
         i = int(t * SR)
         out[i:i + len(voice_)] += voice_[: len(out) - i]
         t += dur
@@ -335,6 +341,10 @@ def motif(fighter: str, short: bool = False) -> np.ndarray:
     d = int(0.18 * SR)
     echo[d:] = I.lp(out, 2400)[: len(out) - d] * 0.35
     return out + echo
+
+
+def leitmotif(fighter: str, shift: int) -> np.ndarray:
+    return motif(fighter, shift=shift, speed=0.62)
 
 
 def fighter_sound(fighter: str, event: str) -> np.ndarray:

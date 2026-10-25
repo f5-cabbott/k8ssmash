@@ -113,6 +113,8 @@ def main() -> None:
         slug = fighter.lower().replace(" ", "_")
         for event in sfx.EVENTS:
             write_wav(OUT / f"{slug}__{event}.wav", finish_sfx(sfx.fighter_sound(fighter, event), target_rms=0.2))
+        for shift in sfx.MOTIF_SHIFTS:
+            write_wav(OUT / f"{slug}__motif{shift}.wav", finish_sfx(sfx.leitmotif(fighter, shift), target_rms=0.12))
     for name, make in songs.SONGS.items():
         song = make()
         audio = arranger.master(arranger.render(song))

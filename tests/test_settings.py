@@ -3,7 +3,7 @@ import pytest
 
 from k8ssmash.config import Config
 from k8ssmash.main import App
-from k8ssmash.scenes.settings import ROWS, STEP, Settings
+from k8ssmash.scenes.settings import HUB, PAGES, ROWS, STEP, Settings, SettingsPage
 from k8ssmash.scenes.title import Title
 
 
@@ -27,17 +27,38 @@ def tap(app, p0=()):
     frame(app)
 
 
-def test_holding_shield_on_the_title_opens_settings_but_a_tap_does_not(app):
-    tap(app, {"SHIELD"})
-    assert isinstance(app.scene, Title)
-    for _ in range(45):
-        frame(app, {"SHIELD"})
+def test_title_menu_opens_settings_with_a_and_the_hub_enters_pages_with_a(app):
+    tap(app, {"DOWN"})
+    tap(app, {"DOWN"})
+    tap(app, {"DOWN"})
+    tap(app, {"SPECIAL"})
     assert isinstance(app.scene, Settings)
+    for _ in range(12):  # a press carried over from the title must not trigger the first row
+        frame(app)
+    tap(app, {"DOWN"})
+    tap(app, {"UP"})
+    assert HUB[app.scene.row] == "audio"
+    tap(app, {"DOWN"})
+    tap(app, {"SPECIAL"})
+    assert isinstance(app.scene, SettingsPage) and app.scene.page == "display"
+    for _ in range(12):
+        frame(app)
+    tap(app, {"ATTACK"})  # B backs out to the hub, on the row we came from
+    assert isinstance(app.scene, Settings) and HUB[app.scene.row] == "display"
+    for _ in range(12):
+        frame(app)
+    tap(app, {"ATTACK"})
+    assert isinstance(app.scene, Title)
+
+
+def test_holding_shield_no_longer_opens_settings(app):
+    for _ in range(60):
+        frame(app, {"SHIELD"})
+    assert isinstance(app.scene, Title)
 
 
 def test_volume_sliders_change_config_and_the_live_audio(app):
-    s = Settings(app)
-    app.set_scene(s)
+    app.set_scene(SettingsPage(app, "audio"))
     start = app.cfg.master_volume
     tap(app, {"LEFT"})
     assert app.cfg.master_volume == pytest.approx(start - STEP) and app.audio.master == pytest.approx(start - STEP)
@@ -51,7 +72,7 @@ def test_volume_sliders_change_config_and_the_live_audio(app):
 
 
 def test_sliders_clamp_and_holding_repeats(app):
-    app.set_scene(Settings(app))
+    app.set_scene(SettingsPage(app, "audio"))
     for _ in range(40):
         tap(app, {"LEFT"})
     assert app.cfg.master_volume == 0.0
@@ -62,23 +83,55 @@ def test_sliders_clamp_and_holding_repeats(app):
 
 
 def test_toggles_and_saving(app, tmp_path):
-    s = Settings(app)
+    s = SettingsPage(app, "audio")
     app.set_scene(s)
     for _ in range(3):
         tap(app, {"DOWN"})
-    assert ROWS[s.row][0] == "mute"
+    assert s.rows[s.row][0] == "mute"
     tap(app, {"RIGHT"})
     assert app.cfg.muted and app.audio.muted
-    tap(app, {"ATTACK"})  # attack toggles the row back
-    assert not app.cfg.muted
-    tap(app, {"DOWN"})
-    tap(app, {"RIGHT"})
-    assert app.cfg.colorblind
     for _ in range(12):
         frame(app)
-    tap(app, {"START"})  # saves and leaves
-    assert isinstance(app.scene, Title)
+    tap(app, {"SPECIAL"})  # A flips a toggle back
+    assert not app.cfg.muted
+    app.set_scene(SettingsPage(app, "display"))
+    for _ in range(12):
+        frame(app)
+    for _ in range(3):
+        tap(app, {"DOWN"})
+    assert app.scene.rows[app.scene.row][0] == "colorblind"
+    tap(app, {"RIGHT"})
+    assert app.cfg.colorblind
+    tap(app, {"START"})  # saves and goes back to the hub
+    assert isinstance(app.scene, Settings)
     assert Config.load().colorblind
+
+
+def test_gameplay_page_sets_stocks_and_time_which_battles_use(app):
+    from k8ssmash.roster import roster
+    from k8ssmash.scenes.battle import Battle
+    app.set_scene(SettingsPage(app, "gameplay"))
+    tap(app, {"RIGHT"})
+    assert app.cfg.stocks == 4
+    tap(app, {"DOWN"})
+    tap(app, {"RIGHT"})
+    assert app.cfg.match_seconds == 180
+    b = Battle(app, roster()[:2])
+    assert [f.stocks for f in b.fighters] == [4, 4] and b.time_left == 180 * 60
+
+
+def test_controls_page_opens_the_tools_on_top_of_the_menu(app):
+    from k8ssmash.scenes.padtest import ControllerTest
+    from k8ssmash.scenes.rebind import Rebind
+    app.set_scene(SettingsPage(app, "controls"))
+    for _ in range(12):
+        frame(app)
+    tap(app, {"SPECIAL"})
+    assert isinstance(app.scene, Rebind)
+    app.pop_scene()
+    tap(app, {"DOWN"})
+    tap(app, {"SPECIAL"})
+    assert isinstance(app.scene, ControllerTest)
 
 
 def test_master_volume_scales_both_effects_and_music(app):
@@ -90,8 +143,13 @@ def test_master_volume_scales_both_effects_and_music(app):
     assert app.audio.sfx_volume == 0.0
 
 
-def test_settings_screen_draws(app):
-    s = Settings(app)
-    for row in range(len(ROWS)):
-        s.row = row
-        s.draw(pygame.Surface((960, 540)))
+def test_settings_screens_draw(app):
+    hub = Settings(app)
+    for row in range(len(HUB)):
+        hub.row = row
+        hub.draw(pygame.Surface((960, 540)))
+    for page in PAGES:
+        s = SettingsPage(app, page)
+        for row in range(len(s.rows)):
+            s.row = row
+            s.draw(pygame.Surface((960, 540)))

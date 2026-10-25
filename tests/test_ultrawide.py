@@ -108,15 +108,15 @@ def test_menus_sit_centred_on_border_art(ultrawide):
 
 
 def test_settings_changes_screen_shape_and_fullscreen(ultrawide, tmp_path, monkeypatch):
-    from k8ssmash.scenes.settings import ROWS, Settings
+    from k8ssmash.scenes.settings import PAGES, SettingsPage
     monkeypatch.setenv("K8SSMASH_CONFIG", str(tmp_path / "c.json"))
     app = App(Config())
     app.input.poll = lambda: None
-    s = Settings(app)
+    s = SettingsPage(app, "display")
     s.adjust("aspect", 1)  # 16:9 -> 21:9
     assert app.cfg.shape == "21:9" and app.display.canvas.get_width() == 1260
     s.adjust("size", 1)
     assert (app.cfg.width, app.cfg.height) in app.display.sizes()
-    assert [r[0] for r in ROWS][-3:] == ["fullscreen", "aspect", "size"]
+    assert [r[0] for r in PAGES["display"][2]][:3] == ["fullscreen", "aspect", "size"]
     s.frame = 20
     app.display.draw_scene(s)  # draws centred on border art without error

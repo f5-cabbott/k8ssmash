@@ -79,7 +79,7 @@ def test_recovery_only_once_per_air():
 
 def test_blink_teleports_and_is_intangible():
     stage = datacenter_stage()
-    f = fighter("Chaos Monkey")
+    f = fighter("CronJob")
     run(f, stage, set(), 3)
     x0 = f.x
     run(f, stage, {"SPECIAL", "RIGHT"}, 9)
@@ -141,7 +141,7 @@ def test_boomerang_returns_and_orbit_follows_owner():
 
 def test_stick_projectile_lands_and_stops():
     stage = datacenter_stage()
-    f = fighter("Chaos Monkey")
+    f = fighter("CronJob")
     d = f.stats.moves["special"].projectile
     p = Projectile(f, d, f.x + 20, f.y - 40, d.speed, d.vy, 1, d.life)
     for _ in range(120):

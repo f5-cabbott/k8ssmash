@@ -21,20 +21,27 @@ For the Pi, see [`deploy/README.md`](deploy/README.md).
 | B | attack: tap = jab, hold a direction + B = side / up / down | `J` / `N` |
 | A | special: neutral, or with a direction (side / up = recovery / down) | `K` / `M` |
 | L or R | shield (hold) | `I` / `,` |
-| Start | join, confirm | `Enter` / numpad 1 |
+| Start | join, confirm (menus: A or Start enters, B or Select backs out) | `Enter` / numpad 1 |
 | Select | add a CPU opponent (select screen), leaderboard (title) | `Backspace` / numpad 0 |
 
-Knock the other pod off the stage. Damage % makes every hit launch farther; 3 stocks, 2 minutes.
+Knock the other pod off the stage. Damage % makes every hit launch farther; 3 stocks, 2 minutes (both are in Settings > Gameplay).
 Grab the heptagon power-ups: **HPA** (bigger + stronger), **Sidecar** (drone), **Cordon** (armor),
 **PDB** (half damage), **Chaos Bomb**, **Rollout Undo** (heal), **Readiness Probe** (speed).
 
 ### Modes and screens
 - **Versus / vs CPU**: press START to join; a lone player presses SELECT to add a CPU. Shoulder buttons change the stage.
-- **Training**: press A on the title screen. Dummy modes (SELECT): stand, shield, jump, CPU. START resets, hold START leaves.
-- **Settings**: hold L or R on the title screen for master / effects / music volume, mute, colorblind colors and power-ups.
+- **Title menu**: UP / DOWN pick Versus, Training, Leaderboard or Settings; A or START enters (START on the default Versus
+  row starts a match, as before).
+- **Training**: pick it on the title menu. Dummy modes (SELECT): stand, shield, jump, CPU. START resets, hold START leaves.
+- **Settings**: a hub of Audio, Display, Gameplay and Controls; UP / DOWN pick, A enters, B goes back. Audio has master /
+  effects / music volume and mute; Display has fullscreen, screen shape, window size and colorblind colors; Gameplay has
+  stocks, time limit and power-ups; Controls opens the button rebinder, the controller test and the P1/P2 pad swap.
+- **Stage set pieces**: each stage changes shape now and then. Datacenter hot-swaps a server rack into the middle, the
+  Control Plane hands its crown perch from one side to the other (leader election), and the Node Pool scheduler lays a
+  bridge over the gap. They fade in as a ghost first and dim before they leave; none of them hurt.
 - **Leaving**: press A to back out of character select (un-lock, un-join, then leave) and on the results screen to return to the main menu.
 - **Leaderboard**: longest win streak and most KOs in a run (rematches continue a run; a loss ends it).
-  Tap SELECT on the title screen. Winners enter a 3-letter name.
+  Pick it on the title menu or tap SELECT on the title screen. Winners enter a 3-letter name.
 - **Attract mode**: idle on the title and a CPU demo plays, then the leaderboard.
 
 ### Booth / staff
@@ -54,7 +61,7 @@ Dev hotkeys (off in booth mode): `F3` hitboxes, `F6` colorblind colors, `F8` FPS
 `python -m k8ssmash --help`: `--booth --windowed --fullscreen --size WxH --no-items --mute --colorblind --fps
 --rebind --metrics-port N --software-render`. Saved settings live in `~/.config/k8ssmash/config.json`
 (`K8SSMASH_CONFIG` overrides the path; scores are stored next to it). Notable keys: `pad` (button numbers),
-`pad_name_filter`, `event_name`, `items`, `colorblind`, `sfx_volume`, `music_volume`.
+`pad_name_filter`, `event_name`, `items`, `colorblind`, `stocks`, `match_seconds`, `sfx_volume`, `music_volume`.
 
 ## How it is built
 
@@ -66,10 +73,13 @@ Dev hotkeys (off in booth mode): `F3` hitboxes, `F6` colorblind colors, `F8` FPS
   `python -m k8ssmash.art.build [--contact]` writes `assets/sprites/*.png|json`. Replace any sheet with hand-drawn art
   that keeps the same layout (see `assets/sprites/pod.json`).
 - **Audio**: `python -m k8ssmash.audio.build` synthesizes everything (needs `numpy`, `scipy`, `ffmpeg`):
-  eight 60-95 s original songs with sampled-style instruments (strings, brass, choir, honky-tonk piano, kazoo, accordion,
-  fuzz guitar, vibes...), odd-meter detours and a convolution-reverb space, one per stage plus title, select, training
+  eight 60-95 s original songs with sampled-style instruments (a string section with bow noise, piano, plucked
+  strings from a Karplus-Strong model, horn, clarinet, oboe, sax, brass, choir, vibes, plus the odd accordion and kazoo),
+  tunes built from a hook and its answer, voice-led chords, walking bass lines, ghost-note drums and fills, human timing,
+  harmonized choruses, odd-meter detours and a convolution-reverb space, one per stage plus title, select, training
   and leaderboard themes and a victory sting. Every fighter has its own sound set (bubbles, foghorn, bleeps, squeaks,
-  servos, portals, phone tones, growls). Effects are panned by screen position and duck the music; music sits ~8 dB under
+  servos, portals, phone tones, growls) and its own tune (`motif`), which plays over the music in the song's key when
+  that fighter lands a three-hit combo. Effects are panned by screen position and duck the music; music sits ~8 dB under
   them. `python tools/audio_report.py` measures the music against a reference profile.
 - **Moves** are data (`k8ssmash/roster.py`, `k8ssmash/moves.py`): frames, hitboxes, knockback, projectiles, buffs.
 
