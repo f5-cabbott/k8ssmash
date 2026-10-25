@@ -33,3 +33,8 @@ class Attract(Scene):
         if (self.battle.frame // 40) % 2 == 0:
             surf = self.battle.big.render("PRESS START", False, (255, 220, 90))
             canvas.blit(surf, ((canvas.get_width() - surf.get_width()) // 2, 40))
+        champs = self.app.scores.top("streak")
+        if champs:  # a reason to step up: the current record holder is on display
+            top = champs[0]
+            line = self.battle.font.render(f"CHAMP: {top.name}  -  {top.value} WIN STREAK.  THINK YOU CAN BEAT IT?", False, (255, 255, 255))
+            canvas.blit(line, ((canvas.get_width() - line.get_width()) // 2, 78))

@@ -216,3 +216,31 @@ def test_second_wind_only_on_the_last_stock_when_behind():
         f.stocks = 1
     b2._second_wind(b2.fighters[0])
     assert not b2.fighters[0].comeback  # no boost when the opponent is also on the last stock
+
+
+def test_attract_mode_shows_the_champion_when_there_is_one(tmp_path):
+    import pygame
+    from k8ssmash.config import Config
+    from k8ssmash.main import App
+    from k8ssmash.scenes.attract import Attract
+    app = App(Config())
+    app.input.poll = lambda: None
+    app.scores.upsert("streak", "r1", "ABC", 5, "Pod")
+    a = Attract(app)
+    app.idle_frames = 600
+    for _ in range(100):
+        a.update()
+    app.display.draw_scene(a)
+    assert a.battle.font.size("CHAMP: ABC")[0] > 0  # the line renders without error
+
+
+def test_last_stock_switches_to_the_hotter_stage_song():
+    from pathlib import Path
+    b = _arena()
+    theme = b.app.audio.current
+    assert (Path(__file__).resolve().parents[1] / "assets" / "audio" / f"{theme}_hot.ogg").exists()
+    a, v = b.fighters
+    a.stocks, v.stocks = 1, 3
+    b.demo = False
+    b._second_wind(a)
+    assert b.app.audio.current == f"{theme}_hot"

@@ -255,6 +255,8 @@ class Battle(Scene):
         if f.stocks == 1 and not f.eliminated and not f.comeback and others and max(o.stocks for o in others) >= 2:
             f.comeback = True
             self.announce("LAST STOCK: SECOND WIND!", self.colors[f.slot])
+            if not self.demo:  # the stage music lifts: faster and higher for the final stretch
+                self.app.audio.music(MUSIC_FOR_THEME.get(self.stage.theme, "datacenter") + "_hot")
 
     def _hit_burst(self, victim: Fighter, attacker: Fighter, damage: float, angle: float, direction: int) -> None:
         cx, cy = victim.hurtbox.center

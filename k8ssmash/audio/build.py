@@ -91,6 +91,9 @@ def encode_ogg(wav: Path) -> None:
     wav.unlink()
 
 
+HOT_SONGS = ("datacenter", "controlplane", "nodepool")
+
+
 def main() -> None:
     from k8ssmash.audio import arranger, songs, sfx
 
@@ -116,6 +119,14 @@ def main() -> None:
         write_wav(OUT / f"{name}.wav", (audio * 32767).astype(np.int16))
         encode_ogg(OUT / f"{name}.wav")
         print(f"  {name}: {len(audio) / SR:.0f}s")
+        if name in HOT_SONGS:  # the final-stock version: a little faster and a step higher, so the tension lifts
+            import dataclasses
+
+            hot = dataclasses.replace(song, bpm=song.bpm * 1.1, tonic=song.tonic + 2)
+            audio = arranger.master(arranger.render(hot))
+            write_wav(OUT / f"{name}_hot.wav", (audio * 32767).astype(np.int16))
+            encode_ogg(OUT / f"{name}_hot.wav")
+            print(f"  {name}_hot: {len(audio) / SR:.0f}s")
     print("audio built:", len(list(OUT.iterdir())), "files")
 
 
