@@ -268,7 +268,7 @@ def build_datacenter(canvas_w: int = WORLD_W) -> Backdrop:
                 pd.fill(canvas, _scale(col, 0.55), (int(x + ox), y, 2, 1))
 
     def floor_fn(canvas, frame, cam):
-        grid_floor(canvas, frame, cam, horizon, accent, speed=0.005, fade=0.55)
+        grid_floor(canvas, frame, cam, horizon, accent, speed=0.003, fade=0.5)
 
     panels = [(92, 44, 86, 50, 0.0), (468, 58, 92, 52, 2.1)]
 
@@ -283,7 +283,7 @@ def build_datacenter(canvas_w: int = WORLD_W) -> Backdrop:
                 pd.fill(canvas, _scale(accent, 0.4), (x + ox + 5 + i * (w - 10) / bars, y + h - 5 - bh, (w - 10) / bars - 2, bh))
 
     items = [Layer(far, 0.03, 0), Animated(floor_fn), Layer(reflection(mid, horizon + 6, strength=70), 0.09, horizon + 6),
-             Layer(mid, 0.09, 0), Animated(holo_fn), Animated(led_fn), Layer(near, 0.22, 0)]
+             Layer(mid, 0.09, 0), Animated(holo_fn), Animated(led_fn), Layer(near, 0.13, 0)]
     return Backdrop(sky, items)
 
 
@@ -361,10 +361,10 @@ def build_controlplane(canvas_w: int = WORLD_W) -> Backdrop:
             pd.lines(canvas, _scale(color, 0.22), True, pts, 1)
 
     def floor_fn(canvas, frame, cam):
-        grid_floor(canvas, frame, cam, horizon, accent, speed=0.004, fade=0.5)
+        grid_floor(canvas, frame, cam, horizon, accent, speed=0.0025, fade=0.46)
 
     items = [Layer(far, 0.02, 0), Animated(holo_fn), Animated(orbit_fn), Animated(floor_fn),
-             Layer(reflection(mid, horizon + 6, strength=70), 0.08, horizon + 6), Layer(mid, 0.08, 0), Layer(near, 0.22, 0)]
+             Layer(reflection(mid, horizon + 6, strength=70), 0.08, horizon + 6), Layer(mid, 0.08, 0), Layer(near, 0.13, 0)]
     return Backdrop(sky, items)
 
 
@@ -440,7 +440,7 @@ def build_nodepool(canvas_w: int = WORLD_W) -> Backdrop:
             pd.circle(canvas, (10, 5, 6), (cx, fy), 27)
             pd.circle(canvas, _scale(accent, 0.34), (cx, fy), 27, 2)
             for b in range(5):
-                a = frame * (0.018 if i % 2 else -0.016) + b * math.tau / 5
+                a = frame * (0.007 if i % 2 else -0.006) + b * math.tau / 5
                 pd.polygon(canvas, _scale(accent, 0.26), [(cx, fy), (cx + math.cos(a - 0.3) * 24, fy + math.sin(a - 0.3) * 24),
                                                           (cx + math.cos(a + 0.28) * 24, fy + math.sin(a + 0.28) * 24)])
             pd.circle(canvas, _scale(accent, 0.5), (cx, fy), 5)
@@ -449,18 +449,18 @@ def build_nodepool(canvas_w: int = WORLD_W) -> Backdrop:
 
     def steam_fn(canvas, frame, cam):  # soft, slow, low-contrast vapour
         for i, (x, y0, sp) in enumerate(steam):
-            t = (frame * sp + y0 * 3) % 150
+            t = (frame * sp * 0.6 + y0 * 3) % 150
             yy, rr = horizon + 6 - t * 1.2, 4 + t * 0.07
             puff = pd.surface((28, 28))
             pd.circle(puff, (200, 140, 100, int(20 * (1 - t / 150))), (14, 14), int(rr))
             pd.blit(canvas, puff, (int(x - cam * 0.1 + math.sin(t * 0.05 + i) * 5) - 14, int(yy) - 14))
 
     def floor_fn(canvas, frame, cam):
-        grid_floor(canvas, frame, cam, horizon, accent, speed=0.005, fade=0.55)
+        grid_floor(canvas, frame, cam, horizon, accent, speed=0.003, fade=0.5)
 
     items = [Layer(far, 0.03, 0), Animated(fan_fn), Animated(floor_fn),
              Layer(reflection(mid, horizon + 6, strength=70), 0.09, horizon + 6), Layer(mid, 0.09, 0),
-             Animated(led_fn), Animated(steam_fn), Layer(near, 0.22, 0)]
+             Animated(led_fn), Animated(steam_fn), Layer(near, 0.13, 0)]
     return Backdrop(sky, items)
 
 

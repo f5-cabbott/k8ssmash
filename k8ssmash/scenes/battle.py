@@ -292,8 +292,10 @@ class Battle(Scene):
             attacker.dealt_damage += damage
             victim.last_hit_by = attacker
             self.hud_pulse[victim.slot] = 12
-            self.hitstop = 3 + int(damage // 4)
-            self.effects.append(("hit", victim.x, victim.y - victim.stats.height / 2, 10))
+            self.hitstop = 3 + int(damage // 3)  # a longer freeze on big hits sells the weight
+            heavy = damage >= 7
+            self.effects.append(("hit_heavy" if heavy else "hit", victim.x, victim.y - victim.stats.height / 2,
+                                 14 if heavy else 10))
             self._hit_burst(victim, attacker, damage, angle, direction)
         return True
 

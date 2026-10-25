@@ -142,3 +142,15 @@ def test_no_strobing_sprite_visible_every_frame_while_invulnerable(app):
         b.frame += 1
         b._draw_fighter(canvas, f)
         assert pygame.mask.from_threshold(canvas, (0, 0, 0), (1, 1, 1)).count() < 960 * 540  # something is drawn every frame
+
+
+def test_heavy_hit_star_draws_and_settles():
+    import pygame
+    from k8ssmash.fx import draw_effect
+    canvas = pygame.Surface((200, 200))
+    sizes = []
+    for left in (13, 10, 6, 2):
+        canvas.fill((0, 0, 0))
+        draw_effect(canvas, "hit_heavy", 100, 100, left)
+        sizes.append(sum(1 for x in range(0, 200, 2) for y in range(0, 200, 2) if canvas.get_at((x, y))[:3] != (0, 0, 0)))
+    assert sizes[1] > sizes[0] > 0 and sizes[3] < sizes[1]  # pops out, then shrinks away: no flashing

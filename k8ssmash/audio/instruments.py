@@ -74,16 +74,17 @@ def strings(m: float, dur: float) -> np.ndarray:
     f, n = hz(m), _len(dur, 0.35)
     t = np.arange(n) / SR
     vib = 1 + 0.003 * np.sin(2 * np.pi * 5.1 * t) * np.minimum(1, t / 0.5)
-    sig = sum(osc("saw", f * vib * 2 ** (c / 1200), n, ph) for c, ph in ((-11, .0), (-4, .3), (3, .6), (10, .9))) / 4
-    sig = lp(sig, min(3600, f * 5 + 800))
+    sig = sum(osc("saw", f * vib * 2 ** (c / 1200), n, ph) for c, ph in
+              ((-14, .0), (-8, .17), (-3, .3), (3, .6), (8, .75), (14, .9))) / 6
+    sig = lp(sig, min(3000, f * 4 + 700))
     return sig * adsr(n, 0.13, 0.2, 0.82, 0.32)
 
 
 def brass(m: float, dur: float) -> np.ndarray:
     f, n = hz(m), _len(dur, 0.12)
-    sig = osc("saw", f, n) * 0.7 + osc("square", f * 1.003, n) * 0.35
+    sig = osc("saw", f * 0.998, n) * 0.5 + osc("saw", f * 1.004, n) * 0.4 + osc("sine", f, n) * 0.35
     bright = adsr(n, 0.05, 0.25, 0.55, 0.1)
-    out = lp(sig, 900) * (1 - bright) + lp(sig, min(4200, f * 8)) * bright
+    out = lp(sig, 800) * (1 - bright) + lp(sig, min(3400, f * 6)) * bright
     return out * adsr(n, 0.025, 0.1, 0.85, 0.1)
 
 
@@ -191,8 +192,11 @@ def lead_synth(m: float, dur: float) -> np.ndarray:
     f, n = hz(m), _len(dur, 0.1)
     t = np.arange(n) / SR
     vib = 1 + 0.004 * np.sin(2 * np.pi * 5.8 * t) * np.minimum(1, np.maximum(0, t - 0.12) / 0.25)
-    sig = osc("pulse25", f * vib, n) * 0.5 + osc("saw", f * vib * 1.004, n) * 0.5
-    return lp(sig, min(5200, f * 9)) * adsr(n, 0.01, 0.12, 0.75, 0.1)
+    sig = (osc("saw", f * vib * 0.997, n) * 0.4 + osc("saw", f * vib * 1.004, n) * 0.4
+           + osc("sine", f * vib, n) * 0.5 + osc("tri", f * vib * 2, n) * 0.18)
+    bright = adsr(n, 0.02, 0.2, 0.35, 0.1)  # the filter opens on the attack and settles: a played note, not a buzz
+    sig = lp(sig, 1500) * (1 - bright) + lp(sig, min(4200, f * 7)) * bright
+    return sig * adsr(n, 0.012, 0.12, 0.8, 0.14) * 0.8
 
 
 def steel(m: float, dur: float) -> np.ndarray:
@@ -298,6 +302,40 @@ def make_ir(seconds: float = 2.2, seed: int = 1, bright: float = 0.6, predelay: 
     pre = int(predelay * SR)
     ir = np.vstack([np.zeros((pre, 2)), ir])
     return ir / np.sqrt((ir ** 2).sum(axis=0).max())
+
+
+def chorus(x: np.ndarray, depth: float = 0.0035, rate: float = 0.6, mix: float = 0.5) -> np.ndarray:
+    """Ensemble chorus: three slowly modulated delay taps spread across the stereo field. Takes mono or stereo,
+    returns stereo. This is what turns thin synth voices into a section."""
+    stereo = x if x.ndim == 2 else np.stack([x, x], axis=1)
+    n = len(stereo)
+    t = np.arange(n) / SR
+    out = stereo.astype(np.float64).copy() * (1 - mix * 0.5)
+    for k, (ph, ch_gain) in enumerate(((0.0, (1.0, 0.35)), (2.1, (0.65, 0.65)), (4.2, (0.35, 1.0)))):
+        delay = (0.012 + 0.004 * k + depth * np.sin(2 * np.pi * rate * (1 + 0.13 * k) * t + ph)) * SR
+        idx = np.clip(np.arange(n) - delay, 0, n - 1)
+        lo = idx.astype(int)
+        frac = idx - lo
+        hi = np.minimum(lo + 1, n - 1)
+        for c in (0, 1):
+            tap = stereo[lo, c] * (1 - frac) + stereo[hi, c] * frac
+            out[:, c] += tap * mix * 0.5 * ch_gain[c]
+    return out.astype(np.float32)
+
+
+def echo(stereo: np.ndarray, delay_s: float, feedback: float = 0.42, tone: float = 3200.0, taps: int = 6) -> np.ndarray:
+    """The classic 16-bit console echo: a ping-ponging repeat that darkens with every pass."""
+    d = int(delay_s * SR)
+    out = np.zeros_like(stereo, dtype=np.float64)
+    cur = stereo.astype(np.float64)
+    for k in range(1, taps + 1):
+        cur = lp(cur.T, tone, 1).T * feedback
+        cur = cur[:, ::-1]  # swap channels each pass: the repeats bounce left and right
+        shift = d * k
+        if shift >= len(out):
+            break
+        out[shift:] += cur[: len(out) - shift]
+    return out.astype(np.float32)
 
 
 def reverb(stereo: np.ndarray, ir: np.ndarray) -> np.ndarray:

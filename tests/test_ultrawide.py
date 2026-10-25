@@ -31,25 +31,26 @@ def display(**cfg):
 def test_fullscreen_canvas_follows_the_display_aspect(monkeypatch, desktop, expected):
     monkeypatch.setattr(Display, "desktop_size", staticmethod(lambda: desktop))
     pygame.init()
-    d = display(fullscreen=True)
+    d = display(fullscreen=True, shape="auto")
     assert d.canvas.get_size() == (expected, 540)
     assert d.play_rect.width == 960 and d.play_rect.centerx == expected // 2  # the arena stays centred
     assert d.play.get_size() == (960, 540)
 
 
 def test_the_scaled_canvas_exactly_fills_an_ultrawide_screen(ultrawide):
-    d = display(fullscreen=True)
+    d = display(fullscreen=True, shape="auto")
     cw = d.canvas.get_width()
     assert abs(cw / 540 - 3440 / 1440) < 0.01  # same aspect as the screen: no black bars
 
 
-def test_windowed_auto_stays_16_by_9_but_explicit_21_by_9_widens(ultrawide):
+def test_default_is_16_by_9_and_explicit_21_by_9_widens(ultrawide):
     assert display().canvas.get_size() == (960, 540)
-    d = display(aspect="21:9")
+    assert display(fullscreen=True).canvas.get_size() == (960, 540)  # even fullscreen on an ultrawide: true 16:9 by default
+    d = display(shape="21:9")
     assert d.canvas.get_size() == (1260, 540)
     w, h = d.window_size()
     assert abs(w / h - 1260 / 540) < 0.02 and h <= 1440 * 0.86  # a wide window that still fits the desktop
-    assert display(aspect="16:9", fullscreen=True).canvas.get_width() == 960  # force pillarbox if preferred
+    assert display(shape="16:9", fullscreen=True).canvas.get_width() == 960
 
 
 def test_changing_aspect_rebuilds_the_canvas_and_saves(ultrawide, tmp_path, monkeypatch):
@@ -57,9 +58,9 @@ def test_changing_aspect_rebuilds_the_canvas_and_saves(ultrawide, tmp_path, monk
     d = display()
     d.set_aspect("21:9")
     assert d.canvas.get_width() == 1260
-    assert Config.load().aspect == "21:9"
+    assert Config.load().shape == "21:9"
     d.set_aspect("nonsense")
-    assert d.cfg.aspect == "auto"
+    assert d.cfg.shape == "16:9"
 
 
 @pytest.mark.parametrize("theme", ["datacenter", "controlplane", "nodepool"])
@@ -74,7 +75,7 @@ def test_backdrops_cover_a_wide_canvas_edge_to_edge(ultrawide, theme, cw):
 
 
 def test_a_wide_battle_draws_the_arena_in_the_middle(ultrawide):
-    app = App(Config(aspect="21:9"))
+    app = App(Config(shape="21:9"))
     app.input.poll = lambda: None
     b = Battle(app, roster()[:2], stage=STAGES[0](), human=[False, False], items=False)
     app.set_scene(b)
@@ -92,7 +93,7 @@ def test_a_wide_battle_draws_the_arena_in_the_middle(ultrawide):
 
 
 def test_menus_sit_centred_on_border_art(ultrawide):
-    app = App(Config(aspect="21:9"))
+    app = App(Config(shape="21:9"))
     app.input.poll = lambda: None
     t = Title(app)
     for _ in range(30):
@@ -112,9 +113,8 @@ def test_settings_changes_screen_shape_and_fullscreen(ultrawide, tmp_path, monke
     app = App(Config())
     app.input.poll = lambda: None
     s = Settings(app)
-    s.adjust("aspect", 1)  # auto -> 16:9
-    s.adjust("aspect", 1)  # -> 21:9
-    assert app.cfg.aspect == "21:9" and app.display.canvas.get_width() == 1260
+    s.adjust("aspect", 1)  # 16:9 -> 21:9
+    assert app.cfg.shape == "21:9" and app.display.canvas.get_width() == 1260
     s.adjust("size", 1)
     assert (app.cfg.width, app.cfg.height) in app.display.sizes()
     assert [r[0] for r in ROWS][-3:] == ["fullscreen", "aspect", "size"]

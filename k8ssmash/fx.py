@@ -91,6 +91,17 @@ def draw_effect(canvas: pygame.Surface, kind: str, x: float, y: float, left: int
             pygame.draw.line(canvas, (255, 245, 170),
                              (x + math.cos(a) * r * 0.4, y + math.sin(a) * r * 0.4),
                              (x + math.cos(a) * r, y + math.sin(a) * r), 2)
+    elif kind == "hit_heavy":  # the big Street Fighter impact star: a jagged burst that pops out and settles
+        total = 14
+        k = min(1.0, (total - left) / 4.0) * (1.0 if left > 5 else left / 5.0)
+        for scale, color in ((1.0, (255, 120, 50)), (0.78, (255, 230, 120)), (0.42, (255, 255, 255))):
+            pts = []
+            for i in range(20):
+                a = i * math.pi / 10 + 0.25
+                rad = (30 if i % 2 == 0 else 12) * scale * k * (1.0 + 0.25 * ((i * 7) % 3 == 0))
+                pts.append((x + math.cos(a) * rad, y + math.sin(a) * rad * 0.9))
+            if k > 0.1:
+                pygame.draw.polygon(canvas, color, pts)
     elif kind == "boom":
         r = 8 + (20 - left) * 3
         pygame.draw.circle(canvas, (255, 150, 60), (x, y), r, 4)

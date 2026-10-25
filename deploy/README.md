@@ -100,7 +100,7 @@ the Pi picks the wrong mode for your TV, force one on the kernel command line
 video=HDMI-A-1:2560x1440@60
 ```
 
-Other aspect ratios still work; the picture is centered with black bars.
+Other aspect ratios still work; the picture is centered with black bars. On an ultrawide, Settings > Screen shape can widen the picture (21:9 or Auto) so it fills the display.
 
 ## 8. Troubleshooting
 

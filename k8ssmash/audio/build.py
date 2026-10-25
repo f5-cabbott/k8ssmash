@@ -26,8 +26,11 @@ def write_wav(path: Path, data: np.ndarray) -> None:
 def sweep(f0: float, f1: float, dur: float, kind: str = "square", duty: float = 0.5, decay: float = 4.0) -> np.ndarray:
     t = S.t_axis(dur)
     f = np.linspace(f0, f1, len(t))
-    wave_ = S.square(f, t, duty) if kind == "square" else S.triangle(f, t)
-    return wave_ * np.exp(-t * decay)
+    ph = np.cumsum(f) / SR
+    body = np.sin(2 * np.pi * ph) * 0.55 + S.triangle(f, t) * 0.3  # rounded: sine + triangle...
+    if kind == "square":
+        body += S.lowpass(S.square(f, t, duty), 2) * 0.22  # ...with a dusting of edge, not a raw square
+    return body * np.exp(-t * decay) * np.minimum(1.0, t / 0.004)
 
 
 def finish_sfx(data: np.ndarray, target_rms: float = 0.16, max_peak: float = 0.8) -> np.ndarray:
@@ -83,7 +86,7 @@ def generic_sfx() -> dict[str, np.ndarray]:
 # --- music, fighter sounds, orchestration ---------------------------------------------------
 def encode_ogg(wav: Path) -> None:
     ogg = wav.with_suffix(".ogg")
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(wav), "-c:a", "libvorbis", "-q:a", "5", str(ogg)],
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(wav), "-c:a", "libvorbis", "-q:a", "8", str(ogg)],
                    check=True)
     wav.unlink()
 

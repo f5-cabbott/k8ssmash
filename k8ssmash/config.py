@@ -67,7 +67,7 @@ class Config:
     width: int = 1920
     height: int = 1080
     fullscreen: bool = False
-    aspect: str = "auto"  # auto | 16:9 | 21:9: how wide the picture is (ultrawide screens show more of the stage)
+    shape: str = "16:9"  # 16:9 | 21:9 | auto: the picture shape; 16:9 is the standard, the others widen it for ultrawide screens
     master_volume: float = 0.8  # scales both of the below
     sfx_volume: float = 0.55
     music_volume: float = 0.4  # music sits well under the effects
@@ -94,7 +94,7 @@ class Config:
             data = json.loads(path.read_text())
         except (OSError, ValueError):
             return cfg
-        names = ["width", "height", "fullscreen", "aspect", "pad_name_filter", "items", "muted", "swap_pads", "colorblind", "event_name", "metrics_port", "metrics_host"]
+        names = ["width", "height", "fullscreen", "shape", "pad_name_filter", "items", "muted", "swap_pads", "colorblind", "event_name", "metrics_port", "metrics_host"]
         if data.get("mix_version", 1) >= MIX_VERSION:
             names += ["master_volume", "sfx_volume", "music_volume"]
         for name in names:

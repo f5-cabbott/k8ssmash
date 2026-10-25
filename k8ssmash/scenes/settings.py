@@ -22,7 +22,7 @@ ROWS = [
     ("aspect", "Screen shape", "choice"),
     ("size", "Window size", "choice"),
 ]
-ASPECT_LABELS = {"auto": "Auto (fit screen)", "16:9": "16:9 (standard)", "21:9": "21:9 (ultrawide)"}
+ASPECT_LABELS = {"16:9": "16:9 (standard)", "21:9": "21:9 (ultrawide)", "auto": "Auto (fit screen)"}
 
 
 class Settings(Scene):
@@ -41,7 +41,7 @@ class Settings(Scene):
         cfg = self.app.cfg
         return {"master": cfg.master_volume, "sfx": cfg.sfx_volume, "music": cfg.music_volume, "mute": cfg.muted,
                 "colorblind": cfg.colorblind, "items": cfg.items, "fullscreen": cfg.fullscreen,
-                "aspect": cfg.aspect, "size": (cfg.width, cfg.height)}[key]
+                "aspect": cfg.shape, "size": (cfg.width, cfg.height)}[key]
 
     def adjust(self, key: str, direction: int) -> None:
         cfg, audio = self.app.cfg, self.app.audio
@@ -64,7 +64,7 @@ class Settings(Scene):
                 self.app.display.toggle_fullscreen()
         elif key == "aspect":
             modes = list(ASPECT_LABELS)
-            self.app.display.set_aspect(modes[(modes.index(cfg.aspect) + direction) % len(modes)])
+            self.app.display.set_aspect(modes[(modes.index(cfg.shape) + direction) % len(modes)])
         elif key == "size":
             sizes = self.app.display.sizes()
             cur = (cfg.width, cfg.height)

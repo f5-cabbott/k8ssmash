@@ -267,18 +267,25 @@ def render(song: Song, return_events: bool = False):
     dry += drums.buf
     send += drums.buf * mix["drums"][2]
     wet = I.reverb(send, ir)[: n_loop + tail]
-    out = dry + wet * song.wet * 2.2
+    # the console-style ping-pong echo on the melodic voices, timed to a dotted eighth note
+    echo_in = np.zeros_like(dry)
+    for name in ("lead", "counter", "arp"):
+        a = (mix[name][1] + 1) * np.pi / 4
+        echo_in[:, 0] += buses[name].buf * np.cos(a)
+        echo_in[:, 1] += buses[name].buf * np.sin(a)
+    echo = I.echo(echo_in, spstep * 3, feedback=0.45, tone=2800.0)
+    out = dry + wet * song.wet * 2.2 + echo * 0.5
     out = out[: n_loop + tail].copy()
     if song.loop:
         out[:tail] += out[n_loop:n_loop + tail]  # fold the reverb tail back onto the start so it loops
         out = out[:n_loop]
-    out = I.lp(out.T, 15500).T
-    # master EQ: weightier low end and a bright presence band, like a commercial 16-bit-era master
-    out = out + 0.62 * I.lp(out.T, 170).T + 0.85 * I.bp(out.T, 2800, 6800).T + 0.35 * I.hp(out.T, 7000).T
-    # keep the image mostly centred (the space comes from the reverb), narrowing the sides
+    out = I.chorus(out, mix=0.45)  # ensemble shimmer across the whole mix
+    out = I.lp(out.T, 13000).T
+    # warm master: a full low end, a gentle low-mid body, and presence kept soft so nothing sounds buzzy or "chippy"
+    out = out + 0.5 * I.lp(out.T, 150).T + 0.22 * I.bp(out.T, 250, 900).T + 0.28 * I.bp(out.T, 3000, 6500).T
     mid, side = (out[:, 0] + out[:, 1]) / 2, (out[:, 0] - out[:, 1]) / 2
-    out = np.stack([mid + side * 0.5, mid - side * 0.5], axis=1)
-    out = np.tanh(out * 1.1) / 1.1
+    out = np.stack([mid + side * 1.0, mid - side * 1.0], axis=1)  # full stereo width
+    out = np.tanh(out * 1.25) / 1.25  # soft saturation glues the mix like tape
     return (out, events) if return_events else out
 
 

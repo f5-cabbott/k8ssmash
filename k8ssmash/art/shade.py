@@ -10,7 +10,7 @@ import pygame
 from k8ssmash.art.draw import SS, Layer
 
 Color = tuple[int, int, int]
-LEVELS = 6
+LEVELS = 9  # tonal steps per material: a 16-bit sprite has far smoother form shading than an 8-bit one
 LIGHT = np.array([-0.48, -0.66, 0.58])
 LIGHT = LIGHT / np.linalg.norm(LIGHT)
 HALF = (LIGHT + np.array([0.0, 0.0, 1.0]))
@@ -27,7 +27,7 @@ def _mix(a, b, t):
 def make_ramp(base: Color) -> np.ndarray:
     """Six tones from shadow to highlight. Shadows drift cool and purple, highlights drift warm."""
     c = tuple(float(v) for v in base)
-    ramp = [
+    keys = [
         _mix(tuple(v * 0.30 for v in c), (28, 18, 78), 0.40),
         _mix(tuple(v * 0.52 for v in c), (44, 32, 110), 0.20),
         tuple(v * 0.78 for v in c),
@@ -35,7 +35,10 @@ def make_ramp(base: Color) -> np.ndarray:
         _mix(c, (255, 244, 208), 0.32),
         _mix(c, (255, 252, 238), 0.72),
     ]
-    return np.clip(np.array(ramp), 0, 255).astype(np.uint8)
+    keys = np.array(keys)
+    at = np.linspace(0, len(keys) - 1, LEVELS)  # resample the six key tones into nine smooth steps
+    ramp = np.stack([np.interp(at, np.arange(len(keys)), keys[:, ch]) for ch in range(3)], axis=1)
+    return np.clip(ramp, 0, 255).astype(np.uint8)
 
 
 def shift(m: np.ndarray, dy: int, dx: int) -> np.ndarray:
@@ -92,7 +95,7 @@ def shade(mask: np.ndarray, shiny: bool, flat: bool = False, texture: str = "") 
         idx = _texture(idx, mask, texture)
     # bounce light: the bottom-right rim catches a little light from the ground
     rim = mask & ~shift(mask, -1, -1)
-    idx = np.where(rim & (idx < 2), 2, idx)
+    idx = np.where(rim & (idx < 3), 3, idx)
     return np.where(mask, idx, -1)
 
 
@@ -133,3 +136,9 @@ def paint_part(frame: np.ndarray, mask: np.ndarray, ramp: np.ndarray, shiny: boo
     sel = mask
     frame[sel, :3] = ramp[np.clip(idx[sel], 0, LEVELS - 1)]
     frame[sel, 3] = 255
+    # cool rim light from the backlight on the shadow-side edge, and a touch of ambient occlusion where parts curl under
+    edge_r = mask & ~shift(mask, -1, 0) & (idx >= 2)
+    edge_b = mask & ~shift(mask, 0, -1)
+    rimc = np.array([120, 175, 255], dtype=float)
+    frame[edge_r, :3] = (frame[edge_r, :3] * 0.62 + rimc * 0.38).astype(np.uint8)
+    frame[edge_b, :3] = (frame[edge_b, :3] * 0.80).astype(np.uint8)

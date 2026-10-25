@@ -15,7 +15,7 @@ import pygame
 
 from k8ssmash.config import MAX_CANVAS_W, RESOLUTIONS, WORLD_H, WORLD_W, Config
 
-ASPECTS = ("auto", "16:9", "21:9")
+ASPECTS = ("16:9", "21:9", "auto")
 ASPECT_CANVAS_W = {"16:9": WORLD_W, "21:9": 1260}
 
 
@@ -46,13 +46,13 @@ class Display:
 
     def canvas_width(self) -> int:
         """How wide the canvas should be: 960 for 16:9, wider when the screen is."""
-        mode = self.cfg.aspect
+        mode = self.cfg.shape
         if mode in ASPECT_CANVAS_W:
             return ASPECT_CANVAS_W[mode]
         if self.cfg.fullscreen:  # auto: fill whatever display we are going fullscreen on
             dw, dh = self.desktop_size()
             return max(WORLD_W, min(MAX_CANVAS_W, round(WORLD_H * dw / dh / 2) * 2))
-        return WORLD_W  # auto in a window: our windows are 16:9
+        return WORLD_W  # auto in a window: windows are 16:9
 
     def window_size(self) -> tuple[int, int]:
         """The requested window size for the current aspect, shrunk to fit the desktop."""
@@ -119,7 +119,7 @@ class Display:
         self.apply()
 
     def set_aspect(self, mode: str) -> None:
-        self.cfg.aspect = mode if mode in ASPECTS else "auto"
+        self.cfg.shape = mode if mode in ASPECTS else "16:9"
         self.apply()
 
     def sizes(self) -> list[tuple[int, int]]:
