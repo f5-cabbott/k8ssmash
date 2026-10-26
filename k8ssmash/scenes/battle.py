@@ -12,10 +12,10 @@ from k8ssmash.audio_manager import MUSIC_FOR_THEME
 from k8ssmash.backdrops import draw_backdrop, draw_platform
 from k8ssmash.config import FPS, PIX_H, PIX_W, RS, WORLD_H, WORLD_W
 from k8ssmash.flair import INTRO
-from k8ssmash.fighter import (BUFF_ARMOR, BUFF_GUARD, BUFF_HASTE, BUFF_POWER, CALLOUT_FRAMES, Fighter,
+from k8ssmash.fighter import (BUFF_ARMOR, BUFF_CANARY, BUFF_GUARD, BUFF_HASTE, BUFF_POWER, BUFF_THROTTLED, CALLOUT_FRAMES, Fighter,
                               FighterStats, Projectile)
 from k8ssmash.fx import draw_effect, draw_projectile
-from k8ssmash.items import ItemSpawner, draw_item
+from k8ssmash.items import BUFF_ITEM, ItemSpawner, draw_icon, draw_item
 from k8ssmash.metrics import METRICS
 from k8ssmash.particles import Particles
 from k8ssmash.input import PlayerInput
@@ -505,11 +505,31 @@ class Battle(Scene):
                 direction = 1 if cx >= p.x else -1
                 self._hit(vic, p.owner, d.explode_damage, 4.0, 0.06, 60, direction)
 
+    def _pull_toward(self, p: Projectile) -> None:
+        """A gravity well drags every opponent in range toward its centre (it never touches its owner)."""
+        d = p.defn
+        for vic in self.fighters:
+            if vic is p.owner or not vic.alive or vic.invuln > 0:
+                continue
+            cx, cy = vic.hurtbox.center
+            dx, dy = p.x - cx, p.y - cy
+            dist = math.hypot(dx, dy)
+            if 6 < dist <= d.pull_radius:
+                k = d.pull * (1.0 - 0.45 * dist / d.pull_radius)
+                vic.vx += dx / dist * k
+                vic.vy += dy / dist * k * 1.4  # a little extra to beat gravity, so they are held in the well rather than dropped
+                vic.vx = max(-7.0, min(7.0, vic.vx))
+                vic.vy = max(-6.0, min(6.0, vic.vy))
+                if self.frame % 6 == 0:
+                    self.fx.burst(cx, cy, d.color, 1, 1.2, angle=math.atan2(dy, dx), spread=0.4, life=(8, 14))
+
     def _update_projectiles(self) -> None:
         alive: list[Projectile] = []
         for p in self.projectiles:
             p.update(self.stage)
             d = p.defn
+            if d.pull:
+                self._pull_toward(p)
             if p.life <= 0 or not self.stage.blast.collidepoint(p.x, p.y):
                 if p.life <= 0 and d.explode_radius:
                     self._explode(p)
@@ -568,7 +588,7 @@ class Battle(Scene):
         for plat in self.stage.platforms:
             draw_platform(canvas, plat, self.stage.theme)
         for item in self.spawner.items:
-            draw_item(canvas, item, self.font, self.frame)
+            draw_item(canvas, item, self.tag_font, self.frame)
         for f in self.fighters:
             self._draw_fighter(canvas, f)
         for p in self.projectiles:
@@ -674,6 +694,53 @@ class Battle(Scene):
             label = self.tag_font.render(f"{int(f.percent)}%", False, damage_color(f.percent))
             canvas.blit(label, (px - label.get_width() // 2, py + r + 2 * RS))
 
+    def _draw_buffs(self, canvas: pygame.Surface, f: Fighter) -> None:
+        """Steady auras for each running power-up (smooth, never blinking) and a timer ring over the head for each."""
+        box = f.hurtbox
+        cx, cy = box.centerx, box.centery
+        t = self.frame
+        R = max(box.w, box.h) * 0.62
+
+        def glow(color, radius, alpha, outline=2):
+            r = int(radius * RS)
+            surf = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
+            pygame.draw.circle(surf, (*color, alpha), (r, r), r)
+            pygame.draw.circle(surf, (*color, min(255, alpha * 4)), (r, r), r, outline * RS)
+            canvas.blit(surf, (cx * RS - r, cy * RS - r))
+        if f.has(BUFF_ARMOR):  # an amber hex shell turning slowly
+            pts = [(cx + math.cos(t * 0.02 + i * math.pi / 3) * R * 1.05, cy + math.sin(t * 0.02 + i * math.pi / 3) * R * 1.05) for i in range(6)]
+            wd.polygon(canvas, (255, 170, 60), pts, 2)
+            wd.polygon(canvas, (255, 214, 120), [(cx + (x - cx) * 0.8, cy + (y - cy) * 0.8) for x, y in pts], 1)
+        if f.has(BUFF_GUARD):  # a green bubble with a bright highlight
+            glow((110, 255, 160), R * 1.05, 34)
+            wd.arc(canvas, (230, 255, 240), (cx - R * 0.8, cy - R * 0.8, R * 1.6, R * 1.6), 2.4, 3.6, 2)
+        if f.has(BUFF_POWER):  # a pulsing orange glow with embers rising off the shoulders
+            glow((255, 120, 70), R * (1.0 + 0.06 * math.sin(t * 0.12)), 28, 1)
+            if t % 5 == 0:
+                self.fx.burst(cx + self.rng.uniform(-8, 8), box.top + 6, (255, 170, 80), 1, 1.0, angle=-math.pi / 2, spread=0.6, life=(14, 24))
+        if f.has(BUFF_HASTE):  # speed lines trailing behind
+            for i, dy in enumerate((-14, -2, 10)):
+                ln = 12 + 6 * ((t // 4 + i) % 3)
+                wd.line(canvas, (255, 240, 130), (cx - f.facing * (10 + ln), cy + dy), (cx - f.facing * 10, cy + dy), 1)
+        if f.has(BUFF_CANARY):  # three little yellow birds circling
+            for i in range(3):
+                a = t * 0.07 + i * 2.09
+                wd.circle(canvas, (255, 224, 70), (cx + math.cos(a) * R * 0.95, cy + math.sin(a) * R * 0.5 - 6), 2.2)
+                wd.circle(canvas, (255, 150, 50), (cx + math.cos(a) * R * 0.95 + 2, cy + math.sin(a) * R * 0.5 - 6), 1)
+        if f.has(BUFF_THROTTLED):  # a grey-blue slowdown ring and chain links sagging at the feet
+            wd.ellipse(canvas, (150, 160, 200), (cx - R, f.y - 6, R * 2, 12), 2)
+            for i in range(6):
+                a = t * 0.02 + i * math.pi / 3
+                wd.circle(canvas, (200, 206, 230), (cx + math.cos(a) * R, f.y + math.sin(a) * 3), 1.6)
+        # one icon per running power-up above the head, each with a ring that drains as it runs out
+        active = [(b, k) for b, k in BUFF_ITEM.items() if f.has(b)]
+        for i, (buff, key) in enumerate(active):
+            x = cx + (i - (len(active) - 1) / 2) * 17
+            y = box.top - 34
+            frac = f.buffs[buff] / max(1, f.buff_total.get(buff, f.buffs[buff]))
+            draw_icon(canvas, key, x, y, 6.5)
+            wd.arc(canvas, (255, 255, 255), (x - 8.5, y - 8.5, 17, 17), -math.pi / 2, -math.pi / 2 + 2 * math.pi * frac, 2)
+
     def _draw_fighter(self, canvas: pygame.Surface, f: Fighter) -> None:
         if not f.alive:
             return
@@ -701,10 +768,7 @@ class Battle(Scene):
             pygame.draw.circle(bubble, (120, 220, 255, 70), (r, r), r)
             pygame.draw.circle(bubble, (180, 240, 255, 200), (r, r), r, 2 * RS)
             canvas.blit(bubble, (box.centerx * RS - r, box.centery * RS - r))
-        for buff, color in ((BUFF_ARMOR, (255, 170, 60)), (BUFF_GUARD, (120, 255, 150)),
-                            (BUFF_POWER, (255, 120, 90)), (BUFF_HASTE, (255, 240, 120))):
-            if f.has(buff) and (self.frame // 6) % 2 == 0:
-                wd.ellipse(canvas, color, box.inflate(6, 4), 1)
+        self._draw_buffs(canvas, f)
         hb = f.active_hitbox()
         if hb is not None and self.debug:
             wd.rect(canvas, (255, 240, 120), hb, 1)

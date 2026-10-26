@@ -6,6 +6,7 @@ import pytest
 from k8ssmash import backdrops, ui
 from k8ssmash.audio import arranger, instruments as I, sfx
 from k8ssmash.config import PIX_H, PIX_W, RS, Config
+from k8ssmash.input import PlayerInput
 from k8ssmash.fighter import Fighter
 from k8ssmash.main import App
 from k8ssmash.roster import roster
@@ -457,3 +458,81 @@ def test_a_fighter_knocked_off_screen_gets_an_edge_indicator(app):
     canvas.fill((0, 0, 0))
     b._draw_offscreen(canvas)
     b.draw(app.display.canvas)
+
+
+def test_cronjob_gravity_well_pulls_the_opponent_and_never_hurts_cronjob(app):
+    rs = {r.name: r for r in roster()}
+    b = Battle(app, [rs["CronJob"], rs["Pod"]], human=[False, False])
+    app.set_scene(b)
+    owner, foe = b.fighters
+    d = owner.stats.moves["special_down"].projectile
+    assert d.pull > 0 and d.harmless_to_owner
+    from k8ssmash.fighter import Projectile
+    well = Projectile(owner, d, owner.x + 40, owner.y - 36, 0.0, 0.0, 1, d.life)
+    b.projectiles.append(well)
+    foe.x, foe.y = owner.x + 40 + 60, owner.y
+    foe.vx = foe.vy = 0.0
+    x0 = foe.x
+    owner_pct = owner.percent
+    for _ in range(40):
+        b._update_projectiles()
+        foe.x += foe.vx
+    assert foe.x < x0 - 8  # drawn in toward the well
+    assert owner.percent == owner_pct
+    well.life = 0  # collapse: the owner standing in it is untouched
+    owner.x, owner.y = well.x, well.y + 30
+    b._update_projectiles()
+    assert owner.percent == owner_pct
+    from k8ssmash.fx import draw_projectile
+    draw_projectile(pygame.Surface((PIX_W, PIX_H)), Projectile(owner, d, 200.0, 200.0, 0.0, 0.0, 1, d.life))
+
+
+# --- power-ups --------------------------------------------------------------------------------------------
+def test_every_item_has_its_own_icon_and_the_auras_and_timers_draw(app):
+    from k8ssmash.items import BUFF_ITEM, ITEMS, draw_icon
+    canvas = pygame.Surface((PIX_W, PIX_H))
+    shapes = set()
+    for key in ITEMS:
+        canvas.fill((0, 0, 0))
+        draw_icon(canvas, key, 100, 100, 9.5)
+        shapes.add(pygame.image.tobytes(canvas.subsurface((60 * RS, 60 * RS, 80 * RS, 80 * RS)), "RGB"))
+    assert len(shapes) == len(ITEMS) >= 9  # nine different emblems
+    b = Battle(app, roster()[:2], human=[False, False])
+    f = b.fighters[0]
+    for buff in BUFF_ITEM:
+        f.add_buff(buff, 300)
+    f.add_buff("scaled", 300)
+    b.draw(app.display.canvas)  # every aura and a timer ring per power-up
+    assert set(BUFF_ITEM.values()) <= set(ITEMS)
+
+
+def test_canary_adds_a_bird_to_every_swing_and_rate_limit_slows_the_opponent(app):
+    from k8ssmash.fighter import BUFF_CANARY, BUFF_THROTTLED
+    from k8ssmash.items import ITEMS
+    b = Battle(app, roster()[:2], human=[False, False])
+    a, v = b.fighters
+    a._begin(a.stats.moves["jab"])
+    for _ in range(a.stats.moves["jab"].startup + 2):
+        a._advance_move(PlayerInput())
+    assert not a.spawn_queue  # no canary yet: a plain jab sends nothing
+    a.move = None
+    a.add_buff(BUFF_CANARY, 600)
+    a._begin(a.stats.moves["side"])
+    for _ in range(a.stats.moves["side"].startup + 2):
+        a._advance_move(PlayerInput())
+    assert any(p.defn.shape == "bird" for p in a.spawn_queue)
+    base = v.speed_mult
+    ITEMS["ratelimit"].apply(a, [v])
+    assert v.has(BUFF_THROTTLED) and v.speed_mult < base * 0.7 and not a.has(BUFF_THROTTLED)
+    v.move = None
+    v.state = "attack"
+    v._begin(v.stats.moves["jab"])
+    v.anim_frame = 2
+    before = v.move_frame
+    v._advance_move(PlayerInput())
+    assert v.move_frame == before  # a dropped frame: its swing runs slower
+
+
+def test_chaos_bomb_is_lobbed_and_cannot_hurt_its_thrower(app):
+    from k8ssmash.items import CHAOS_BOMB
+    assert CHAOS_BOMB.harmless_to_owner and CHAOS_BOMB.speed > 0 and CHAOS_BOMB.vy < 0

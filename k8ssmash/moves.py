@@ -19,7 +19,7 @@ class ProjectileDef:
     spawn_dx: float = 14  # forward offset from fighter centre
     spawn_dy: float = -30  # offset from feet (chest height: a duck passes underneath)
     color: tuple[int, int, int] = (120, 200, 255)
-    shape: str = "orb"  # sprite flavour: orb, bolt, wheel, clock, bomb, drone, wall, skull, drum, ring, bubble, spark
+    shape: str = "orb"  # sprite flavour: orb, bolt, wheel, clock, bomb, drone, wall, skull, drum, ring, bubble, spark, well, bird
     count: int = 1
     spread: float = 0.0  # total fan angle in degrees when count > 1
     boomerang: bool = False  # reverses at half life and returns to the owner
@@ -31,6 +31,8 @@ class ProjectileDef:
     explode_damage: float = 0.0
     harmless_to_owner: bool = True
     replace_existing: bool = False  # a new copy removes the owner's previous one (drones, walls)
+    pull: float = 0.0  # a gravity well: opponents inside pull_radius are drawn toward it by this much speed per frame
+    pull_radius: int = 0
     wave: float = 0.0  # sways up and down as it flies (bubbles, sparks); the amount is pixels per frame
 
 

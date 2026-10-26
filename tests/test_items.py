@@ -20,8 +20,8 @@ def fighter(stage):
     return f
 
 
-def test_seven_k8s_items():
-    assert len(ITEMS) == 7 and len({i.glyph for i in ITEMS.values()}) == 7
+def test_nine_k8s_items():
+    assert len(ITEMS) == 9 and len({i.glyph for i in ITEMS.values()}) == 9
 
 
 def test_first_item_spawns_and_lands_on_a_platform(stage):
@@ -59,7 +59,9 @@ def test_disabled_spawner_never_spawns(stage):
     ("probe", lambda f: f.has(BUFF_HASTE)),
     ("undo", lambda f: f.percent == 15),
     ("sidecar", lambda f: len(f.spawn_queue) == 1 and f.spawn_queue[0].defn.orbit),
-    ("chaos", lambda f: len(f.spawn_queue) == 1 and f.spawn_queue[0].defn.explode_radius > 0),
+    ("chaos", lambda f: len(f.spawn_queue) == 1 and f.spawn_queue[0].defn.explode_radius > 0
+     and f.spawn_queue[0].defn.harmless_to_owner),
+    ("canary", lambda f: f.has("canary")),
 ])
 def test_pickup_applies_effect(stage, key, check):
     f = fighter(stage)

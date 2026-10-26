@@ -29,6 +29,8 @@ BUFF_POWER = "power"  # +30% damage dealt
 BUFF_SCALED = "scaled"  # drawn larger (HPA scale-up)
 BUFF_GUARD = "guard"  # half damage taken
 BUFF_ARMOR = "armor"  # hits don't flinch or launch
+BUFF_CANARY = "canary"  # melee attacks also fire a canary bolt
+BUFF_THROTTLED = "throttled"  # rate limited: slower to move and to swing (put on you by an opponent's Rate Limit)
 
 
 @dataclass
@@ -56,6 +58,11 @@ class FighterStats:
     def djump_vel(self) -> float:
         """Height goes with velocity squared, so a 65%-height second jump needs sqrt(0.65) of the launch speed."""
         return self.jump_vel * math.sqrt(self.djump_ratio)
+
+
+CANARY = ProjectileDef(
+    speed=6.6, width=14, height=10, damage=3.5, base_kb=2.4, kb_growth=0.03, angle=28, life=40, spawn_dx=14, spawn_dy=-30,
+    color=(255, 224, 70), shape="bird")
 
 
 @dataclass
@@ -145,6 +152,7 @@ class Fighter:
         self.fx: list[tuple[str, float]] = []  # visual cues (landing dust, jump rings) for the battle scene
         self.land_timer = 0  # frames of landing squash remaining
         self.buffs: dict[str, int] = {}
+        self.buff_total: dict[str, int] = {}
         self.comeback = False  # last-stock second wind, set by the battle
         self.last_axis = (0, 0)  # the stick on the latest frame: a grab reads it to choose the throw
         self.hanging: tuple | None = None  # (platform, inward) while holding a ledge
@@ -169,7 +177,8 @@ class Fighter:
 
     @property
     def speed_mult(self) -> float:
-        return (1.35 if self.has(BUFF_HASTE) else 1.0) * (1.06 if self.comeback else 1.0)
+        return ((1.35 if self.has(BUFF_HASTE) else 1.0) * (0.6 if self.has(BUFF_THROTTLED) else 1.0)
+                * (1.06 if self.comeback else 1.0))
 
     @property
     def damage_mult(self) -> float:
@@ -189,6 +198,7 @@ class Fighter:
 
     def add_buff(self, name: str, frames: int) -> None:
         self.buffs[name] = max(self.buffs.get(name, 0), frames)
+        self.buff_total[name] = max(self.buff_total.get(name, 0), self.buffs[name])  # for the timer ring over the head
 
     def say(self, text: str) -> None:
         self.callout, self.callout_timer = text, CALLOUT_FRAMES
@@ -253,6 +263,7 @@ class Fighter:
         self.coyote = 0
         self.buf = dict.fromkeys(self.buf, 0)
         self.buffs.clear()
+        self.buff_total.clear()
 
     def knock_out(self) -> None:
         self.stocks -= 1
@@ -261,6 +272,7 @@ class Fighter:
         self.hanging = None
         self.vx = self.vy = 0.0
         self.buffs.clear()
+        self.buff_total.clear()
         if self.stocks <= 0:
             self.eliminated = True
 
@@ -317,6 +329,7 @@ class Fighter:
             self.buffs[name] -= 1
             if self.buffs[name] <= 0:
                 del self.buffs[name]
+                self.buff_total.pop(name, None)
 
         s = self.stats
         stunned = self.hitstun > 0
@@ -529,13 +542,16 @@ class Fighter:
                 self.add_buff(*m.buff)
             if m.projectile is not None:
                 self._fire(m.projectile)
+            elif self.has(BUFF_CANARY) and m.hitbox[2] > 0 and not m.grab and not m.counter:
+                self._fire(CANARY)  # the Canary power-up: every swing also sends a bird down the lane
         if m.dash and self._in_active_window():
             self.vx = self.facing * m.dash
         elif self.on_ground:
             self.vx = _approach(self.vx, 0.0, GROUND_FRICTION * 0.5)
         else:
             self.vx = _approach(self.vx, 0.0, 0.02)
-        self.move_frame += 1
+        if not (self.has(BUFF_THROTTLED) and self.anim_frame % 3 == 2):  # rate limited: every third frame is dropped
+            self.move_frame += 1
         if self.move_frame >= m.total:
             self.move = None
             self.state = "idle"

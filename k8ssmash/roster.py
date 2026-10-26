@@ -98,10 +98,10 @@ def cronjob() -> FighterStats:
                                  anim="dash", announce="Next Run"),
             "special_up": Move("snooze", 5, 8, 12, (-10, -62, 22, 40), 6, 3.0, 0.05, 82, rise=10.1,
                                once_per_air=True, anim="rise", announce="Snooze"),
-            "special_down": Move("time bomb", 14, 1, 22, anim="cast", announce="Cron Bomb", projectile=ProjectileDef(
-                speed=0, width=14, height=14, damage=0, base_kb=0, kb_growth=0, angle=0, life=70,
-                gravity=0.3, spawn_dx=16, spawn_dy=-8, color=(240, 90, 60), shape="bomb", stick=True,
-                explode_radius=54, explode_damage=16, harmless_to_owner=False, replace_existing=True)),
+            "special_down": Move("gravity well", 14, 1, 22, anim="cast", announce="Gravity Well", projectile=ProjectileDef(
+                speed=0, width=30, height=30, damage=1.5, base_kb=1.0, kb_growth=0.0, angle=80, life=170, gravity=0.0,
+                spawn_dx=46, spawn_dy=-38, color=(190, 150, 255), shape="well", pierce=True, hit_interval=34,
+                explode_radius=64, explode_damage=9, pull=0.34, pull_radius=88, replace_existing=True)),
         }))
 
 

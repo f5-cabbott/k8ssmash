@@ -57,6 +57,27 @@ def draw_projectile(canvas: pygame.Surface, p: Projectile) -> None:
         a = t * 0.35
         wd.line(canvas, OUTLINE, (x, y), (x + math.cos(a) * 5, y + math.sin(a) * 5), 1)
         wd.line(canvas, (200, 50, 50), (x, y), (x + math.cos(a * 0.12) * 3, y + math.sin(a * 0.12) * 3), 1)
+    elif shape == "bird":  # a little canary flapping down the lane
+        flap = round(math.sin(t * 0.8) * 3)
+        wd.circle(canvas, OUTLINE, (x, y), 5)
+        wd.circle(canvas, c, (x, y), 4)
+        wd.polygon(canvas, (255, 150, 50), [(x + 3 * p.facing, y - 1), (x + 7 * p.facing, y), (x + 3 * p.facing, y + 1)])
+        wd.polygon(canvas, tuple(max(0, v - 40) for v in c), [(x - 1, y), (x - 5 * p.facing, y - 4 - flap), (x - 7 * p.facing, y - 1)])
+        wd.circle(canvas, (30, 20, 40), (x + 1.5 * p.facing, y - 1), 0.9)
+    elif shape == "well":  # a swirling gravity well: rings contract toward a dark core, with a faint reach ring
+        reach = d.pull_radius or 80
+        wd.circle(canvas, _dark(c, 0.35), (x, y), reach, 1)
+        for i in range(4):
+            u = (t * 0.035 + i / 4) % 1.0
+            rr = max(2, round(reach * 0.62 * (1 - u)))
+            wd.circle(canvas, tuple(int(v * (0.35 + 0.65 * (1 - u))) for v in c), (x, y), rr, 2)
+        for i in range(5):
+            a = t * 0.12 + i * 2 * math.pi / 5
+            wd.circle(canvas, (255, 255, 255), (x + math.cos(a) * 15, y + math.sin(a) * 15), 1)
+        wd.circle(canvas, (14, 8, 34), (x, y), 8)
+        wd.circle(canvas, c, (x, y), 8, 1)
+        hand = t * 0.2
+        wd.line(canvas, (255, 255, 255), (x, y), (x + math.cos(hand) * 6, y + math.sin(hand) * 6), 1)
     elif shape == "bubble":  # a wobbling soap bubble with a bright glint
         r = d.width // 2
         wob = round(math.sin(t * 0.3) * 1.2)
