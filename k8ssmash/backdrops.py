@@ -299,6 +299,126 @@ def _tower(surf, x, top, w, ground, accent, rng, led_out=None, leds=True, dark=(
     _greeble(surf, x + 3, top + 3, w - 6, h - 6, accent, rng, 1.3)
 
 
+# --- whimsy: small, dim props that give each arena a bit of character without competing with the fight -------------
+def _duck(surf, x, y, s=1.0):  # a rubber duck: the debugger's best friend
+    pd.ellipse(surf, (232, 196, 52), (x - 5 * s, y - 4 * s, 10 * s, 6 * s))
+    pd.circle(surf, (240, 206, 60), (x + 3 * s, y - 6 * s), 3 * s)
+    pd.polygon(surf, (236, 130, 40), [(x + 5.6 * s, y - 6.4 * s), (x + 8.4 * s, y - 5.6 * s), (x + 5.6 * s, y - 4.8 * s)])
+    pd.circle(surf, (30, 20, 20), (x + 3.4 * s, y - 6.6 * s), 0.6 * s)
+    pd.lines(surf, (200, 160, 36), False, [(x - 4 * s, y - 2.4 * s), (x - 1 * s, y - 1.2 * s), (x + 1 * s, y - 2.6 * s)], 1)
+
+
+def _cat(surf, x, y, s=1.0):  # a cat asleep on a warm server, with a couple of z's
+    pd.ellipse(surf, (80, 76, 96), (x - 8 * s, y - 6 * s, 16 * s, 7 * s))
+    pd.circle(surf, (86, 82, 102), (x + 6 * s, y - 5 * s), 3.4 * s)
+    pd.polygon(surf, (86, 82, 102), [(x + 4 * s, y - 7.6 * s), (x + 5.4 * s, y - 10 * s), (x + 6.6 * s, y - 7.8 * s)])
+    pd.polygon(surf, (86, 82, 102), [(x + 7 * s, y - 7.8 * s), (x + 8.6 * s, y - 10 * s), (x + 9 * s, y - 7 * s)])
+    pd.lines(surf, (60, 56, 76), False, [(x - 7 * s, y - 1 * s), (x - 12 * s, y - 2 * s), (x - 13 * s, y - 5 * s)], 1)  # the tail
+    pd.line(surf, (50, 46, 66), (x + 5 * s, y - 5.2 * s), (x + 6.6 * s, y - 5.2 * s), 0.5)
+    for k in range(2):
+        zx, zy = x + 10 * s + k * 3.6 * s, y - 11 * s - k * 4 * s
+        pd.lines(surf, (150, 160, 210), False, [(zx, zy), (zx + 2.4 * s, zy), (zx, zy + 2.4 * s), (zx + 2.4 * s, zy + 2.4 * s)], 1)
+
+
+def _mug(surf, x, y, s=1.0):  # a coffee mug with steam
+    pd.rect(surf, (210, 210, 224), (x - 3 * s, y - 5 * s, 6 * s, 5 * s))
+    pd.circle(surf, (210, 210, 224), (x + 3.4 * s, y - 2.6 * s), 1.8 * s, 1)
+    pd.rect(surf, (120, 80, 50), (x - 2.4 * s, y - 4.6 * s, 4.8 * s, 1 * s))
+    for k in range(2):
+        pd.lines(surf, (130, 140, 170), False, [(x - 1 * s + k * 2 * s + math.sin(i) * 0.9, y - 6.6 * s - i * 1.6 * s) for i in range(5)], 1)
+
+
+def _sign(surf, x, y, s=1.0):  # a hanging sign
+    pd.line(surf, (60, 66, 90), (x - 5 * s, y - 8 * s), (x - 5 * s, y), 1)
+    pd.line(surf, (60, 66, 90), (x + 5 * s, y - 8 * s), (x + 5 * s, y), 1)
+    pd.rect(surf, (200, 60, 60), (x - 8 * s, y, 16 * s, 7 * s))
+    pd.rect(surf, (240, 220, 220), (x - 6.4 * s, y + 1.6 * s, 12.8 * s, 0.9 * s))
+    pd.rect(surf, (240, 220, 220), (x - 6.4 * s, y + 3.6 * s, 9 * s, 0.9 * s))
+
+
+def _bonsai(surf, x, y, s=1.0):  # a little bonsai on a console
+    pd.polygon(surf, (150, 90, 60), [(x - 5 * s, y - 5 * s), (x + 5 * s, y - 5 * s), (x + 3.4 * s, y), (x - 3.4 * s, y)])
+    pd.lines(surf, (110, 76, 54), False, [(x, y - 5 * s), (x - 1 * s, y - 9 * s), (x + 1.4 * s, y - 12 * s), (x, y - 15 * s)], 2)
+    for dx, dy, r in ((-4, -13, 4), (4, -15, 4.4), (0, -19, 4.6), (-1, -14.6, 3.6)):
+        pd.circle(surf, (50, 130, 90), (x + dx * s, y + dy * s), r * s)
+        pd.circle(surf, (80, 170, 116), (x + (dx - 1) * s, y + (dy - 1) * s), r * 0.55 * s)
+
+
+def _trophy(surf, x, y, s=1.0):  # a golden trophy for the elected leader
+    pd.rect(surf, (140, 110, 40), (x - 4 * s, y - 3 * s, 8 * s, 3 * s))
+    pd.rect(surf, (200, 160, 50), (x - 1 * s, y - 8 * s, 2 * s, 5 * s))
+    pd.polygon(surf, (236, 190, 60), [(x - 5 * s, y - 16 * s), (x + 5 * s, y - 16 * s), (x + 3.4 * s, y - 8 * s), (x - 3.4 * s, y - 8 * s)])
+    pd.lines(surf, (236, 190, 60), False, [(x - 5 * s, y - 15 * s), (x - 8 * s, y - 13 * s), (x - 5 * s, y - 10 * s)], 1)
+    pd.lines(surf, (236, 190, 60), False, [(x + 5 * s, y - 15 * s), (x + 8 * s, y - 13 * s), (x + 5 * s, y - 10 * s)], 1)
+    pd.line(surf, (255, 240, 170), (x - 2.6 * s, y - 15 * s), (x - 2 * s, y - 10 * s), 1)
+
+
+def _pennant(surf, x, y, s=1.0, color=(200, 160, 50)):  # a hanging banner with a crown
+    pd.line(surf, (70, 70, 100), (x - 6 * s, y), (x + 6 * s, y), 1)
+    pd.polygon(surf, color, [(x - 5.4 * s, y), (x + 5.4 * s, y), (x + 5.4 * s, y + 14 * s), (x, y + 18 * s), (x - 5.4 * s, y + 14 * s)])
+    pd.polygon(surf, (255, 240, 170), [(x - 3 * s, y + 10 * s), (x - 3.4 * s, y + 5 * s), (x - 1.4 * s, y + 7.4 * s), (x, y + 4 * s),
+                                       (x + 1.4 * s, y + 7.4 * s), (x + 3.4 * s, y + 5 * s), (x + 3 * s, y + 10 * s)])
+
+
+def _sleepy_face(surf, x, y, asleep: bool):  # a pod in its cell, asleep (z) or smiling
+    c = (30, 14, 8)
+    if asleep:
+        pd.lines(surf, c, False, [(x - 3.4, y - 1.6), (x - 2.2, y - 0.8), (x - 1, y - 1.6)], 1)
+        pd.lines(surf, c, False, [(x + 1, y - 1.6), (x + 2.2, y - 0.8), (x + 3.4, y - 1.6)], 1)
+        pd.lines(surf, (190, 180, 210), False, [(x + 5, y - 6), (x + 7.4, y - 6), (x + 5, y - 3.6), (x + 7.4, y - 3.6)], 1)
+    else:
+        pd.circle(surf, c, (x - 2, y - 1.4), 0.9)
+        pd.circle(surf, c, (x + 2, y - 1.4), 0.9)
+        pd.lines(surf, c, False, [(x - 2.4, y + 1.2), (x, y + 2.6), (x + 2.4, y + 1.2)], 1)
+
+
+def _key(surf, x, y, s=1.0, color=(150, 110, 220)):  # a giant skeleton key stuck in the wall
+    pd.circle(surf, color, (x, y), 9 * s, 2)
+    pd.circle(surf, _scale(color, 0.4), (x, y), 4 * s)
+    pd.rect(surf, color, (x - 1.6 * s, y + 9 * s, 3.2 * s, 36 * s))
+    for k, w in enumerate((8, 5, 9)):
+        pd.rect(surf, color, (x + 1.6 * s, y + (30 + k * 5) * s, w * s, 2.6 * s))
+
+
+def _chest(surf, x, y, s=1.0, glow=(110, 255, 176)):  # a treasure chest of data, glowing at the seam
+    pd.rect(surf, (96, 70, 56), (x - 7 * s, y - 5 * s, 14 * s, 5 * s))
+    pd.polygon(surf, (120, 86, 66), [(x - 7 * s, y - 5 * s), (x - 6 * s, y - 10 * s), (x + 6 * s, y - 10 * s), (x + 7 * s, y - 5 * s)])
+    pd.line(surf, glow, (x - 6 * s, y - 5 * s), (x + 6 * s, y - 5 * s), 1)
+    pd.rect(surf, (200, 170, 80), (x - 1 * s, y - 6 * s, 2 * s, 2.6 * s))
+    pd.polygon(surf, _scale(glow, 0.35), [(x - 5 * s, y - 5.4 * s), (x + 5 * s, y - 5.4 * s), (x + 9 * s, y - 20 * s), (x - 9 * s, y - 20 * s)])
+
+
+def _bat(surf, x, y, s=1.0):  # a bat asleep, hanging upside down
+    pd.ellipse(surf, (40, 34, 60), (x - 2 * s, y, 4 * s, 6 * s))
+    pd.polygon(surf, (40, 34, 60), [(x - 2 * s, y + 1 * s), (x - 7 * s, y + 5 * s), (x - 3 * s, y + 6 * s)])
+    pd.polygon(surf, (40, 34, 60), [(x + 2 * s, y + 1 * s), (x + 7 * s, y + 5 * s), (x + 3 * s, y + 6 * s)])
+    pd.circle(surf, (50, 44, 72), (x, y + 6.4 * s), 2 * s)
+
+
+def _planet(surf, x, y, r, s=1.0):  # a ringed planet
+    pd.ellipse(surf, (150, 90, 170), (x - r * 1.9, y - r * 0.28, r * 3.8, r * 0.56), 1)
+    pd.circle(surf, (110, 60, 150), (x, y), r)
+    pd.circle(surf, (150, 96, 190), (x - r * 0.28, y - r * 0.3), r * 0.55)
+    pd.lines(surf, (190, 130, 210), False, [(x - r * 1.9 + i * r * 0.38, y + math.sin(i / 10 * math.pi) * r * 0.28) for i in range(11)], 1)
+
+
+def _satellite(surf, x, y, s=1.0):  # a small satellite with solar wings and a dish
+    pd.rect(surf, (150, 150, 190), (x - 3 * s, y - 3 * s, 6 * s, 6 * s))
+    for sx in (-1, 1):
+        pd.rect(surf, (50, 80, 150), (x + sx * 4 * s + (-9 * s if sx < 0 else 0), y - 2 * s, 9 * s, 4 * s))
+        for k in range(3):
+            pd.line(surf, (110, 150, 220), (x + sx * (7 + k * 2.6) * s, y - 2 * s), (x + sx * (7 + k * 2.6) * s, y + 2 * s), 1)
+    pd.line(surf, (190, 190, 220), (x, y - 3 * s), (x, y - 8 * s), 1)
+    pd.polygon(surf, (200, 200, 230), [(x - 3 * s, y - 8 * s), (x + 3 * s, y - 8 * s), (x, y - 5.4 * s)])
+
+
+def _comet(surf, x, y, s=1.0):  # a sleepy comet with a long tail
+    for k in range(8):
+        pd.circle(surf, tuple(int(c * (1 - k * 0.1)) for c in (200, 190, 230)), (x - k * 5 * s, y - k * 1.4 * s), (3.2 - k * 0.3) * s)
+    pd.circle(surf, (230, 224, 250), (x, y), 3.4 * s)
+    pd.lines(surf, (60, 50, 90), False, [(x - 1.6 * s, y - 0.4 * s), (x - 0.8 * s, y + 0.4 * s), (x, y - 0.4 * s)], 1)
+
+
 # --- Datacenter: the server hall, lit like the Grid ---------------------------------------------
 def build_datacenter(canvas_w: int = PIX_W) -> Backdrop:
     rng = random.Random(7)
@@ -354,6 +474,13 @@ def build_datacenter(canvas_w: int = PIX_W) -> Backdrop:
         neon(near, (WIDE // 2 + k * 60, 0), (WIDE // 2 + k * 18, 18), _scale(accent, 0.8), 1)
     neon(near, (0, 18), (WIDE, 18), _scale(accent, 0.6), 1)
 
+    tx_, w_, top_ = tops[2]  # whimsy: a duck, a cat on a warm server, a mug, a sign
+    _duck(mid, tx_ + w_ * 0.4, top_)
+    tx_, w_, top_ = tops[4]
+    _cat(mid, tx_ + w_ * 0.5, top_)
+    tx_, w_, top_ = tops[6]
+    _mug(mid, tx_ + w_ * 0.3, top_)
+    _sign(mid, tops[3][0] + tops[3][1] + 20, tops[3][2] + 40)
     _mute(far, 0.5)
     _mute(mid, 0.62)
     _mute(near, 0.74)
@@ -442,6 +569,10 @@ def build_controlplane(canvas_w: int = PIX_W) -> Backdrop:
     pd.rect(near, (3, 6, 20), (0, 0, WIDE, 12))
     neon(near, (0, 12), (WIDE, 12), gold, 1)
 
+    _bonsai(mid, MARGIN + 126, horizon + 4)  # whimsy: a bonsai, a trophy and leader banners
+    _trophy(mid, W + MARGIN - 128, horizon + 4)
+    for bx in (MARGIN + 208, MARGIN + 432):
+        _pennant(mid, bx, 28)
     _mute(far, 0.5)
     _mute(mid, 0.62)
     _mute(near, 0.74)
@@ -553,6 +684,8 @@ def build_nodepool(canvas_w: int = PIX_W) -> Backdrop:
     for k in range(0, WIDE, 44):  # hanging cable swags
         pd.lines(near, (20, 8, 8), False, [(k + i * 4, 14 + math.sin(i / 11 * math.pi) * 9) for i in range(12)], 2)
 
+    for i, (px_, py_, ph_) in enumerate(pods):  # whimsy: every pod has a little face, some asleep
+        _sleepy_face(far, px_, py_ + 1.5, asleep=(i % 3 != 0))
     _mute(far, 0.5)
     _mute(mid, 0.62)
     _mute(near, 0.74)
@@ -649,6 +782,11 @@ def build_etcd(canvas_w: int = PIX_W) -> Backdrop:
         cx = WIDE // 2 + k * 52
         pd.polygon(near, _scale(accent, 0.16), [(cx - 8, 20), (cx + 8, 20), (cx + rng.randint(-2, 2), 20 + rng.randint(10, 26))])
     neon(near, (0, 20), (WIDE, 20), _scale(accent, 0.5), 1)
+    _key(mid, MARGIN + 60, 48, 0.9)  # whimsy: a giant key, two chests of data and sleeping bats
+    _chest(mid, MARGIN + 142, horizon + 4, 1.1)
+    _chest(mid, W + MARGIN - 150, horizon + 4, 1.1, glow=(200, 120, 255))
+    for bx in (MARGIN + 190, MARGIN + 300, MARGIN + 470):
+        _bat(near, bx, 22 + (bx % 7))
     _mute(far, 0.5)
     _mute(mid, 0.62)
     _mute(near, 0.74)
@@ -695,6 +833,9 @@ def build_mesh(canvas_w: int = PIX_W) -> Backdrop:
         pd.polygon(mid, (10, 6, 28), hexp)
         pd.lines(mid, _scale(accent, 0.55), True, hexp, 1)
         pd.circle(mid, _scale(accent, 0.5), (nx, ny), 2)
+    _planet(far, MARGIN + 470, 96, 17)  # whimsy: a ringed planet, a satellite and a sleepy comet
+    _comet(far, MARGIN + 150, 46, 1.0)
+    _satellite(far, MARGIN + 300, 150, 1.2)
     _mute(far, 0.6)
     _mute(mid, 0.55)
     near = _wide()
@@ -724,83 +865,204 @@ def build_mesh(canvas_w: int = PIX_W) -> Backdrop:
     return Backdrop(sky, items, "mesh")
 
 
-# --- Cloud Native: a dusk sky of puffy clouds, floating server islands and a giant slowly-turning helm wheel ---------------
-def _cloud(surf, cx, cy, w, h, base, top, rng, puffs=None):
-    """A cumulus: a flat-bottomed heap of overlapping puffs, shaded darker underneath and lit on top."""
-    n = puffs or max(4, int(w / (h * 0.55)))
+# --- Cloud Native: a dusk sky of shaded cumulus, floating islands, balloons, a zeppelin and a whale ------------------
+CLOUD_COLS = ((34, 30, 80), (56, 48, 106), (84, 70, 128), (150, 98, 128))  # shadow, body, lit side, rim light (all dusk-dim)
+
+
+def _cumulus(surf, cx, by, w, h, rng, cols=CLOUD_COLS, scale=1.0):
+    """A cumulus built the way an illustrator would: a heap of overlapping puffs, a dark underbelly, a mid body, a lit
+    upper-left, and a thin warm rim light along the tops. `by` is the flat bottom of the cloud."""
+    shadow, body, light, rim = (tuple(int(c * scale) for c in col) for col in cols)
+    n = max(5, int(w / (h * 0.5)))
+    puffs = []
     for i in range(n):
         u = (i + 0.5) / n
-        r = h * (0.42 + 0.42 * math.sin(u * math.pi)) * rng.uniform(0.85, 1.1)
-        x = cx - w / 2 + u * w
-        pd.circle(surf, base, (x, cy - r * 0.5), r)
-    for i in range(n):
-        u = (i + 0.5) / n
-        r = h * (0.42 + 0.42 * math.sin(u * math.pi)) * 0.72
-        pd.circle(surf, top, (cx - w / 2 + u * w - r * 0.18, cy - h * 0.62 - r * 0.18), r)
-    pd.rect(surf, base, (cx - w / 2, cy - 2, w, 6))
+        r = h * (0.30 + 0.5 * math.sin(u * math.pi) ** 0.8) * rng.uniform(0.85, 1.15)
+        puffs.append((cx - w / 2 + u * w + rng.uniform(-2, 2), by - r * 0.55, r))
+    for _ in range(max(1, n // 3)):  # little towers on top
+        x, y, r = puffs[rng.randrange(n)]
+        puffs.append((x + rng.uniform(-r * 0.4, r * 0.4), y - r * 0.6, r * rng.uniform(0.55, 0.8)))
+    for x, y, r in puffs:
+        pd.circle(surf, shadow, (x, y), r)
+    for x, y, r in puffs:
+        pd.circle(surf, body, (x - r * 0.10, y - r * 0.14), r * 0.88)
+    for x, y, r in puffs:
+        pd.circle(surf, light, (x - r * 0.22, y - r * 0.30), r * 0.60)
+    for x, y, r in puffs:  # rim light on the upper-left edge of each puff
+        pd.lines(surf, rim, False, [(x - r * 0.1 + math.cos(a) * r * 0.9, y - r * 0.14 + math.sin(a) * r * 0.9)
+                                    for a in (math.radians(d) for d in range(200, 285, 14))], 1)
+
+
+def _cirrus(surf, x, y, w, rng, col):
+    """A long, wispy streak of high cloud."""
+    for k in range(3):
+        pts = [(x + i * w / 12, y + k * 2.6 + math.sin(i * 0.9 + k) * 1.2 - i * 0.18) for i in range(13)]
+        pd.lines(surf, tuple(int(c * (1 - 0.18 * k)) for c in col), False, pts, 1)
+
+
+def _balloon(canvas, x, y, size, t, ph):
+    """A striped hot-air balloon carrying a shipping container, bobbing gently."""
+    y += math.sin(t * 0.012 + ph) * 3
+    r = 15 * size
+    stripes = [(104, 40, 74), (150, 96, 60), (96, 70, 130), (60, 100, 126)]
+    for i in range(8):  # gores: pie wedges of the envelope
+        a0, a1 = math.pi + i * math.pi / 8 * 1.0 - math.pi * 0.0, math.pi + (i + 1) * math.pi / 8
+        pts = [(x, y + r * 0.9)] + [(x + math.cos(a0 + (a1 - a0) * j / 3) * r * (1 - 0.0), y + math.sin(a0 + (a1 - a0) * j / 3) * r * 1.05) for j in range(4)]
+        pd.polygon(canvas, stripes[i % 4], pts)
+    pd.polygon(canvas, (70, 60, 110), [(x - r, y), (x + r, y), (x + r * 0.45, y + r * 0.8), (x - r * 0.45, y + r * 0.8)])
+    pd.circle(canvas, (130, 100, 140), (x - r * 0.35, y - r * 0.4), r * 0.18)
+    for dx in (-r * 0.45, r * 0.45):
+        pd.line(canvas, (40, 34, 70), (x + dx, y + r * 0.8), (x + dx * 0.4, y + r * 1.5), 1)
+    pd.rect(canvas, (150, 80, 70), (x - 5 * size, y + r * 1.5, 10 * size, 6 * size))  # a tiny shipping container
+    pd.rect(canvas, (84, 44, 40), (x - 5 * size, y + r * 1.5, 10 * size, 1.4 * size))
+    for k in range(4):
+        pd.line(canvas, (96, 52, 46), (x - 3.6 * size + k * 2.4 * size, y + r * 1.5 + 1.4 * size), (x - 3.6 * size + k * 2.4 * size, y + r * 1.5 + 6 * size), 0.5)
+
+
+def _zeppelin(canvas, x, y, size, t):
+    """A proper airship: a ribbed, tapering envelope with a lit back, cross tail fins, a gondola with lit windows,
+    struts and a slowly spinning propeller."""
+    L, Hh = 76 * size, 24 * size
+    env = []
+    for i in range(21):  # a teardrop: blunt nose on the right, tapering tail on the left
+        u = i / 20
+        half = Hh / 2 * math.sin(math.pi * u ** 0.85) ** 0.8
+        env.append((x - L / 2 + u * L, y - half))
+    for i in range(20, -1, -1):
+        u = i / 20
+        half = Hh / 2 * math.sin(math.pi * u ** 0.85) ** 0.8
+        env.append((x - L / 2 + u * L, y + half))
+    pd.polygon(canvas, (52, 46, 104), env)
+    top = [(px, py + (y - py) * 0.0) for px, py in env[:21]]
+    pd.polygon(canvas, (86, 74, 138), top + [(x + L / 2 - 4 * size, y - Hh * 0.1), (x - L / 2 + 8 * size, y - Hh * 0.05)])  # the lit back
+    for k in range(1, 9):  # panel ribs
+        u = k / 9
+        half = Hh / 2 * math.sin(math.pi * u ** 0.85) ** 0.8
+        pd.line(canvas, (40, 34, 84), (x - L / 2 + u * L, y - half), (x - L / 2 + u * L, y + half), 0.5)
+    pd.lines(canvas, (118, 84, 130), False, [(px, py) for px, py in env[2:19]], 1)  # rim light along the top
+    tx = x - L / 2
+    pd.polygon(canvas, (40, 34, 86), [(tx + 6 * size, y), (tx - 3 * size, y - 12 * size), (tx + 12 * size, y - 2 * size)])
+    pd.polygon(canvas, (40, 34, 86), [(tx + 6 * size, y), (tx - 3 * size, y + 12 * size), (tx + 12 * size, y + 2 * size)])
+    pd.polygon(canvas, (60, 50, 108), [(tx + 4 * size, y), (tx - 6 * size, y - 3 * size), (tx - 6 * size, y + 3 * size)])
+    gx = x + 2 * size
+    pd.polygon(canvas, (34, 30, 72), [(gx - 9 * size, y + Hh * 0.46), (gx + 9 * size, y + Hh * 0.46), (gx + 7 * size, y + Hh * 0.46 + 8 * size), (gx - 7 * size, y + Hh * 0.46 + 8 * size)])
+    for k in range(4):  # warm little windows
+        pd.rect(canvas, (150, 112, 70), (gx - 6 * size + k * 3.4 * size, y + Hh * 0.46 + 2 * size, 2 * size, 2.6 * size))
+    for dx in (-5, 5):
+        pd.line(canvas, (36, 30, 74), (gx + dx * size, y + Hh * 0.4), (gx + dx * 0.8 * size, y + Hh * 0.46), 0.5)
+    px_, py_ = gx - 11 * size, y + Hh * 0.46 + 4 * size
+    a = t * 0.12
+    for k in range(2):  # the propeller, turning
+        ang = a + k * math.pi / 2
+        pd.line(canvas, (120, 100, 150), (px_ - math.cos(ang) * 4 * size, py_ - math.sin(ang) * 4 * size),
+                (px_ + math.cos(ang) * 4 * size, py_ + math.sin(ang) * 4 * size), 0.7)
+    pd.circle(canvas, (60, 52, 100), (px_, py_), 1.1 * size)
+    pd.lines(canvas, (110, 90, 130), False, [(x + L / 2 - 2 * size, y - Hh * 0.25), (x + L / 2 + 6 * size, y - Hh * 0.55), (x + L / 2 + 6 * size, y - Hh * 0.2)], 1)  # a pennant
+
+
+def _whale(canvas, x, y, size, t):
+    """A giant, friendly whale drifting through the sky: round body, pale belly, an eye, and flukes that sway."""
+    sway = math.sin(t * 0.01) * 3 * size
+    body = [(x - 34 * size, y + 2 * size), (x - 28 * size, y - 9 * size), (x - 12 * size, y - 15 * size), (x + 10 * size, y - 15 * size),
+            (x + 30 * size, y - 9 * size), (x + 38 * size, y + 1 * size), (x + 30 * size, y + 11 * size), (x + 10 * size, y + 15 * size),
+            (x - 14 * size, y + 12 * size), (x - 30 * size, y + 6 * size)]
+    pd.polygon(canvas, (36, 52, 104), body)
+    pd.polygon(canvas, (86, 104, 150), [(x - 14 * size, y + 10 * size), (x + 12 * size, y + 12 * size), (x + 32 * size, y + 8 * size), (x + 36 * size, y + 2 * size),
+                                       (x + 16 * size, y + 6 * size), (x - 12 * size, y + 6 * size)])
+    pd.lines(canvas, (120, 140, 190), False, [(x - 20 * size + i * 3.4 * size, y - 13 * size - math.sin(i / 14 * math.pi) * 1.0) for i in range(15)], 1)
+    tail = [(x - 30 * size, y + 4 * size), (x - 42 * size, y + sway), (x - 52 * size, y - 10 * size + sway), (x - 47 * size, y - 1 * size + sway),
+            (x - 54 * size, y + 6 * size + sway), (x - 44 * size, y + 6 * size + sway * 0.6)]
+    pd.polygon(canvas, (36, 52, 104), tail)
+    pd.polygon(canvas, (60, 78, 128), [(x - 4 * size, y + 6 * size), (x + 8 * size, y + 14 * size), (x + 12 * size, y + 8 * size)])  # flipper
+    pd.circle(canvas, (170, 190, 230), (x + 24 * size, y - 3 * size), 2.0 * size)
+    pd.circle(canvas, (20, 24, 56), (x + 24.6 * size, y - 3 * size), 1.1 * size)
+    pd.lines(canvas, (24, 30, 70), False, [(x + 36 * size, y + 4 * size), (x + 30 * size, y + 6.4 * size), (x + 24 * size, y + 6 * size)], 1)  # a smile
+    for k in range(3):  # a gentle spout of tiny clouds
+        pd.circle(canvas, (96, 90, 150), (x + 4 * size + k * 3.4 * size, y - 20 * size - k * 4 * size), (1.6 + k * 0.7) * size)
 
 
 def build_cloud(canvas_w: int = PIX_W) -> Backdrop:
     rng = random.Random(41)
     accent, blue = ACCENT["cloud"], SECOND["cloud"]
-    sky = dither_gradient(canvas_w, PIX_H, [(0, (4, 8, 30)), (0.34, (12, 20, 66)), (0.6, (34, 32, 88)), (0.78, (84, 52, 94)),
-                                 (0.88, (104, 66, 90)), (1.0, (28, 20, 52))], bands=30)
+    sky = dither_gradient(canvas_w, PIX_H, [(0, (3, 6, 26)), (0.30, (10, 16, 58)), (0.55, (26, 24, 80)), (0.74, (72, 44, 88)),
+                                 (0.86, (96, 60, 84)), (1.0, (24, 16, 46))], bands=34)
     far = _wide()
-    for _ in range(120):
-        pd.set_at(far, (rng.randrange(WIDE), rng.randrange(int(H * 0.55))), _scale((210, 200, 255), rng.choice([0.25, 0.4, 0.55])))
-    for x in range(-40, WIDE + 40, 70):  # a low, distant bank of cloud along the horizon
-        _cloud(far, x + rng.randint(-10, 10), 262, rng.randint(70, 110), rng.randint(26, 38), (40, 34, 78), (60, 50, 96), rng)
+    for _ in range(150):  # a field of stars, a few of them four-pointed sparkles
+        x, y = rng.randrange(WIDE), rng.randrange(int(H * 0.5))
+        pd.set_at(far, (x, y), _scale((210, 200, 255), rng.choice([0.25, 0.4, 0.55])))
+        if rng.random() < 0.06:
+            for dx, dy in ((-2, 0), (2, 0), (0, -2), (0, 2)):
+                pd.set_at(far, (x + dx, y + dy), _scale((210, 200, 255), 0.3))
+    mx, my, mr = 470, 64, 24  # a crescent moon in a soft halo
+    halo = ((36, 34, 88), (50, 46, 112), (66, 60, 138))  # soft rings of moonlight, brighter toward the moon
+    for k, col in zip((3.2, 2.3, 1.55), halo):
+        pd.circle(far, col, (mx, my), mr * k)
+    pd.circle(far, (200, 196, 232), (mx, my), mr)
+    pd.circle(far, halo[2], (mx + mr * 0.42, my - mr * 0.1), mr * 0.9)  # the bite out of the moon shows the halo behind it
+    for band, col in enumerate(((120, 54, 70), (140, 92, 60), (150, 130, 70), (60, 120, 90), (60, 90, 140), (92, 70, 140))):  # a very dim rainbow
+        rr = 150 - band * 3.2
+        pd.lines(far, _scale(col, 0.34), False, [(WIDE // 2 - 40 + math.cos(math.pi + i * math.pi / 40) * rr * 1.3, 252 + math.sin(math.pi + i * math.pi / 40) * rr * 0.7)
+                                               for i in range(41)], 1)
+    for _ in range(7):
+        _cirrus(far, rng.randrange(0, WIDE - 80), rng.randrange(20, 170), rng.randint(60, 120), rng, (74, 68, 128))
+    for x in range(-40, WIDE + 40, 62):  # a distant range of cloud mountains on the horizon
+        _cumulus(far, x + rng.randint(-8, 8), 262, rng.randint(70, 110), rng.randint(22, 34), rng, scale=0.72)
     mid = _wide()
-    for _ in range(9):  # big cumulus clouds drifting at mid distance
-        _cloud(mid, rng.randrange(40, WIDE - 40), rng.randrange(60, 240), rng.randint(110, 190), rng.randint(34, 52),
-               (46, 40, 90), (74, 62, 110), rng)
-    for ix in (110, 300, 520, 700):  # floating server islands: a lump of rock under a rack of servers
-        iy = rng.randrange(120, 200)
-        pd.polygon(mid, (34, 28, 66), [(ix - 26, iy), (ix + 26, iy), (ix + 14, iy + 20), (ix + 2, iy + 34), (ix - 10, iy + 18)])
-        pd.rect(mid, (50, 44, 96), (ix - 26, iy - 3, 52, 4))
-        for k in range(3):
-            rx = ix - 18 + k * 14
-            pd.rect(mid, (24, 24, 58), (rx, iy - 24, 11, 21))
+    for _ in range(8):
+        _cumulus(mid, rng.randrange(40, WIDE - 40), rng.randrange(80, 250), rng.randint(110, 190), rng.randint(32, 50), rng)
+    for ix, iy in ((120, 176), (330, 128), (560, 188), (730, 140)):  # floating islands, each a little world
+        pd.polygon(mid, (30, 26, 62), [(ix - 30, iy), (ix + 30, iy), (ix + 22, iy + 16), (ix + 12, iy + 30), (ix + 1, iy + 40), (ix - 9, iy + 26), (ix - 20, iy + 14)])
+        for k in range(1, 5):  # rock strata
+            pd.line(mid, (44, 38, 80), (ix - 26 + k * 3, iy + k * 5), (ix + 26 - k * 3, iy + k * 5), 1)
+        pd.polygon(mid, (40, 76, 80), [(ix - 31, iy), (ix + 31, iy), (ix + 26, iy - 4), (ix - 26, iy - 4)])  # grassy top
+        pd.lines(mid, (70, 120, 110), False, [(ix - 30 + i * 4, iy - 3.6 - (i % 2) * 1.2) for i in range(16)], 1)
+        for tx in (ix + 14, ix + 20):  # little round trees
+            pd.rect(mid, (50, 36, 40), (tx - 0.7, iy - 12, 1.4, 8))
+            pd.circle(mid, (36, 84, 84), (tx, iy - 13), 4.2)
+            pd.circle(mid, (56, 112, 104), (tx - 1, iy - 14.4), 2.4)
+        if (ix // 10) % 2 == 0:  # a cosy hut with a lit window and a chimney
+            pd.rect(mid, (66, 50, 78), (ix - 20, iy - 14, 14, 10))
+            pd.polygon(mid, (92, 54, 70), [(ix - 22, iy - 14), (ix - 13, iy - 22), (ix - 4, iy - 14)])
+            pd.rect(mid, (176, 130, 74), (ix - 16, iy - 11, 4, 4))
+            pd.rect(mid, (50, 38, 60), (ix - 9, iy - 22, 2.4, 6))
+        else:  # a server shed with a dish
+            pd.rect(mid, (40, 44, 88), (ix - 22, iy - 15, 16, 11))
             for ly in range(3):
-                pd.set_at(mid, (rx + 2 + ly * 3, iy - 20 + ly * 6), _scale(accent, 0.5))
-            pd.line(mid, _scale(blue, 0.45), (rx, iy - 24), (rx + 11, iy - 24), 1)
+                pd.rect(mid, _scale(accent, 0.4), (ix - 20, iy - 13 + ly * 3, 5, 1))
+            pd.line(mid, (70, 70, 120), (ix - 12, iy - 15), (ix - 12, iy - 22), 1)
+            pd.polygon(mid, (88, 88, 140), [(ix - 17, iy - 21), (ix - 7, iy - 21), (ix - 12, iy - 18)])
     near = _wide()
-    for x in range(-60, WIDE + 60, 54):  # the sea of cloud far below the stage
-        _cloud(near, x + rng.randint(-8, 8), 318 + rng.randint(-4, 6), rng.randint(90, 130), rng.randint(40, 56), (58, 46, 92), (88, 70, 114), rng)
-    pd.rect(near, (24, 18, 50), (0, 326, WIDE, 40))
-    _mute(far, 0.7)
-    _mute(mid, 0.62)
-    _mute(near, 0.8)
-    blimps = [(0.0, 52, 0.11, 1.0), (330.0, 132, 0.07, 0.8)]
+    for x in range(-60, WIDE + 60, 50):  # the sea of cloud far below the stage, towering in places
+        _cumulus(near, x + rng.randint(-8, 8), 322 + rng.randint(-4, 6), rng.randint(90, 130), rng.randint(40, 62), rng, scale=0.86)
+    pd.rect(near, (24, 18, 50), (0, 328, WIDE, 40))
+    _mute(far, 0.64)
+    _mute(mid, 0.7)
+    _mute(near, 0.76)
+    balloons = [(96, 120, 1.0, 0.0), (420, 78, 0.8, 2.0), (610, 150, 1.1, 4.1)]
+    wind = (190, 240)
 
-    def sun_fn(canvas, frame, cam):  # a vast pale wheel for a sun, turning once in several minutes
-        ox = -cam * 0.03
-        cx, cy, rad = W * 0.62 + ox, 84, 64
-        a0 = frame * 0.0012
-        pd.circle(canvas, _scale((255, 200, 200), 0.16), (cx, cy), rad + 6)
-        pd.circle(canvas, _scale((255, 200, 200), 0.24), (cx, cy), rad, 2)
-        pd.circle(canvas, _scale((255, 200, 200), 0.3), (cx, cy), 10)
-        for i in range(7):
-            a = a0 + i * 2 * math.pi / 7
-            pd.line(canvas, _scale((255, 200, 200), 0.2), (cx + math.cos(a) * 10, cy + math.sin(a) * 10), (cx + math.cos(a) * rad, cy + math.sin(a) * rad), 2)
-            pd.circle(canvas, _scale((255, 200, 200), 0.26), (cx + math.cos(a) * (rad + 3), cy + math.sin(a) * (rad + 3)), 4)
+    def sky_fn(canvas, frame, cam):
+        ox = -cam * 0.05
+        for bx, by, bs, ph in balloons:
+            _balloon(canvas, bx + ox + math.sin(frame * 0.002 + ph) * 6, by, bs, frame, ph)
+        for k, (zx0, zy, zs, spd) in enumerate(((20.0, 54, 1.0, 0.09), (400.0, 138, 0.7, 0.06))):
+            zx = ((zx0 + frame * spd) % (W + 260)) - 130 + ox
+            _zeppelin(canvas, zx, zy, zs, frame)
+        _whale(canvas, ((frame * 0.035 + 180) % (W + 300)) - 150 + ox, 214, 0.9, frame)
 
-    def blimp_fn(canvas, frame, cam):  # big, slow server-crate blimps crossing the sky
-        for x0, y, spd, size in blimps:
-            x = ((x0 + frame * spd) % (W + 260)) - 130 - cam * 0.05
-            L, Hh = 70 * size, 22 * size
-            pd.ellipse(canvas, (58, 52, 112), (x - L / 2, y - Hh / 2, L, Hh))
-            pd.ellipse(canvas, (84, 74, 134), (x - L / 2 + 4, y - Hh / 2 + 1, L - 8, Hh * 0.45))
-            pd.polygon(canvas, (46, 40, 92), [(x - L / 2 + 2, y), (x - L / 2 - 9 * size, y - 9 * size), (x - L / 2 - 9 * size, y + 9 * size)])
-            pd.rect(canvas, (36, 32, 74), (x - 10 * size, y + Hh / 2, 20 * size, 7 * size))
-            pd.rect(canvas, _scale(accent, 0.34), (x - 8 * size, y + Hh / 2 + 1, 16 * size, 3 * size))
-            for k in range(4):
-                pd.set_at(canvas, (x - 12 * size + k * 8 * size, y - 1), _scale(blue, 0.45))
+    def windmill_fn(canvas, frame, cam):  # the windmill on the second island, turning slowly
+        wx, wy = 330 - cam * 0.06 + 18, 128 - 24
+        pd.rect(canvas, (60, 46, 84), (wx - 2.6, wy, 5.2, 22))
+        for k in range(4):
+            a = frame * 0.008 + k * math.pi / 2
+            pd.polygon(canvas, (150, 120, 130), [(wx, wy), (wx + math.cos(a) * 15 - math.sin(a) * 2.4, wy + math.sin(a) * 15 + math.cos(a) * 2.4),
+                                                  (wx + math.cos(a) * 15 + math.sin(a) * 2.4, wy + math.sin(a) * 15 - math.cos(a) * 2.4)])
+        pd.circle(canvas, (96, 70, 100), (wx, wy), 2)
 
     def haze_fn(canvas, frame, cam):
         haze_band(canvas, 252, _scale((255, 160, 170), 0.5), 110, 70)
 
-    items = [Layer(far, 0.02, 0), Animated(sun_fn), Layer(mid, 0.06, 0), Animated(blimp_fn), Animated(haze_fn), Layer(near, 0.11, 0)]
+    items = [Layer(far, 0.02, 0), Layer(mid, 0.06, 0), Animated(sky_fn), Animated(windmill_fn), Animated(haze_fn), Layer(near, 0.11, 0)]
     return Backdrop(sky, items, "cloud")
 
 
@@ -861,28 +1123,37 @@ _platform_cache: dict[tuple, pygame.Surface] = {}
 
 
 def _cloud_platform(wu: int, hu: int, thin: bool) -> pygame.Surface:
-    """A cloud you can stand on: a bright, flat top edge with a fluffy underside of overlapping puffs."""
+    """A cloud you can stand on: a bright, flat top edge, a shaded body with rounded ends and a billowing, varied underside."""
     S = RS
     w, h = wu * S, hu * S
-    drop = (12 if thin else 26) * S
+    drop = (14 if thin else 34) * S
     s = pygame.Surface((w, h + drop + 6 * S), pygame.SRCALPHA)
     rng = random.Random(wu * 17 + hu)
-    n = max(3, wu // (14 if thin else 26))
-    for i in range(n):  # underside puffs: lavender in shadow
+    n = max(3, wu // (13 if thin else 24))
+    puffs = []
+    for i in range(n):  # the billowing underside: puffs of varied size hanging below the walkway
         u = (i + 0.5) / n
-        r = int((5 if thin else 11) * S * (0.7 + 0.5 * math.sin(u * math.pi)) * rng.uniform(0.9, 1.1))
-        pygame.draw.circle(s, (176, 170, 226), (int(w * u), h + int(r * 0.35)), r)
-    for i in range(n):  # lit puffs on top
-        u = (i + 0.5) / n
-        r = int((4 if thin else 9) * S * (0.7 + 0.5 * math.sin(u * math.pi)))
-        pygame.draw.circle(s, (232, 226, 252), (int(w * u), h + int(r * 0.1)), r)
-    body = pygame.Rect(0, 0, w, h)
-    pygame.draw.rect(s, (214, 208, 244), body, border_radius=3 * S)
-    pygame.draw.rect(s, (255, 246, 252), (0, 0, w, 3 * S), border_radius=2 * S)  # the bright top you stand on
-    pygame.draw.line(s, (255, 255, 255), (3 * S, 0), (w - 3 * S, 0), S)
-    pygame.draw.line(s, (255, 190, 214), (0, 3 * S), (w, 3 * S), S)
-    for x in range(8 * S, w - 8 * S, 22 * S):  # little glints along the edge
-        pygame.draw.line(s, (255, 255, 255), (x, S), (x + 6 * S, S), S)
+        r = (5 if thin else 12) * S * (0.6 + 0.6 * math.sin(u * math.pi) ** 0.7) * rng.uniform(0.85, 1.15)
+        puffs.append((int(w * u + rng.uniform(-2, 2) * S), h + int(r * 0.25), int(r)))
+    for x, y, r in puffs:
+        pygame.draw.circle(s, (170, 162, 222), (x, y), r)
+    for x, y, r in puffs:
+        pygame.draw.circle(s, (198, 192, 238), (x - int(r * 0.08), y - int(r * 0.12)), int(r * 0.86))
+    for x, y, r in puffs:
+        pygame.draw.circle(s, (228, 222, 252), (x - int(r * 0.25), y - int(r * 0.3)), int(r * 0.5))
+    body = pygame.Surface((w, h), pygame.SRCALPHA)
+    for yy in range(h):  # the walkway slab: bright on top, a lilac underside
+        t = yy / max(1, h - 1)
+        c = tuple(int(a_ + (b_ - a_) * t) for a_, b_ in zip((248, 244, 255), (206, 200, 242)))
+        pygame.draw.line(body, c, (0, yy), (w, yy))
+    mask = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, w, h), border_radius=int(h * 0.45))
+    body.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    s.blit(body, (0, 0))
+    pygame.draw.line(s, (255, 255, 255), (int(h * 0.45), 0), (w - int(h * 0.45), 0), S)  # the bright top you stand on
+    pygame.draw.line(s, (255, 196, 222), (int(h * 0.5), S), (w - int(h * 0.5), S), S)
+    for x in range(10 * S, w - 10 * S, 26 * S):  # little glints and a soft fold line
+        pygame.draw.line(s, (255, 255, 255), (x, 2 * S), (x + 5 * S, 2 * S), S)
     return s
 
 

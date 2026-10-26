@@ -558,3 +558,31 @@ def test_cloud_native_arena_has_autoscaling_replicas_in_pairs_and_its_own_music(
     assert len(st.live) < len(st.platforms)
     for suffix in ("", "_hot", "_stem", "_hot_stem"):
         assert (ASSETS / f"cloud{suffix}.ogg").stat().st_size > 50_000
+
+
+def test_oomkiller_scythe_is_steel_and_wood_and_swings_with_the_attack_pose():
+    from k8ssmash.art.looks import LOOKS
+    from k8ssmash.art.poses import pose_for
+    from k8ssmash.art.rig import FEET, FRAME, render
+    look = LOOKS["OOMKiller"]()
+    assert look.pal["steel"][2] > look.pal["steel"][1] > 150 and look.pal["wood"][0] > look.pal["wood"][2]  # a pale steel blade, brown shaft
+    assert all(name != "pcb" or fn.__name__ != "blade" for fn, name in look.front)  # the blade is not the old green board
+    idle = render(look, pose_for("idle", 0))
+    swing = render(look, pose_for("side", 3))
+    assert pygame.image.tobytes(idle, "RGBA") != pygame.image.tobytes(swing, "RGBA")
+    # the whole weapon stays inside its frame on a forward swing: nothing touches the right-hand edge
+    right_edge = pygame.mask.from_surface(swing).get_bounding_rects()
+    assert max(r.right for r in right_edge) < FRAME - 2 and FEET[0] < FRAME // 2
+
+
+def test_every_arena_has_whimsy_props_and_cloud_has_no_wheel(app):
+    import inspect
+    from k8ssmash import backdrops
+    for fn in ("_duck", "_cat", "_mug", "_sign", "_bonsai", "_trophy", "_pennant", "_sleepy_face", "_key", "_chest", "_bat", "_planet",
+               "_satellite", "_comet", "_whale", "_zeppelin", "_balloon", "_cumulus"):
+        assert callable(getattr(backdrops, fn)), fn
+    assert "helm" not in inspect.getsource(backdrops.build_cloud).lower() and "sun_fn" not in inspect.getsource(backdrops.build_cloud)
+    surf = pygame.Surface((PIX_W, PIX_H), pygame.SRCALPHA)
+    backdrops._zeppelin(surf, 400, 200, 1.0, 10)
+    backdrops._whale(surf, 600, 300, 1.0, 10)
+    backdrops._balloon(surf, 200, 150, 1.0, 10, 0.0)

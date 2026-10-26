@@ -1,8 +1,9 @@
 {
- "frame": 192,
+ "frame": 224,
+ "units": 112,
  "feet": [
   96,
-  180
+  200
  ],
  "anims": {
   "idle": {

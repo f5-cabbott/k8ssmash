@@ -16,8 +16,8 @@ from k8ssmash.art.shade import SHINY, layer_mask, make_ramp, paint_part, shift
 
 from k8ssmash.config import RS
 
-FRAME_U = 96  # the rig is authored on a 96-unit frame; every unit is RS output pixels
-FEET_U = (48, 90)  # where the fighter's feet sit inside a frame, in rig units
+FRAME_U = 112  # the rig is authored on a 112-unit frame (room for capes, scythes and raised arms); every unit is RS output pixels
+FEET_U = (48, 100)  # where the fighter's feet sit inside a frame, in rig units
 FRAME = FRAME_U * RS
 FEET = (FEET_U[0] * RS, FEET_U[1] * RS)
 

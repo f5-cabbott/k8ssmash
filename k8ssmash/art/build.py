@@ -11,7 +11,7 @@ import pygame
 
 from k8ssmash.art.looks import LOOKS
 from k8ssmash.art.poses import ANIMS, pose_for
-from k8ssmash.art.rig import FEET, FRAME, alternate_look, render
+from k8ssmash.art.rig import FEET, FRAME, FRAME_U, alternate_look, render
 
 OUT = Path(__file__).resolve().parents[2] / "assets" / "sprites"
 
@@ -30,7 +30,7 @@ def build(name: str, variant: int = 0) -> pygame.Surface:
         look = alternate_look(look, VARIANT_SHIFTS[variant])  # the mirror-match and extra colour schemes
     cols = max(n for n, _, _ in ANIMS.values())
     sheet = pygame.Surface((cols * FRAME, len(ANIMS) * FRAME), pygame.SRCALPHA)
-    meta = {"frame": FRAME, "feet": list(FEET), "anims": {}}
+    meta = {"frame": FRAME, "units": FRAME_U, "feet": list(FEET), "anims": {}}
     for row, (anim, (count, fps, loop)) in enumerate(ANIMS.items()):
         for i in range(count):
             sheet.blit(render(look, pose_for(anim, i)), (i * FRAME, row * FRAME))

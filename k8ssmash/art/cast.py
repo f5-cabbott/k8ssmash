@@ -85,7 +85,7 @@ def statefulset() -> Look:
     pal = with_back_palettes({
         "body": (244, 190, 40), "skin": (240, 190, 148), "hat": (240, 242, 248), "band": (255, 124, 40), "drum": (88, 124, 186),
         "pants": (60, 70, 112), "stache": (116, 74, 46), "boots": (96, 66, 44), "belt": (122, 80, 48), "lock": (214, 218, 230),
-        "lamp": (255, 248, 196), "buckle": (236, 200, 90), "hoop": (60, 84, 130)})
+        "lamp": (255, 248, 196), "buckle": (236, 200, 90), "hoop": (60, 84, 130), "rivet": (190, 206, 236)})
 
     def hard_hat(s, r):
         draw.smooth(s, hp(r, 10, [(-11, -4.4), (-10, -9.4), (-4.5, -13.6), (3.5, -13.8), (9.5, -10.4), (11.2, -4.6), (0, -3.8)]))
@@ -127,6 +127,13 @@ def statefulset() -> Look:
                         (cx + 6.6, cy + 13), (cx + 3, cy + 14), (cx - 3, cy + 14), (cx - 6.6, cy + 13), (cx - 8.4, cy + 7), (cx - 8.4, cy - 3)])
         draw.ellipse(s, cx - 7.2, cy - 15.6, 14.4, 6)
 
+    def bolts(s, r):  # rivets on the drum bands and a bright seam down its side
+        cx, cy = r.shoulder[0] - 10, r.shoulder[1] + 6
+        for dy in (-7, 2, 10):
+            for dx in (-6.4, -2.2, 2.2, 6.4):
+                draw.circle(s, (cx + dx, cy + dy + 1.1), 0.7)
+        draw.line(s, (cx - 5.4, cy - 11), (cx - 5.8, cy + 12), 0.9)
+
     def drum2(s, r):  # a second canister stacked on top: lots of persistent storage
         cx, cy = r.shoulder[0] - 10, r.shoulder[1] + 6
         draw.smooth(s, [(cx - 4.4, cy - 17), (cx + 4.4, cy - 17), (cx + 5, cy - 24), (cx + 3, cy - 26), (cx - 3, cy - 26), (cx - 5, cy - 24)])
@@ -148,6 +155,24 @@ def statefulset() -> Look:
         for t in (0.5, 0.68):  # hi-vis reflective stripes across the vest
             a, b = tp(r, t, -0.5), tp(r, t, 0.85)
             wd.line(f, (246, 250, 255), a, b, 1.0)
+        # hand-drawn touches: ribs on the hard hat, a zip and a chest pocket on the vest, boot laces, beard strands
+        hx_, hy_ = r.head
+        for rx in (-5.0, 0.0, 5.0):
+            wd.line(f, (176, 184, 204), (hx_ + rx * k, hy_ - 13 * k), (hx_ + (rx * 1.2) * k, hy_ - 6.4 * k), 0.7)
+        wd.line(f, (255, 255, 255), (hx_ - 3 * k, hy_ - 12.4 * k), (hx_ + 2 * k, hy_ - 12.8 * k), 0.7)
+        wd.line(f, (170, 120, 20), tp(r, 0.24, 0.62), tp(r, 0.86, 0.62), 0.7)  # the vest's zip
+        for t in (0.3, 0.4, 0.5, 0.6, 0.7, 0.8):
+            a_ = tp(r, t, 0.62)
+            wd.line(f, (150, 104, 16), (a_[0] - 0.8, a_[1]), (a_[0] + 0.8, a_[1]), 0.4)
+        p0, p1 = tp(r, 0.52, -0.2), tp(r, 0.7, 0.3)
+        wd.rect(f, (214, 160, 20), (p0[0], p1[1], p1[0] - p0[0], p0[1] - p1[1]), 0.6)  # a chest pocket
+        wd.lines(f, (150, 104, 16), False, [(p0[0], p1[1] + 1.2), (p1[0], p1[1] + 1.2)], 0.5)
+        for foot in (r.foot_f, r.foot_b):
+            for i in range(3):  # boot laces
+                wd.line(f, (210, 214, 232), (foot[0] + 0.4 + i * 1.1, foot[1] - 3.8), (foot[0] + 1.8 + i * 1.1, foot[1] - 2.6), 0.5)
+            wd.line(f, (24, 28, 44), (foot[0] - 4.4, foot[1] + 2.0), (foot[0] + 14, foot[1] + 2.0), 0.8)  # a thick sole
+        for i in range(5):  # beard strands
+            wd.line(f, (84, 52, 30), (hx_ + (4 + i * 1.7) * k, hy_ + 4.2 * k), (hx_ + (3.4 + i * 1.7) * k, hy_ + 6.2 * k), 0.4)
         lx, ly = tp(r, 0.1, 1.05)
         wd.arc(f, (170, 176, 196), (lx - 2.2, ly - 6.2, 5.2, 7.2), 0, math.pi, 0.9)  # the padlock's shackle
         wd.circle(f, (50, 50, 70), (lx + 0.3, ly + 1.4), 0.7)
@@ -156,9 +181,9 @@ def statefulset() -> Look:
                 head_fn=shapes.head([(-9, -3), (-6, -8), (0, -9.5), (7, -8), (10.5, -3), (11, 3), (9, 8), (3, 10), (-4, 9.5), (-8.5, 5)]),
                 torso_fn=shapes.torso([(-0.05, 0), (0.02, -0.9), (0.45, -1.0), (0.85, -1.15), (1.05, -0.5), (1.05, 0.6), (0.85, 1.18), (0.45, 1.0), (0.04, 0.9)]),
                 arm_fn=shapes.arm("glove", (1.2, 1.05, 0.95)), leg_fn=shapes.leg("boot", (1.25, 1.0, 0.9)),
-                cel=("body", "skin", "pants", "boots", "hat", "stache", "drum", "belt"), plain=("lamp", "band", "hoop"),
-                no_hue_shift=("skin", "stache", "hat", "drum", "boots", "lock", "belt", "lamp", "buckle", "band", "hoop"),
-                back=[(drum, "drum"), (drum2, "drum"), (hoops, "hoop")],
+                cel=("body", "skin", "pants", "boots", "hat", "stache", "drum", "belt"), plain=("lamp", "band", "hoop", "rivet"),
+                no_hue_shift=("skin", "stache", "hat", "drum", "boots", "lock", "belt", "lamp", "buckle", "band", "hoop", "rivet"),
+                back=[(drum, "drum"), (drum2, "drum"), (hoops, "hoop"), (bolts, "rivet")],
                 front=[(belt, "belt"), (pouch, "belt"), (buckle, "buckle"), (padlock, "lock"), (nose, "skin"), (stache, "stache"),
                        (hard_hat, "hat"), (band, "band"), (brim, "hat"), (lamp, "lamp")],
                 details=details)
@@ -546,7 +571,7 @@ def _tatter_legs():
 def oomkiller() -> Look:
     pal = with_back_palettes({"body": (206, 52, 72), "hood": (72, 30, 78), "bone": (240, 234, 216), "steel": (186, 196, 216),
                               "wood": (132, 88, 54), "pcb": (50, 168, 104), "socket": (34, 12, 30), "gold": (240, 200, 80),
-                              "cape": (112, 30, 70), "chip": (30, 40, 48)})
+                              "cape": (112, 30, 70), "chip": (30, 40, 48), "edge": (252, 254, 255)})
 
     def skull(s, r):
         open_ = 2.2 if r.pose.face in ("hurt", "shock", "effort", "angry") else 0.0
@@ -569,8 +594,9 @@ def oomkiller() -> Look:
         sx, sy = r.shoulder
         hx, hy = r.hip
         sw = math.sin(r.pose.bob * 2 + r.pose.lean * 0.4) * 2.2 + r.pose.lean * 0.6
-        pts = [(sx - 4, sy - 2), (sx - 11 - sw * 0.4, sy + 3), (hx - 18 - sw, hy + 8), (hx - 22 - sw * 1.3, hy + 15), (hx - 15 - sw, hy + 12),
-               (hx - 13 - sw * 0.8, hy + 18), (hx - 8, hy + 12), (hx - 5, hy + 16), (hx - 1, hy + 4), (hx - 4, hy - 4)]
+        pts = [(sx - 4, sy - 2), (sx - 11 - sw * 0.4, sy + 3), (hx - 18 - sw, hy + 8), (hx - 24 - sw * 1.3, hy + 14), (hx - 19 - sw, hy + 12),
+               (hx - 20 - sw * 1.1, hy + 19), (hx - 14 - sw * 0.8, hy + 13), (hx - 13 - sw * 0.7, hy + 20), (hx - 8, hy + 12), (hx - 6, hy + 18),
+               (hx - 2, hy + 9), (hx - 1, hy + 4), (hx - 4, hy - 4)]
         draw.smooth(s, pts)
 
     def belt(s, r):
@@ -582,13 +608,66 @@ def oomkiller() -> Look:
             x, y = tp(r, 0.08, t)
             draw.smooth(s, [(x - 1.6 + sw * 0.3 * i, y), (x + 1.6 + sw * 0.3 * i, y), (x + 1.8 + sw * 0.7, y + 7 + i), (x - 1.8 + sw * 0.7, y + 7 + i)])
 
-    def scythe(s, r):
+    def _frame(r):
+        """The scythe's axis follows the swinging arm: carried upright, whipped forward on a side swing, hoisted for an uppercut."""
+        a0 = r.pose.arm_f[0]
+        if a0 > 130:
+            th = 8.0
+        elif a0 >= 75 or a0 <= -45:
+            th = a0
+        else:
+            th = 14 + 0.35 * (a0 - 14)
+        th = max(-40.0, min(th, 45.0))  # swings arc up and out rather than flat, so the whole weapon stays inside the sprite frame
+        t = math.radians(th)
+        u = (math.sin(t), -math.cos(t))
+        n = (-u[1], u[0])
         hx, hy = r.hand_f
-        draw.ribbon(s, [(hx - 3, hy + 17), (hx, hy - 8), (hx + 2, hy - 44)], [3.0, 2.8, 2.6])
 
-    def blade(s, r):
+        def P(a, b=0.0):
+            return (hx + u[0] * a + n[0] * b, hy + u[1] * a + n[1] * b)
+        return P, th
+
+    TOP = 30.0
+
+    def snath(s, r):  # the long wooden shaft with its two grip handles
+        P, _ = _frame(r)
+        draw.ribbon(s, [P(-13, 0), P(6, 0.6), P(22, 0.3), P(TOP, -0.4)], [2.8, 3.0, 2.7, 2.3])
+        draw.line(s, P(6, 1), P(7.2, 5.6), 1.7)
+        draw.line(s, P(20, 0), P(19, -4.8), 1.5)
+
+    def blade(s, r):  # a long curved steel blade that hooks forward then sweeps back toward the shaft
+        P, _ = _frame(r)
+        A = TOP
+        k = 0.56  # the blade is drawn at full size above and scaled to the shaft
+        pts = [(3.4, -0.5), (4.6, 6), (3.2, 14), (-1.5, 22), (-8, 28), (-16, 31.5), (-11, 26), (-5.6, 19.5), (-2.2, 12.5), (-1.0, 6), (-2.2, 0.5)]
+        draw.smooth(s, [P(A + a * k, b * k) for a, b in pts])
+
+    def edge(s, r):  # the bright cutting edge on the blade's inner curve
+        P, _ = _frame(r)
+        A = TOP
+        k = 0.56
+        pts = [(-2.6, 1.4), (-1.8, 7), (-3.4, 14), (-7.4, 20.4), (-13, 26), (-16, 30.2)]
+        draw.ribbon(s, [P(A + a * k, b * k) for a, b in pts], [0.9, 1.0, 1.0, 0.9, 0.8, 0.5])
+
+    def ferrule(s, r):  # the gold collar where blade meets shaft
+        P, _ = _frame(r)
+        draw.smooth(s, [P(TOP - 3.4, -2.4), P(TOP - 3.4, 3.0), P(TOP + 1.2, 3.0), P(TOP + 1.2, -2.4)])
+
+    def grip(s, r):  # the bony fist wrapped round the shaft
         hx, hy = r.hand_f
-        draw.smooth(s, [(hx + 2, hy - 46), (hx + 12, hy - 51), (hx + 24, hy - 46), (hx + 31, hy - 35), (hx + 24, hy - 38), (hx + 13, hy - 41), (hx + 2, hy - 39)])
+        draw.smooth(s, ring(hx, hy, 3.6, 3.4, 9))
+        for i in (-1, 0, 1):
+            draw.ribbon(s, [(hx + 1, hy + i * 1.8 - 0.5), (hx + 3.2, hy + i * 1.9), (hx + 4.6, hy + i * 2.1 + 1)], [1.3, 1.1, 0.8])
+
+    def pauldrons(s, r):  # bone shoulder plates with a spike
+        sx, sy = r.shoulder
+        draw.smooth(s, [(sx - 5, sy - 3), (sx + 1, sy - 8), (sx + 6, sy - 12), (sx + 7, sy - 4), (sx + 6, sy + 2), (sx - 1, sy + 3)])
+
+    def rope(s, r):  # the rope belt's knot with two dangling ends
+        x, y = tp(r, 0.1, 0.55)
+        draw.smooth(s, ring(x, y, 2.4, 2.2, 8))
+        draw.ribbon(s, [(x, y + 1), (x + 1.4, y + 5), (x + 0.6, y + 9)], [1.6, 1.5, 1.0])
+        draw.ribbon(s, [(x, y + 1), (x - 1.8, y + 4.6), (x - 3, y + 8)], [1.6, 1.4, 0.9])
 
     def details(f, r):
         cx, cy = r.head
@@ -621,21 +700,34 @@ def oomkiller() -> Look:
             wd.rect(f, (252, 248, 236), (x, cy + 5.6 * k, 1.4 * k, (2.6 + jaw * 0.6) * k))
             if jaw:
                 wd.rect(f, (252, 248, 236), (x, cy + (8.4 + jaw * 0.2) * k, 1.4 * k, 1.8 * k))
-        bx, by = r.hand_f
-        for i in range(3):
-            wd.rect(f, (22, 28, 32), (bx + 7 + i * 4.6, by - 45 + i * 2.2, 3.4, 2.4))
-        wd.line(f, (240, 200, 80), (bx + 6, by - 40.4), (bx + 22, by - 38.2), 1.0)
-        for i in range(6):
-            wd.line(f, (240, 200, 80), (bx + 7 + i * 2.8, by - 41.2 + i * 0.5), (bx + 7 + i * 2.8, by - 38.8 + i * 0.4), 0.5)
+        # fold lines on the hood and a hairline crack across the skull: drawn by hand, not stamped
+        for (x0, y0, x1, y1) in ((-7.4, -4.0, -8.6, 4.4), (-4.4, -9.6, -6.6, 0.4), (-1.0, 8.6, -3.8, 11.0)):
+            wd.line(f, (44, 14, 52), (cx + x0 * k, cy + y0 * k), (cx + x1 * k, cy + y1 * k), 0.9)
+        wd.lines(f, (150, 138, 120), False, [(cx + 4.2 * k, cy - 8.6 * k), (cx + 5.6 * k, cy - 6.4 * k), (cx + 4.6 * k, cy - 5.0 * k), (cx + 6.0 * k, cy - 3.0 * k)], 0.6)
+        for (x0, y0, x1, y1) in ((10.4, 0.6, 7.6, 2.2), (10.6, 3.0, 8.0, 4.0)):  # cheekbone shading
+            wd.line(f, (176, 164, 144), (cx + x0 * k, cy + y0 * k), (cx + x1 * k, cy + y1 * k), 0.7)
+        # the swing: a pale crescent trailing the blade whenever an attack is active
+        if r.pose.smear:
+            _, th = _frame(r)
+            hx, hy = r.hand_f
+            R = 25
+            a0 = math.radians(90 - th)
+            sweep = math.radians(r.pose.smear * 1.3)
+            wd.arc(f, (255, 255, 255, 150), (hx - R, hy - R, 2 * R, 2 * R), a0, a0 + sweep, 3)
+            wd.arc(f, (255, 255, 255, 80), (hx - R + 4, hy - R + 4, 2 * R - 8, 2 * R - 8), a0, a0 + sweep * 0.9, 2)
+        # robe fold lines
+        for t0, t1 in ((0.3, 0.55), (0.5, 0.76)):
+            wd.line(f, (120, 24, 44), tp(r, t0, -0.5), tp(r, t1, 0.15), 0.8)
         x, y = tp(r, 0.58, 0.0)
         wd.line(f, (252, 240, 222), (x - 2.4, y - 2.4), (x + 2.4, y + 2.4), 1.0)
         wd.line(f, (252, 240, 222), (x + 2.4, y - 2.4), (x - 2.4, y + 2.4), 1.0)
 
     return Look("OOMKiller", pal, torso_w=15, torso_h=21, leg_len=15, leg_w=6, arm_w=5, arm_len=19, head_r=11, head_pal="hood", limb_pal="bone",
-                leg_pal="body", cartoon=0.7, cel=("body", "hood", "bone", "wood", "pcb", "cape", "chip"), plain=("socket",),
-                no_hue_shift=("bone", "steel", "wood", "pcb", "socket", "gold", "chip"),
+                leg_pal="body", cartoon=0.7, cel=("body", "hood", "bone", "wood", "pcb", "cape", "chip", "steel"), plain=("socket", "edge", "gold"),
+                no_hue_shift=("bone", "steel", "wood", "pcb", "socket", "gold", "chip", "edge"),
                 head_fn=shapes.head([(-10, -2), (-9, -9), (-3, -13.4), (5, -13), (11.6, -6.6), (13, 0), (11.2, 7), (5.4, 11), (-4.4, 11.4), (-9.6, 7)], 10.0),
                 torso_fn=shapes.torso([(-0.05, 0), (0.0, -0.8), (0.4, -0.85), (0.85, -1.15), (1.08, -0.6), (1.0, 0.5), (0.8, 0.9), (0.4, 0.82), (0.0, 0.72)]),
                 arm_fn=shapes.arm("bone", (1.1, 0.85, 0.7)), leg_fn=_tatter_legs(),
-                back=[(cape, "cape"), (hood_peak, "hood"), (scythe, "wood"), (horn_back, "bone")],
-                front=[(belt, "hood"), (sticks, "pcb"), (skull, "bone"), (horn_front, "bone"), (blade, "pcb")], details=details)
+                back=[(cape, "cape"), (hood_peak, "hood"), (horn_back, "bone")],
+                front=[(belt, "hood"), (sticks, "pcb"), (rope, "wood"), (skull, "bone"), (horn_front, "bone"), (pauldrons, "bone"), (snath, "wood"),
+                       (blade, "steel"), (edge, "edge"), (ferrule, "gold"), (grip, "bone")], details=details)

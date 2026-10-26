@@ -22,7 +22,7 @@ class SpriteSet:
         tag = f"{slug(name)}{VARIANT_TAGS[int(variant)]}"
         meta = json.loads((ASSETS / f"{tag}.json").read_text())
         sheet = pygame.image.load(str(ASSETS / f"{tag}.png")).convert_alpha()
-        built = meta["frame"] // 96  # the sheets are drawn at some pixels-per-rig-unit; the game may run at another
+        built = meta["frame"] / meta.get("units", 96)  # the sheets are drawn at some pixels-per-rig-unit; the game may run at another
         if built != RS:
             k = RS / built
             sheet = pygame.transform.smoothscale(sheet, (round(sheet.get_width() * k), round(sheet.get_height() * k)))
