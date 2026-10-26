@@ -28,9 +28,8 @@ def tap(app, p0=()):
 
 
 def test_title_menu_opens_settings_with_a_and_the_hub_enters_pages_with_a(app):
-    tap(app, {"DOWN"})
-    tap(app, {"DOWN"})
-    tap(app, {"DOWN"})
+    for _ in range(4):  # VERSUS, TRAINING, HOW TO PLAY, LEADERBOARD, SETTINGS
+        tap(app, {"DOWN"})
     tap(app, {"SPECIAL"})
     assert isinstance(app.scene, Settings)
     for _ in range(12):  # a press carried over from the title must not trigger the first row

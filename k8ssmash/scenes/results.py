@@ -9,7 +9,7 @@ from k8ssmash.ui import pd
 from k8ssmash.config import CANVAS_W, FPS, PIX_H, PIX_W, RS
 from k8ssmash.flair import WIN
 from k8ssmash.particles import Particles
-from k8ssmash.sprites import sprite_set
+from k8ssmash.sprites import resolve_variants, sprite_set
 from k8ssmash.scenes.base import Scene
 from k8ssmash.palette import player_colors
 
@@ -69,6 +69,7 @@ class Results(Scene):
                 cursor, human, stage_idx = self.app.last_match
                 self.app.last_match = ([cursor[1], cursor[0]], [human[1], human[0]], stage_idx)
                 self.summary = self.summary[::-1]
+                self.app.last_variants = self.app.last_variants[::-1]
                 self.winner = {0: 1, 1: 0}.get(self.winner, self.winner)
                 self.app.audio.play("menu_move")
             elif self.app.input.any_pressed("SELECT"):
@@ -98,11 +99,11 @@ class Results(Scene):
         bounce = int(math.sin(self.frame * 0.12) * 3)
         surf = self.huge.render(text, False, color)
         ui.blit_c(canvas, surf, 6 + bounce)
+        variants = resolve_variants([r["name"] for r in self.summary], self.app.last_variants)
         for slot, row in enumerate(self.summary):
             cx = 170 + slot * 300
             won = slot == self.winner
-            alt = len({r["name"] for r in self.summary}) == 1 and slot == 1
-            sprites = sprite_set(row["name"], alt)
+            sprites = sprite_set(row["name"], variants[slot])
             pd.line(canvas, (0, 226, 255), (cx - 84, 217), (cx + 84, 217), 2)  # the podium plate
             pd.line(canvas, (0, 90, 120), (cx - 84, 219), (cx + 84, 219), 1)
             if sprites is not None:

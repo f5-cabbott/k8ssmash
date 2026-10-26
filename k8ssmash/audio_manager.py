@@ -11,6 +11,7 @@ MUSIC_FOR_THEME = {"datacenter": "datacenter", "controlplane": "controlplane", "
 DUCK = {"hit_heavy": 0.5, "ko": 0.4, "special": 0.72, "explosion": 0.5, "counter": 0.6, "pickup": 0.8, "go": 0.6,
         "shield_break": 0.6,
         "ann_ready": 0.55, "ann_fight": 0.5, "ann_game": 0.5, "ann_final_stock": 0.55}
+STEM_GAIN = 0.95  # the intensity layer at full level, relative to the song
 DUCK_RECOVERY = 0.035  # fraction of the gap closed per logic frame (about a third of a second)
 
 
@@ -27,12 +28,16 @@ class Audio:
         self.played: list[str] = []  # last sounds requested, handy for tests
         self.last_file = ""
         self._duck = 1.0
+        self.stem_name: str | None = None
+        self._stem_level = 0.0
+        self._stem_sound: pygame.mixer.Sound | None = None
         self._applied = -1.0
         self._sounds: dict[str, pygame.mixer.Sound | None] = {}
         try:
             if not pygame.mixer.get_init():
                 pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
             pygame.mixer.set_num_channels(16)
+            pygame.mixer.set_reserved(1)  # channel 0 is kept for the music's intensity layer
             self.ok = True
         except pygame.error:
             self.ok = False
@@ -86,32 +91,61 @@ class Audio:
         if self.ok and not self.muted and abs(self._duck - self._applied) > 0.01:
             pygame.mixer.music.set_volume(self.music_volume * self.master * self._duck)
             self._applied = self._duck
+        self._apply_stem()
 
-    def music(self, name: str | None, loop: bool = True) -> None:
-        if name == self.current:
+    def music(self, name: str | None, loop: bool = True, stem: str | None = None) -> None:
+        """Start a song. With `stem`, a second recording of the same song (just percussion and arpeggios) is started in
+        step with it; set_stem_level() then brings it in and out as a match heats up."""
+        if name == self.current and (stem is None or stem == self.stem_name):
             return
         self.current = name
+        self._stop_stem()
         if not self.ok:
             return
         pygame.mixer.music.stop()
         if name is None or self.muted:
             return
+        layer = None
+        if stem is not None:  # decode the stem first, so both start within a few microseconds of each other
+            try:
+                layer = pygame.mixer.Sound(str(ASSETS / f"{stem}.ogg"))
+            except (pygame.error, FileNotFoundError):
+                layer = None
         try:
             pygame.mixer.music.load(str(ASSETS / f"{name}.ogg"))
             pygame.mixer.music.set_volume(self.music_volume * self.master * self._duck)
             pygame.mixer.music.play(-1 if loop else 0)
         except (pygame.error, FileNotFoundError):
-            pass
+            return
+        if layer is not None:
+            self._stem_sound, self.stem_name, self._stem_level = layer, stem, 0.0
+            pygame.mixer.Channel(0).play(layer, loops=-1)
+            self._apply_stem()
+
+    def set_stem_level(self, level: float) -> None:
+        self._stem_level = max(0.0, min(1.0, level))
+
+    def _apply_stem(self) -> None:
+        if self.ok and self._stem_sound is not None and not self.muted:
+            pygame.mixer.Channel(0).set_volume(self._stem_level * STEM_GAIN * self.music_volume * self.master * self._duck)
+
+    def _stop_stem(self) -> None:
+        self.stem_name, self._stem_sound, self._stem_level = None, None, 0.0
+        if self.ok:
+            pygame.mixer.Channel(0).stop()
 
     def pause_music(self, paused: bool) -> None:
         if self.ok and not self.muted:
             (pygame.mixer.music.pause if paused else pygame.mixer.music.unpause)()
+            (pygame.mixer.Channel(0).pause if paused else pygame.mixer.Channel(0).unpause)()
 
     def fade_out(self, ms: int = 900) -> None:
         """Let the current music die away (the arena song when a match ends) instead of cutting or carrying on."""
         self.current = None
         if self.ok:
             pygame.mixer.music.fadeout(ms)
+            pygame.mixer.Channel(0).fadeout(ms)
+        self.stem_name, self._stem_sound = None, None
 
     def toggle_mute(self) -> None:
         self.muted = not self.muted

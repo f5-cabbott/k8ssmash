@@ -215,8 +215,8 @@ def squashed(look: Look, k: float) -> Look:
                    head_r=look.head_r * (1 + (k - 1) * 0.35))
 
 
-def alternate_look(look: Look) -> Look:
-    """The mirror-match colour scheme: rotate every hue except the materials listed in no_hue_shift."""
+def alternate_look(look: Look, shift: float = 0.42) -> Look:
+    """A colour variant: rotate every hue except the materials listed in no_hue_shift."""
     keep = set(look.no_hue_shift)
     pal = {}
     for name, c in look.pal.items():
@@ -225,7 +225,7 @@ def alternate_look(look: Look) -> Look:
             pal[name] = c
             continue
         h, sat, v = colorsys.rgb_to_hsv(*(x / 255 for x in c))
-        pal[name] = tuple(int(x * 255) for x in colorsys.hsv_to_rgb((h + 0.42) % 1.0, min(1.0, sat * 1.05), v))
+        pal[name] = tuple(int(x * 255) for x in colorsys.hsv_to_rgb((h + shift) % 1.0, min(1.0, sat * 1.05), v))
     return replace(look, pal=pal)
 
 

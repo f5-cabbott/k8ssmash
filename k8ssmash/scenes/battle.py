@@ -21,7 +21,7 @@ from k8ssmash.particles import Particles
 from k8ssmash.input import PlayerInput
 from k8ssmash.palette import damage_color, player_colors
 from k8ssmash.scenes.base import Scene
-from k8ssmash.sprites import pick_frame, sprite_set
+from k8ssmash.sprites import pick_frame, resolve_variants, sprite_set
 from k8ssmash.stage import Stage, datacenter_stage
 
 READY_FRAMES = 90
@@ -61,7 +61,8 @@ class Battle(Scene):
     can_pause = True  # START opens the pause menu (training has its own use for START)
 
     def __init__(self, app, stats: list[FighterStats], stage: Stage | None = None, stocks: int | None = None,
-                 human: list[bool] | None = None, demo: bool = False, items: bool | None = None):
+                 human: list[bool] | None = None, demo: bool = False, items: bool | None = None,
+                 variants: list[int] | None = None):
         super().__init__(app)
         self.spawner = ItemSpawner(enabled=app.cfg.items if items is None else items)
         self.stage = stage or datacenter_stage()
@@ -89,7 +90,10 @@ class Battle(Scene):
                 METRICS.inc("fighter_picks_total", fighter=f.stats.name)
         self.cam = 0.0
         backdrops.REACT["ripples"].clear()
+        self.variants = resolve_variants([f.stats.name for f in self.fighters],
+                                         list(variants if variants is not None else app.last_variants))
         self.paused = False
+        self.stem_level = 0.0
         self.pause_row = 0
         self.best_combos = [0] * len(self.fighters)
         self.kill_focus: tuple[float, float] | None = None
@@ -102,7 +106,8 @@ class Battle(Scene):
         self.banners: list[list] = []  # [text, color, frames left]
         self.hud_pulse = [0] * len(self.fighters)
         self.rng = random.Random()
-        app.audio.music(MUSIC_FOR_THEME.get(self.stage.theme, "datacenter"))
+        song = MUSIC_FOR_THEME.get(self.stage.theme, "datacenter")
+        app.audio.music(song, stem=None if self.demo else f"{song}_stem")  # percussion layer that rises with the damage
         self.font = ui.Font(22 * RS)
         self.big = ui.Font(44 * RS)
         self.huge = ui.Font(80 * RS)
@@ -173,6 +178,11 @@ class Battle(Scene):
         if not self.demo and self.app.idle_frames >= IDLE_ABORT and any(self.human):
             self.app.go_title()
             return
+        if not self.demo:  # the percussion layer of the music builds as the fight heats up
+            avg = sum(f.percent for f in self.fighters) / max(1, len(self.fighters))
+            target = max(0.0, min(1.0, (avg / 120.0 - 0.18) / 0.62))
+            self.stem_level += (target - self.stem_level) * 0.02
+            self.app.audio.set_stem_level(self.stem_level)
         if self.phase == "ready":
             if self.frame == 4 and not self.demo:  # everybody gets a line walking in
                 for f in self.fighters:
@@ -370,7 +380,8 @@ class Battle(Scene):
             self.app.audio.play("ann_final_stock")
             self.hot = True
             if not self.demo:  # the stage music lifts: faster and higher for the final stretch
-                self.app.audio.music(MUSIC_FOR_THEME.get(self.stage.theme, "datacenter") + "_hot")
+                hot = MUSIC_FOR_THEME.get(self.stage.theme, "datacenter") + "_hot"
+                self.app.audio.music(hot, stem=hot + "_stem")
 
     def _hit_burst(self, victim: Fighter, attacker: Fighter, damage: float, angle: float, direction: int) -> None:
         cx, cy = victim.hurtbox.center
@@ -624,8 +635,7 @@ class Battle(Scene):
         if not f.alive:
             return
         box = f.hurtbox
-        alt = self.fighters[0].stats.name == self.fighters[1].stats.name and f.slot == 1  # mirror match: recolour P2
-        sprites = sprite_set(f.stats.name, alt)
+        sprites = sprite_set(f.stats.name, self.variants[f.slot])  # mirror matches already got distinct schemes
         if sprites is not None:
             anim, idx = pick_frame(f)
             img = sprites.get(anim, idx, f.facing, f.scale)
@@ -737,7 +747,7 @@ class Battle(Scene):
                         (panel.x + 66 * RS + num.get_width() + 2 * RS, panel.y + 30 * RS))
             name = self.font.render(f.stats.name, False, (210, 214, 235))
             canvas.blit(name, (panel.right - name.get_width() - 8 * RS, panel.y + 6 * RS))
-            for i in range(max(f.stocks, 0)):
+            for i in range(min(max(f.stocks, 0), 5)):  # (training keeps 99 stocks; never draw more than five icons)
                 cx, cy = panel.x + (150 + i * 22) * RS, panel.bottom - 14 * RS
                 if f.slot == 0:
                     pygame.draw.polygon(canvas, color, [(cx - 6 * RS, cy + 5 * RS), (cx + 6 * RS, cy + 5 * RS), (cx, cy - 6 * RS)])

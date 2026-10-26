@@ -38,6 +38,7 @@ class App:
         self._screenshot_n = 0
         self.idle_frames = 0  # frames since any player pressed anything; drives attract/reset
         self.last_match: tuple[list[int], list[bool], int] = ([0, 1], [True, True], 0)
+        self.last_variants: list[int] = [0, 0]  # colour variant each slot picked on the select screen
         self._combo_frames = 0
         self._combo_armed = True
         self._exit_frames = 0

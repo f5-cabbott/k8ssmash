@@ -13,7 +13,7 @@ from k8ssmash.scenes.base import Scene
 from k8ssmash.palette import player_colors
 from k8ssmash.scenes.battle import Battle
 from k8ssmash.stage import STAGES
-from k8ssmash.sprites import sprite_set
+from k8ssmash.sprites import VARIANT_NAMES, sprite_set
 
 BG = (16, 20, 38)
 TIMEOUT = 30 * FPS
@@ -90,6 +90,7 @@ class CharacterSelect(Scene):
         self.cpu = [False, False]
         self.cursor = [0, min(1, len(self.roster) - 1)]
         self.locked = [False, False]
+        self.variant = [0, 0]  # colour variant per slot (Y/X cycles)
         self.ready_frames = 0
         self.stage_idx = random.randrange(len(STAGES))
         self.big = ui.UIFont(22)  # screen title
@@ -134,6 +135,9 @@ class CharacterSelect(Scene):
                 self.cursor[slot] = (self.cursor[slot] + 1) % n
             if "UP" in inp.pressed or "DOWN" in inp.pressed:
                 self.cursor[slot] = (self.cursor[slot] + n // 2) % n if n > 2 else self.cursor[slot]
+            if "JUMP" in inp.pressed:
+                self.variant[slot] = (self.variant[slot] + 1) % len(VARIANT_NAMES)
+                self.app.audio.play("menu_move")
             if "ATTACK" in inp.pressed or "START" in inp.pressed:
                 self.locked[slot] = True
                 self.app.audio.play("menu_select")
@@ -169,6 +173,7 @@ class CharacterSelect(Scene):
             from k8ssmash.scenes.training import Training
 
             dummy = self.roster[(self.cursor[0] + 1 + self.rng.randrange(len(self.roster) - 1)) % len(self.roster)]
+            self.app.last_variants = [self.variant[0], 0]
             self.app.set_scene(Training(self.app, [self.roster[self.cursor[0]], dummy],
                                         stage=STAGES[self.stage_idx]()))
             return
@@ -177,6 +182,7 @@ class CharacterSelect(Scene):
         stats = [self.roster[self.cursor[s]] for s in (0, 1)]
         human = [self.joined[s] and not self.cpu[s] for s in (0, 1)]
         self.app.last_match = (list(self.cursor), human, self.stage_idx)
+        self.app.last_variants = list(self.variant)
         self.app.set_scene(StageSelect(self.app, stats, human, self.cursor, self.stage_idx))
 
     # --- drawing -------------------------------------------------------------------------
@@ -192,10 +198,11 @@ class CharacterSelect(Scene):
         for i, st in enumerate(self.roster):
             cx = x0 + (i % cols) * (card_w + gap)
             cy = 28 + (i // cols) * (card_h + 6)
-            floor_y = cy + card_h - 15  # where the fighter stands: always fully inside the card, above the name plate
+            floor_y = cy + card_h - 19  # where the fighter stands: always fully inside the card, above the name plate
             canvas.blit(portrait(st.name, st.color, round(card_w * ui.SCALE), round(card_h * ui.SCALE),
                                  round((floor_y - cy) * ui.SCALE)), (round(cx * ui.SCALE), round(cy * ui.SCALE)))
-            sprites = sprite_set(st.name)
+            chosen = next((self.variant[sl] for sl in (0, 1) if self._active(sl) and self.cursor[sl] == i), 0)
+            sprites = sprite_set(st.name, chosen)
             if sprites is not None:  # the whole fighter at native pixel size, so it stays crisp and never gets cropped
                 img = sprites.get("idle", (self.frame // 12) % 4, 1)
                 ui.blit_sprite(canvas, img, cx + card_w // 2, floor_y, sprites.feet)
@@ -230,6 +237,9 @@ class CharacterSelect(Scene):
             status_w = s.get_width() + 8
         pd.blit(canvas, ui.fit(st.name, (255, 255, 255), rect.w - 44 - status_w, 15, 10), (rect.x + 32, rect.y + 5))
         pd.blit(canvas, ui.fit(st.blurb, (170, 178, 214), rect.w - 44, 12, 9), (rect.x + 32, rect.y + 22))
+        color_name = VARIANT_NAMES[self.variant[slot]]
+        c = self.tiny.render(f"Y/X colors: {color_name}", False, (190, 200, 235))
+        pd.blit(canvas, c, (rect.right - c.get_width() - 10, rect.bottom - 14))
         stats_x = rect.right - 98
         for i, (direction, key, tag_text) in enumerate(MOVE_ROWS):
             self._move_row(canvas, rect.x + 10, rect.y + 41 + i * 16, direction, st, key, tag_text, stats_x - 8)

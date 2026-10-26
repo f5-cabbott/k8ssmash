@@ -10,7 +10,8 @@ from k8ssmash.input import PlayerInput
 from k8ssmash.scenes.battle import READY_FRAMES, Battle
 from k8ssmash.stage import Stage
 
-DUMMY_MODES = ["Stand", "Shield", "Jump", "CPU"]
+DUMMY_MODES = ["Stand", "Shield", "Jump", "CPU", "Record", "Replay"]
+RECORD_FRAMES = 6 * FPS  # how much of your own play the dummy can record and repeat
 COMBO_WINDOW = 45  # frames between hits that still count as one combo
 EXIT_HOLD = 90
 TRAINING_IDLE = 120 * FPS
@@ -30,6 +31,10 @@ class Training(Battle):
         self.combo_damage = 0.0
         self.last_hit_frame = -999
         self.best_combo = 0
+        self.debug = True  # hitboxes and hurtboxes on by default (F3 toggles)
+        self.recording: list[set[str]] = []
+        self.replay_at = 0
+        self.last_move = None
         self.ais = {1: SimpleAI(self.fighters[1], self.fighters[0], self.stage)}
         app.audio.music("training")
 
@@ -43,6 +48,13 @@ class Training(Battle):
             held = {"JUMP"}
         elif mode == "CPU":
             held = self.ais[1].decide()
+        elif mode == "Record":  # the dummy stands still while your inputs are recorded
+            if len(self.recording) < RECORD_FRAMES:
+                self.recording.append(set(self.app.input.players[0].held))
+        elif mode == "Replay" and self.recording:  # ...then repeats them, mirrored so it faces you
+            mirror = {"LEFT": "RIGHT", "RIGHT": "LEFT"}
+            held = {mirror.get(a, a) for a in self.recording[self.replay_at % len(self.recording)] if a not in ("START", "SELECT")}
+            self.replay_at += 1
         self.cpu_inputs[1].update(held)
         return [self.app.input.players[0], self.cpu_inputs[1]]
 
@@ -60,6 +72,10 @@ class Training(Battle):
         players = self.app.input.players
         if "SELECT" in players[0].pressed and "START" not in players[0].held:
             self.mode = (self.mode + 1) % len(DUMMY_MODES)
+            if DUMMY_MODES[self.mode] == "Record":
+                self.recording = []
+            elif DUMMY_MODES[self.mode] == "Replay":
+                self.replay_at = 0
         if "START" in players[0].held:
             self.start_hold += 1
         else:
@@ -72,6 +88,9 @@ class Training(Battle):
             return
         if self.fighters[1].percent > 999:
             self.fighters[1].percent = 0
+        move = self.fighters[0].move
+        if move is not None and self.fighters[0].move_frame <= 1:
+            self.last_move = move  # frame data for the move you just threw
         time_before = self.time_left
         super().update()
         self.time_left = time_before  # no clock
@@ -99,11 +118,15 @@ class Training(Battle):
     def draw(self, canvas: pygame.Surface) -> None:
         super().draw(canvas)
         lines = [
-            f"TRAINING   dummy: {DUMMY_MODES[self.mode]}",
+            f"TRAINING   dummy: {DUMMY_MODES[self.mode]}" + (f"  ({len(self.recording) / FPS:.1f}s recorded)" if DUMMY_MODES[self.mode] == "Record" else ""),
             f"last hit {self.last_damage:.1f}%   combo {self.combo} ({self.combo_damage:.0f}%)   best {self.best_combo}",
         ]
+        m = self.last_move
+        if m is not None:
+            lines.append(f"{m.announce or m.name}:  startup {m.startup}f   active {m.active}f   recovery {m.recovery}f   "
+                         f"damage {m.damage:g}   knockback {m.base_kb:g}")
         for i, text in enumerate(lines):
             surf = self.font.render(text, False, (255, 235, 120) if i == 0 else (225, 230, 250), (10, 12, 28))
             canvas.blit(surf, ((canvas.get_width() - surf.get_width()) // 2, (44 + i * 20) * RS))
-        hint = self.font.render("SELECT: dummy mode    START: reset    hold START: leave", False, (150, 160, 205))
+        hint = self.font.render("SELECT: dummy mode (Record, then Replay)    START: reset    hold START: leave    F3: hitboxes", False, (150, 160, 205))
         canvas.blit(hint, ((canvas.get_width() - hint.get_width()) // 2, (WORLD_H - 20) * RS))

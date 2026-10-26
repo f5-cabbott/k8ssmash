@@ -85,7 +85,8 @@ class Runner:
 TAGLINES = ["PODS VS. CHAOS", "kubectl apply -f fight.yaml", "HIGH AVAILABILITY, LOW HP", "0/1 NODES ARE AVAILABLE TO SMASH",
             "NOW SCHEDULING: VIOLENCE", "REPLICAS: 2   DESIRED: 1", "CRASHLOOPBACKOFF? NOT TODAY"]
 TAGLINE_FRAMES = 4 * FPS
-MENU = [("VERSUS", "versus"), ("TRAINING", "training"), ("LEADERBOARD", "scores"), ("SETTINGS", "settings")]
+MENU = [("VERSUS", "versus"), ("TRAINING", "training"), ("HOW TO PLAY", "tutorial"), ("LEADERBOARD", "scores"),
+        ("SETTINGS", "settings")]
 _logo: dict | None = None
 
 
@@ -118,7 +119,7 @@ class Title(Scene):
         self._select_clean = True
         app.audio.music("splash")
         self.font = ui.UIFont(22)
-        self.menu_font = ui.UIFont(21)
+        self.menu_font = ui.UIFont(18)
         self.small = ui.UIFont(13)
         self.tag_font = ui.UIFont(15)
         self.rng = random.Random(7)
@@ -160,6 +161,10 @@ class Title(Scene):
             self.app.set_scene(CharacterSelect(self.app))
         elif choice == "training":
             self.app.set_scene(CharacterSelect(self.app, training=True))
+        elif choice == "tutorial":
+            from k8ssmash.scenes.tutorial import Tutorial
+
+            self.app.set_scene(Tutorial(self.app))
         elif choice == "scores":
             self.app.set_scene(HighScores(self.app, on_done=self.app.go_title))
         else:
@@ -267,9 +272,9 @@ class Title(Scene):
         ui.blit_c(canvas, hint, 340)
 
     def _draw_menu(self, canvas: pygame.Surface) -> None:
-        w, row_h = 190, 22
+        w, row_h = 190, 19
         x = (canvas.get_width() / ui.SCALE - w) / 2
-        y0 = 180
+        y0 = 172
         plate = pygame.Surface((round(w * ui.SCALE), round(row_h * len(MENU) * ui.SCALE + 8)), pygame.SRCALPHA)
         plate.fill((4, 8, 30, 170))
         canvas.blit(plate, (round(x * ui.SCALE), round((y0 - 3) * ui.SCALE)))
@@ -279,10 +284,10 @@ class Title(Scene):
             active = i == self.row
             if active:
                 pulse = 0.5 + 0.5 * math.sin(self.frame * 0.12)
-                pd.rect(canvas, (40 + int(20 * pulse), 80 + int(30 * pulse), 190), (x + 4, y, w - 8, row_h - 3), border_radius=3)
+                pd.rect(canvas, (40 + int(20 * pulse), 80 + int(30 * pulse), 190), (x + 4, y, w - 8, row_h - 2), border_radius=3)
                 pd.rect(canvas, (255, 224, 90), (x + 4, y, w - 8, row_h - 3), 1, border_radius=3)
                 bob = math.sin(self.frame * 0.2) * 2
-                pd.polygon(canvas, (255, 224, 90), [(x + 12 + bob, y + 4), (x + 12 + bob, y + 15), (x + 20 + bob, y + 9.5)])
-                pd.polygon(canvas, (255, 224, 90), [(x + w - 12 - bob, y + 4), (x + w - 12 - bob, y + 15), (x + w - 20 - bob, y + 9.5)])
+                pd.polygon(canvas, (255, 224, 90), [(x + 12 + bob, y + 3), (x + 12 + bob, y + 13), (x + 20 + bob, y + 8)])
+                pd.polygon(canvas, (255, 224, 90), [(x + w - 12 - bob, y + 3), (x + w - 12 - bob, y + 13), (x + w - 20 - bob, y + 8)])
             text = self.menu_font.render(label, False, (255, 255, 255) if active else (160, 176, 226))
             pd.blit(canvas, text, (x + (w - text.get_width()) / 2, y + 1))

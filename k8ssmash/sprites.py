@@ -18,8 +18,8 @@ def slug(name: str) -> str:
 
 
 class SpriteSet:
-    def __init__(self, name: str, alt: bool = False):
-        tag = f"{slug(name)}{'_alt' if alt else ''}"
+    def __init__(self, name: str, variant: int | bool = 0):
+        tag = f"{slug(name)}{VARIANT_TAGS[int(variant)]}"
         meta = json.loads((ASSETS / f"{tag}.json").read_text())
         sheet = pygame.image.load(str(ASSETS / f"{tag}.png")).convert_alpha()
         built = meta["frame"] // 96  # the sheets are drawn at some pixels-per-rig-unit; the game may run at another
@@ -58,15 +58,28 @@ class SpriteSet:
 _cache: dict[tuple[str, bool], SpriteSet | None] = {}
 
 
-def sprite_set(name: str, alt: bool = False) -> SpriteSet | None:
-    """A fighter's sprites. `alt` is the hue-rotated colour scheme used so a mirror match is readable."""
-    key = (name, alt)
+VARIANT_TAGS = ("", "_alt", "_v2", "_v3")  # 0 is the original colours; 1 is the mirror-match scheme; 2 and 3 are extras
+VARIANT_NAMES = ("Classic", "Twilight", "Sunset", "Lagoon")
+
+
+def sprite_set(name: str, variant: int | bool = 0) -> SpriteSet | None:
+    """A fighter's sprites in one of the colour variants (True means variant 1, for older callers)."""
+    variant = int(variant)
+    key = (name, variant)
     if key not in _cache:
         try:
-            _cache[key] = SpriteSet(name, alt)
+            _cache[key] = SpriteSet(name, variant)
         except (OSError, ValueError, KeyError, pygame.error):
-            _cache[key] = None if not alt else sprite_set(name)
+            _cache[key] = None if not variant else sprite_set(name)
     return _cache[key]
+
+
+def resolve_variants(names: list[str], variants: list[int]) -> list[int]:
+    """The colour variant each slot actually uses: a mirror match always gets two different schemes so it stays readable."""
+    out = list(variants)
+    if len(names) == 2 and names[0] == names[1] and out[0] == out[1]:
+        out[1] = 1 if out[0] != 1 else 2
+    return out
 
 
 def sprite_frames(f: Fighter, anim: str) -> list:

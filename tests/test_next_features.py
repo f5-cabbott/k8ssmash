@@ -5,7 +5,7 @@ import pytest
 
 from k8ssmash import backdrops, ui
 from k8ssmash.audio import arranger, instruments as I, sfx
-from k8ssmash.config import PIX_H, PIX_W, Config
+from k8ssmash.config import PIX_H, PIX_W, RS, Config
 from k8ssmash.fighter import Fighter
 from k8ssmash.main import App
 from k8ssmash.roster import roster
@@ -197,3 +197,188 @@ def test_select_panel_rows_and_legend_stay_inside_their_windows(app):
         # the strip between the player panels and the legend holds nothing but background
         strip = [surf.get_at((x, y))[:3] for x in range(30, 930, 40) for y in range(panel_bottom + 6, legend_top - 1)]
         assert all(c == (16, 20, 38) for c in strip)
+
+
+# --- pause, announcer, stage select, rematch, training tools, colours, tutorial, intensity layer ----------------
+def _frame(app, p0=(), p1=()):
+    app.input.players[0].update(set(p0))
+    app.input.players[1].update(set(p1))
+    app.step()
+
+
+def _tap(app, p0=(), p1=()):
+    _frame(app, p0, p1)
+    _frame(app)
+
+
+def _fight(app, human=(True, True)):
+    b = Battle(app, roster()[:2], human=list(human))
+    app.set_scene(b)
+    for _ in range(100):
+        _frame(app)
+    return b
+
+
+def test_start_pauses_the_match_and_the_menu_resumes_restarts_or_quits(app):
+    from k8ssmash.scenes.title import Title
+    b = _fight(app)
+    frame_before = b.frame
+    _tap(app, {"START"})
+    assert b.paused
+    for _ in range(30):
+        _frame(app)
+    assert b.frame == frame_before  # nothing advances while paused
+    b.draw(app.display.canvas)
+    _tap(app, {"ATTACK"})  # B resumes
+    assert not b.paused
+    _tap(app, {"START"})
+    _tap(app, {"DOWN"})
+    _tap(app, {"SPECIAL"})  # Restart match
+    assert isinstance(app.scene, Battle) and app.scene is not b
+    _tap(app, {"START"})
+    _tap(app, {"UP"})  # wraps to Quit to title
+    _tap(app, {"SPECIAL"})
+    assert isinstance(app.scene, Title)
+
+
+def test_announcer_clips_exist_and_the_battle_calls_ready_and_fight(app):
+    from k8ssmash.audio.announcer import LINES, NAME_SPEECH
+    from k8ssmash.audio_manager import ASSETS
+    for key in list(LINES) + [f"ann_win_{n.lower()}" for n in NAME_SPEECH]:
+        assert (ASSETS / f"{key}.wav").stat().st_size > 5000, key
+    b = Battle(app, roster()[:2], human=[True, True])
+    app.set_scene(b)
+    for _ in range(100):
+        _frame(app)
+    assert "ann_ready" in app.audio.played or app.audio.played.count("go") >= 1
+    assert "ann_fight" in app.audio.played
+
+
+def test_kill_cam_zooms_toward_the_ko_point_without_changing_the_canvas_size(app):
+    b = Battle(app, roster()[:2], human=[False, False])
+    canvas = pygame.Surface((PIX_W, PIX_H))
+    canvas.fill((10, 10, 10))
+    pygame.draw.rect(canvas, (255, 0, 0), (PIX_W - 100, PIX_H // 2, 40, 40))
+    b.kill_focus = (PIX_W / RS - 50, PIX_H / RS / 2)
+    b._punch_in(canvas, 1.0)
+    assert canvas.get_size() == (PIX_W, PIX_H)
+    red = sum(1 for x in range(0, PIX_W, 8) for y in range(0, PIX_H, 8) if canvas.get_at((x, y))[:3] == (255, 0, 0))
+    assert red > 0  # the marker grew toward the camera
+
+
+def test_stage_select_previews_choose_and_go_back(app):
+    from k8ssmash.scenes.select import CharacterSelect
+    from k8ssmash.scenes.stageselect import StageSelect
+    rs = roster()
+    sc = StageSelect(app, [rs[0], rs[1]], [True, True], [0, 1], 0)
+    app.set_scene(sc)
+    for _ in range(10):
+        _frame(app)
+    _tap(app, {"RIGHT"})
+    assert sc.row == 1
+    sc.draw(app.display.canvas)
+    _tap(app, {"SPECIAL"})
+    assert isinstance(app.scene, Battle) and app.scene.stage.name == STAGES[1]().name and app.last_match[2] == 1
+    sc2 = StageSelect(app, [rs[0], rs[1]], [True, True], [0, 1], 0)
+    app.set_scene(sc2)
+    for _ in range(10):
+        _frame(app)
+    _tap(app, {"ATTACK"})
+    assert isinstance(app.scene, CharacterSelect)
+
+
+def test_results_rematch_options_change_stage_and_swap_sides(app):
+    from k8ssmash.scenes.results import Results
+    summary = [{"name": "Pod", "kos": 2, "damage": 120, "stocks": 1, "combo": 4},
+               {"name": "Kubectl", "kos": 1, "damage": 80, "stocks": 0, "combo": 2}]
+    app.last_match = ([0, 2], [True, True], 0)
+    res = Results(app, 0, summary, [True, True])
+    app.set_scene(res)
+    assert "ann_win_pod" not in app.audio.played
+    for _ in range(80):
+        _frame(app)
+    assert "ann_win_pod" in app.audio.played  # the announcer names the winner once the fanfare settles
+    _tap(app, {"SHIELD"})
+    assert app.last_match[2] == 1
+    _tap(app, {"JUMP"})
+    assert app.last_match[0] == [2, 0] and res.winner == 1 and res.summary[0]["name"] == "Kubectl"
+    res.draw(app.display.canvas)
+
+
+def test_training_records_the_players_moves_and_replays_them_mirrored(app):
+    from k8ssmash.scenes.training import DUMMY_MODES, Training
+    t = Training(app, roster()[:2])
+    app.set_scene(t)
+    while DUMMY_MODES[t.mode] != "Record":
+        app.input.players[0].update({"SELECT"})
+        app.step()
+        app.input.players[0].update(set())
+        app.step()
+    for _ in range(40):
+        _frame(app, {"RIGHT"})
+    assert len(t.recording) >= 40
+    while DUMMY_MODES[t.mode] != "Replay":
+        app.input.players[0].update({"SELECT"})
+        app.step()
+        app.input.players[0].update(set())
+        app.step()
+    x0 = t.fighters[1].x
+    for _ in range(30):
+        _frame(app)
+    assert t.fighters[1].x < x0  # the recorded RIGHT is replayed as LEFT, toward the player
+    t.last_move = t.fighters[0].stats.moves["jab"]
+    t.draw(app.display.canvas)
+
+
+def test_colour_variants_cycle_on_select_and_mirror_matches_stay_distinct(app):
+    from k8ssmash.scenes.select import CharacterSelect
+    from k8ssmash.sprites import VARIANT_NAMES, VARIANT_TAGS, resolve_variants, sprite_set
+    assert resolve_variants(["Pod", "Pod"], [0, 0]) == [0, 1]
+    assert resolve_variants(["Pod", "Pod"], [1, 1]) == [1, 2]
+    assert resolve_variants(["Pod", "Kubectl"], [2, 2]) == [2, 2]
+    sel = CharacterSelect(app)
+    app.set_scene(sel)
+    _tap(app, {"START"})
+    _tap(app, {"JUMP"})
+    assert sel.variant[0] == 1
+    for _ in range(3):
+        _tap(app, {"JUMP"})
+    assert sel.variant[0] == (1 + 3) % len(VARIANT_NAMES)
+    sel.draw(app.display.canvas)
+    for st in roster():
+        for v in range(len(VARIANT_TAGS)):
+            assert sprite_set(st.name, v) is not None
+
+
+def test_tutorial_runs_every_lesson_and_the_scripted_fighter_acts(app):
+    from k8ssmash.scenes.title import Title
+    from k8ssmash.scenes.tutorial import LESSONS, Tutorial
+    sc = Tutorial(app, 0)
+    app.set_scene(sc)
+    for i in range(len(LESSONS)):
+        sc.lesson = i
+        sc._start_lesson()
+        x0 = sc.battle.fighters[0].x
+        for _ in range(240):
+            _frame(app)
+        sc.draw(app.display.canvas)
+        assert sc.battle.fighters[0].x != x0 or sc.battle.fighters[0].y != sc.battle.stage.spawns[0][1] or i in (3, 4)
+    _tap(app, {"ATTACK"})
+    assert isinstance(app.scene, Title)
+
+
+def test_music_intensity_layer_starts_with_the_song_and_follows_the_damage(app):
+    from k8ssmash.audio_manager import ASSETS
+    for song in ("datacenter", "controlplane", "nodepool"):
+        assert (ASSETS / f"{song}_stem.ogg").stat().st_size > 50_000
+        assert (ASSETS / f"{song}_hot_stem.ogg").stat().st_size > 50_000
+    b = Battle(app, roster()[:2], human=[True, True])
+    app.set_scene(b)
+    assert app.audio.stem_name and app.audio.stem_name.endswith("_stem")
+    for f in b.fighters:
+        f.percent = 200.0
+    for _ in range(400):
+        _frame(app)
+    assert app.audio._stem_level > 0.5
+    app.audio.music("select")
+    assert app.audio.stem_name is None  # moving to another screen drops the layer

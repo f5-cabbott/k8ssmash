@@ -20,10 +20,14 @@ def slug(name: str) -> str:
     return name.lower().replace(" ", "_")
 
 
-def build(name: str, alt: bool = False) -> pygame.Surface:
+VARIANT_SHIFTS = {1: 0.42, 2: 0.16, 3: -0.18}  # hue rotations for the colour variants (0 is the original)
+VARIANT_TAGS = {0: "", 1: "_alt", 2: "_v2", 3: "_v3"}
+
+
+def build(name: str, variant: int = 0) -> pygame.Surface:
     look = LOOKS[name]()
-    if alt:
-        look = alternate_look(look)  # the mirror-match colour scheme
+    if variant:
+        look = alternate_look(look, VARIANT_SHIFTS[variant])  # the mirror-match and extra colour schemes
     cols = max(n for n, _, _ in ANIMS.values())
     sheet = pygame.Surface((cols * FRAME, len(ANIMS) * FRAME), pygame.SRCALPHA)
     meta = {"frame": FRAME, "feet": list(FEET), "anims": {}}
@@ -32,7 +36,7 @@ def build(name: str, alt: bool = False) -> pygame.Surface:
             sheet.blit(render(look, pose_for(anim, i)), (i * FRAME, row * FRAME))
         meta["anims"][anim] = {"row": row, "frames": count, "fps": fps, "loop": loop}
     OUT.mkdir(parents=True, exist_ok=True)
-    tag = "_alt" if alt else ""
+    tag = VARIANT_TAGS[variant]
     pygame.image.save(sheet, str(OUT / f"{slug(name)}{tag}.png"))
     (OUT / f"{slug(name)}{tag}.json").write_text(json.dumps(meta, indent=1))
     return sheet
@@ -57,10 +61,12 @@ def main() -> None:
     pygame.display.set_mode((1, 1))
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     names = args or list(LOOKS)
-    sheets = {n: build(n) for n in names}
+    only = [int(a.split("=")[1]) for a in sys.argv[1:] if a.startswith("--variant=")]
+    sheets = {} if only else {n: build(n) for n in names}  # --variant=N rebuilds just those colour variants
     for n in names:
-        build(n, alt=True)
-    if "--contact" in sys.argv:
+        for v in (only or [1, 2, 3]):
+            build(n, v)
+    if "--contact" in sys.argv and sheets:
         path = Path("screenshots/contact.png")
         path.parent.mkdir(exist_ok=True)
         contact_sheet(sheets, path)

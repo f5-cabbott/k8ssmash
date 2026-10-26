@@ -1,0 +1,129 @@
+{
+ "frame": 192,
+ "feet": [
+  96,
+  180
+ ],
+ "anims": {
+  "idle": {
+   "row": 0,
+   "frames": 8,
+   "fps": 6,
+   "loop": true
+  },
+  "run": {
+   "row": 1,
+   "frames": 12,
+   "fps": 20,
+   "loop": true
+  },
+  "jump": {
+   "row": 2,
+   "frames": 3,
+   "fps": 1,
+   "loop": false
+  },
+  "fall": {
+   "row": 3,
+   "frames": 2,
+   "fps": 1,
+   "loop": false
+  },
+  "djump": {
+   "row": 4,
+   "frames": 4,
+   "fps": 18,
+   "loop": false
+  },
+  "land": {
+   "row": 5,
+   "frames": 3,
+   "fps": 14,
+   "loop": false
+  },
+  "shield": {
+   "row": 6,
+   "frames": 1,
+   "fps": 1,
+   "loop": false
+  },
+  "duck": {
+   "row": 7,
+   "frames": 1,
+   "fps": 1,
+   "loop": false
+  },
+  "hurt": {
+   "row": 8,
+   "frames": 3,
+   "fps": 8,
+   "loop": true
+  },
+  "win": {
+   "row": 9,
+   "frames": 4,
+   "fps": 7,
+   "loop": true
+  },
+  "lose": {
+   "row": 10,
+   "frames": 1,
+   "fps": 1,
+   "loop": false
+  },
+  "jab": {
+   "row": 11,
+   "frames": 6,
+   "fps": 0,
+   "loop": false
+  },
+  "side": {
+   "row": 12,
+   "frames": 6,
+   "fps": 0,
+   "loop": false
+  },
+  "up": {
+   "row": 13,
+   "frames": 6,
+   "fps": 0,
+   "loop": false
+  },
+  "down": {
+   "row": 14,
+   "frames": 6,
+   "fps": 0,
+   "loop": false
+  },
+  "cast": {
+   "row": 15,
+   "frames": 6,
+   "fps": 0,
+   "loop": false
+  },
+  "dash": {
+   "row": 16,
+   "frames": 6,
+   "fps": 0,
+   "loop": false
+  },
+  "rise": {
+   "row": 17,
+   "frames": 6,
+   "fps": 0,
+   "loop": false
+  },
+  "counter": {
+   "row": 18,
+   "frames": 3,
+   "fps": 0,
+   "loop": false
+  },
+  "buff": {
+   "row": 19,
+   "frames": 3,
+   "fps": 0,
+   "loop": false
+  }
+ }
+}

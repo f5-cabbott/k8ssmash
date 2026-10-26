@@ -94,6 +94,24 @@ def encode_ogg(wav: Path) -> None:
 HOT_SONGS = ("datacenter", "controlplane", "nodepool")
 
 
+def write_stem(song, full_mix: np.ndarray, name: str) -> None:
+    """The intensity layer for a stage song: only its drums and arpeggios (a little louder), at the same length and the
+    same overall level scaling as the full mix, so it can be faded in on top of the song while a match heats up."""
+    import dataclasses
+
+    from k8ssmash.audio import arranger
+
+    sections = [dataclasses.replace(sec, layers=tuple(l for l in sec.layers if l in ("drums", "arp")), gain=sec.gain * 1.12)
+                for sec in song.sections]
+    raw = arranger.render(dataclasses.replace(song, sections=sections))
+    full_raw = arranger.render(song)
+    ref = float(np.sqrt((full_raw.mean(axis=1) ** 2).mean())) or 1.0
+    k = float(np.sqrt((full_mix.mean(axis=1) ** 2).mean())) / ref  # the gain the song's mastering applied
+    audio = np.clip(raw * k, -0.95, 0.95)
+    write_wav(OUT / f"{name}_stem.wav", (audio * 32767).astype(np.int16))
+    encode_ogg(OUT / f"{name}_stem.wav")
+
+
 def main() -> None:
     from k8ssmash.audio import arranger, songs, sfx
 
@@ -128,6 +146,8 @@ def main() -> None:
         write_wav(OUT / f"{name}.wav", (audio * 32767).astype(np.int16))
         encode_ogg(OUT / f"{name}.wav")
         print(f"  {name}: {len(audio) / SR:.0f}s")
+        if name in HOT_SONGS:
+            write_stem(song, audio, name)
         if name in HOT_SONGS:  # the final-stock version: a little faster and a step higher, so the tension lifts
             import dataclasses
 
@@ -136,6 +156,7 @@ def main() -> None:
             write_wav(OUT / f"{name}_hot.wav", (audio * 32767).astype(np.int16))
             encode_ogg(OUT / f"{name}_hot.wav")
             print(f"  {name}_hot: {len(audio) / SR:.0f}s")
+            write_stem(hot, audio, f"{name}_hot")
     print("audio built:", len(list(OUT.iterdir())), "files")
 
 
