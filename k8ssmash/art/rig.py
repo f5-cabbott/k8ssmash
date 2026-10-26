@@ -12,7 +12,7 @@ import pygame
 
 from k8ssmash.art import draw
 from k8ssmash.ui import wd
-from k8ssmash.art.shade import SHINY, layer_mask, make_ramp, paint_part
+from k8ssmash.art.shade import SHINY, layer_mask, make_ramp, paint_part, shift
 
 from k8ssmash.config import RS
 
@@ -221,6 +221,59 @@ def alternate_look(look: Look) -> Look:
     return replace(look, pal=pal)
 
 
+def _contact_shadow(arr: np.ndarray, mask: np.ndarray) -> None:
+    """A part about to be drawn throws a soft shadow down and to the right onto whatever is already behind it, so an
+    arm in front of the body, or a head over the shoulders, reads as sitting in front of it rather than pasted flat."""
+    if not (arr[:, :, 3] > 0).any():
+        return
+    halo = mask.copy()
+    for _ in range(2 * RS):
+        step = halo.copy()
+        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            step |= shift(halo, dy, dx)
+        halo = step
+    cast = shift(halo, RS, RS) & ~mask & (arr[:, :, 3] > 0)
+    arr[cast, :3] = (arr[cast, :3] * 0.74).astype(np.uint8)
+
+
+def _articulation(frame: pygame.Surface, r: "Rig") -> None:
+    """Fine hi-res marks that say where the body bends: creases at knees and elbows with a small highlight above, knuckle
+    lines on the fists, a sole line on each boot and a belt. Clipped to the body, so nothing leaks outside the silhouette."""
+    look = r.look
+    ov = pygame.Surface(frame.get_size(), pygame.SRCALPHA)
+    dark, light = (18, 12, 46, 150), (255, 250, 232, 95)
+
+    def crease(a, b, c, w):  # a mark across the limb at the joint b, between neighbours a and c
+        dx, dy = c[0] - a[0], c[1] - a[1]
+        d = math.hypot(dx, dy) or 1.0
+        nx, ny = -dy / d, dx / d
+        wd.line(ov, dark, (b[0] + nx * w * 0.42, b[1] + ny * w * 0.42), (b[0] - nx * w * 0.42, b[1] - ny * w * 0.42), 0.8)
+        wd.circle(ov, light, (b[0] - nx * w * 0.0 - 0.8, b[1] - 1.2), max(0.9, w * 0.2))
+
+    crease(r.hip, r.knee_f, r.foot_f, look.leg_w)
+    crease(r.hip, r.knee_b, r.foot_b, look.leg_w * 0.9)
+    crease(r.shoulder, r.elbow_f, r.hand_f, look.arm_w)
+    crease(r.shoulder, r.elbow_b, r.hand_b, look.arm_w * 0.9)
+    for hand, k in ((r.hand_f, 1.0), (r.hand_b, 0.8)):  # two knuckle lines across each fist
+        for off in (-0.25, 0.25):
+            wd.line(ov, dark, (hand[0] + off * look.arm_w * k - 0.4, hand[1] - look.arm_w * 0.3 * k),
+                    (hand[0] + off * look.arm_w * k - 0.4, hand[1] + look.arm_w * 0.1 * k), 0.6)
+    for foot in (r.foot_f, r.foot_b):  # boot sole and toe cap
+        w = look.leg_w
+        wd.line(ov, dark, (foot[0] - w * 0.5, foot[1] + w * 0.28), (foot[0] + w * 1.3, foot[1] + w * 0.28), 0.9)
+        wd.ellipse(ov, light, (foot[0] + w * 0.55, foot[1] - w * 0.38, w * 0.6, w * 0.3))
+    hx, hy = r.hip  # a belt line just above the hips
+    sx, sy = r.shoulder
+    bx, by = hx + (sx - hx) * 0.16, hy + (sy - hy) * 0.16
+    wd.line(ov, dark, (bx - look.torso_w * 0.38, by), (bx + look.torso_w * 0.38, by), 0.8)
+    wd.line(ov, light, (bx - look.torso_w * 0.34, by - 1), (bx + look.torso_w * 0.34, by - 1), 0.6)
+    cover = pygame.Surface(frame.get_size(), pygame.SRCALPHA)
+    cover.fill((255, 255, 255, 255))
+    pygame.surfarray.pixels_alpha(cover)[:] = pygame.surfarray.array_alpha(frame)
+    ov.blit(cover, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)  # keep only the marks that fall on the body
+    frame.blit(ov, (0, 0))
+
+
 def render(look: Look, pose: Pose) -> pygame.Surface:
     look = squashed(cartoonish(look), pose.squash)
     r = solve(look, pose)
@@ -230,6 +283,7 @@ def render(look: Look, pose: Pose) -> pygame.Surface:
         layer = draw.new_layer(FRAME_U)
         fn(layer, r)
         mask = layer_mask(layer, FRAME)
+        _contact_shadow(arr, mask)
         base = look.pal[pal]
         shiny = any(k in pal for k in SHINY)
         paint_part(arr, mask, _ramp(base), shiny, flat=pal.removesuffix("_back") in look.flat,
@@ -250,6 +304,7 @@ def render(look: Look, pose: Pose) -> pygame.Surface:
     frame = pygame.Surface((FRAME, FRAME), pygame.SRCALPHA)
     pygame.surfarray.pixels3d(frame)[:] = arr[:, :, :3].transpose(1, 0, 2)
     pygame.surfarray.pixels_alpha(frame)[:] = arr[:, :, 3].T
+    _articulation(frame, r)
     if look.details:
         look.details(frame, r)
     if pose.smear:
