@@ -65,14 +65,22 @@ def layer_mask(layer: Layer, size: int) -> np.ndarray:
 
 def _cel(mask: np.ndarray) -> np.ndarray:
     """Hand-painted look: one flat base tone, a deliberate shadow shape along the lower-right edge (with a darker line
-    at the very rim), a bright rim on the upper-left and a slightly deeper foot, like cel animation."""
+    at the very rim), a bright rim on the upper-left and a slightly deeper foot, like cel animation. The bands shrink on
+    thin parts (a hat brim, a strap) so they keep their colour instead of turning into shadow."""
     k = RS
+    cur, depth = mask.copy(), 0
+    while cur.any() and depth < 14 * k:
+        depth += 1
+        cur = _erode(cur)
+    band_w = max(1, round(min(4 * k, depth * 0.55)))
+    core_w = max(1, round(min(2 * k, depth * 0.28)))
+    rim_w = max(1, round(min(3 * k, depth * 0.42)))
     idx = np.full(mask.shape, 5)
-    band = mask & ~shift(mask, -4 * k, -4 * k)
-    core = mask & ~shift(mask, -2 * k, -2 * k)
-    rim = mask & ~shift(mask, 3 * k, 3 * k)
+    band = mask & ~shift(mask, -band_w, -band_w)
+    core = mask & ~shift(mask, -core_w, -core_w)
+    rim = mask & ~shift(mask, rim_w, rim_w)
     rows = np.where(mask.any(axis=1))[0]
-    if len(rows):
+    if len(rows) and depth > 3 * k:
         y0, y1 = rows.min(), rows.max()
         ys = np.arange(mask.shape[0])[:, None] * np.ones((1, mask.shape[1]))
         idx = np.where(ys > y0 + 0.78 * (y1 - y0), 4, idx)
