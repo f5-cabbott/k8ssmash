@@ -33,8 +33,10 @@ def tap(app, p0=(), p1=()):
     frame(app)
 
 
-def test_title_start_goes_to_select(app):
+def test_title_a_goes_to_select_and_start_does_not(app):
     tap(app, {"START"})
+    assert isinstance(app.scene, Title)  # START is not a menu button
+    tap(app, {"SPECIAL"})
     assert isinstance(app.scene, CharacterSelect)
 
 
@@ -51,7 +53,7 @@ def test_title_idle_goes_to_attract_and_back_on_input(app):
 
 
 def test_select_two_players_starts_battle(app):
-    tap(app, {"START"})
+    tap(app, {"SPECIAL"})
     tap(app, {"START"}, {"START"})
     sel = app.scene
     assert sel.joined == [True, True]
@@ -64,7 +66,7 @@ def test_select_two_players_starts_battle(app):
 
 
 def test_lone_player_gets_cpu_opponent(app):
-    tap(app, {"START"})
+    tap(app, {"SPECIAL"})
     tap(app, {"START"})
     tap(app, {"SELECT"})
     sel = app.scene
@@ -76,7 +78,7 @@ def test_lone_player_gets_cpu_opponent(app):
 
 
 def test_select_back_unlocks(app):
-    tap(app, {"START"})
+    tap(app, {"SPECIAL"})
     tap(app, {"START"})
     tap(app, {"ATTACK"})
     assert app.scene.locked[0]
@@ -175,14 +177,14 @@ def test_kos_credited_to_last_attacker(app):
 
 # --- character select: backing out and the move list ---------------------------------------------
 def test_select_a_button_backs_out_to_the_title(app):
-    tap(app, {"START"})
+    tap(app, {"SPECIAL"})
     assert isinstance(app.scene, CharacterSelect)
     tap(app, {"SPECIAL"})  # nobody has joined yet: A leaves
     assert isinstance(app.scene, Title)
 
 
 def test_select_back_out_steps_lock_then_join_then_leave(app):
-    tap(app, {"START"})
+    tap(app, {"SPECIAL"})
     tap(app, {"START"})  # P1 joins
     tap(app, {"ATTACK"})  # P1 locks in
     assert app.scene.locked[0]
@@ -236,7 +238,7 @@ def test_splash_runs_the_whole_roster_and_stays_responsive(app):
         frame(app)
     assert len(t.parade) == 8 and len(t.fx) > 0
     t.draw(pygame.Surface((960, 540)))
-    tap(app, {"START"})
+    tap(app, {"SPECIAL"})
     assert isinstance(app.scene, CharacterSelect)
 
 

@@ -181,15 +181,15 @@ class CharacterSelect(Scene):
         canvas.fill(BG)
         colors = player_colors(self.app.cfg)
         head = self.big.render("TRAINING: CHOOSE YOUR POD" if self.training else "CHOOSE YOUR POD", False, (255, 255, 255))
-        ui.blit_c(canvas, head, 6)
+        ui.blit_c(canvas, head, 3)
         n = len(self.roster)
         cols = min(n, 4)
-        card_w, card_h, gap = 142, 84, 8
+        card_w, card_h, gap = 142, 68, 8
         x0 = (CANVAS_W - (cols * card_w + (cols - 1) * gap)) // 2
         for i, st in enumerate(self.roster):
             cx = x0 + (i % cols) * (card_w + gap)
-            cy = 32 + (i // cols) * (card_h + 6)
-            floor_y = cy + card_h - 24  # where the fighter stands: always fully inside the card
+            cy = 28 + (i // cols) * (card_h + 6)
+            floor_y = cy + card_h - 15  # where the fighter stands: always fully inside the card, above the name plate
             canvas.blit(portrait(st.name, st.color, round(card_w * ui.SCALE), round(card_h * ui.SCALE),
                                  round((floor_y - cy) * ui.SCALE)), (round(cx * ui.SCALE), round(cy * ui.SCALE)))
             sprites = sprite_set(st.name)
@@ -202,11 +202,11 @@ class CharacterSelect(Scene):
                     width = 3 if not self.locked[slot] or (self.frame // 8) % 2 == 0 else 5
                     pd.rect(canvas, colors[slot], (cx - off - 2, cy - off - 2, card_w + 2 * off + 4, card_h + 2 * off + 4), width)
         for slot in (0, 1):
-            self._draw_panel(canvas, pygame.Rect(12 + slot * 316, 214, 304, 86), slot, colors[slot])
+            self._draw_panel(canvas, pygame.Rect(12 + slot * 316, 174, 304, 112), slot, colors[slot])
         self._draw_legend(canvas)
         stage = STAGES[self.stage_idx]().name
         hint = ui.fit(f"START join/ready    A back / leave    SELECT add CPU    L/R stage: {stage}", (126, 134, 176), 600, 10, 8)
-        ui.blit_c(canvas, hint, 335)
+        ui.blit_c(canvas, hint, 346)
 
     def _draw_panel(self, canvas: pygame.Surface, rect: pygame.Rect, slot: int, color) -> None:
         ui.window_d(canvas, rect, accent=color)
@@ -227,55 +227,82 @@ class CharacterSelect(Scene):
             status_w = s.get_width() + 8
         pd.blit(canvas, ui.fit(st.name, (255, 255, 255), rect.w - 44 - status_w, 15, 10), (rect.x + 32, rect.y + 5))
         pd.blit(canvas, ui.fit(st.blurb, (170, 178, 214), rect.w - 44, 12, 9), (rect.x + 32, rect.y + 22))
+        stats_x = rect.right - 98
         for i, (direction, key, tag_text) in enumerate(MOVE_ROWS):
-            self._move_row(canvas, rect.x + 10, rect.y + 39 + i * 12, direction, st, key, tag_text, rect.right - 10)
+            self._move_row(canvas, rect.x + 10, rect.y + 41 + i * 16, direction, st, key, tag_text, stats_x - 8)
+        self._draw_stats(canvas, st, stats_x, rect.y + 42)
+
+    def _draw_stats(self, canvas: pygame.Surface, st: FighterStats, x: int, y: int) -> None:
+        """Three small meters (speed, weight, jumps), scaled against the whole roster so differences are visible."""
+        def span(values):
+            return min(values), max(values)
+        r = self.roster
+        rows = [("SPEED", st.run_speed, span([f.run_speed for f in r])), ("WEIGHT", st.weight, span([f.weight for f in r])),
+                ("JUMPS", st.air_jumps, span([f.air_jumps for f in r]))]
+        for i, (label, value, (lo, hi)) in enumerate(rows):
+            yy = y + i * 18
+            pd.blit(canvas, ui.fit(label, (170, 180, 220), 60, 10, 8), (x, yy))
+            frac = 0.15 + 0.85 * ((value - lo) / (hi - lo) if hi > lo else 0.5)
+            bar = (x, yy + 9, 84, 5)
+            pd.rect(canvas, (8, 12, 40), bar)
+            pd.rect(canvas, (255, 214, 120), (bar[0], bar[1], 84 * frac, 5))
+            pd.rect(canvas, (150, 170, 230), bar, 1)
 
     def _move_row(self, canvas, x: int, y: int, direction: str | None, st: FighterStats, key: str, tag_text: str,
                   right: int) -> None:
         move = st.moves.get(key)
         if move is None:
             return
-        g = 0.72  # compact glyphs: the list is a reference, not the focus of the screen
+        g = 0.9
         if direction:
             x += ui.dpad_glyph(canvas, x, y, direction, g)
             plus = self.tiny.render("+", False, (200, 206, 235))
-            pd.blit(canvas, plus, (x, y + 1))
-            x += plus.get_width() + 2
+            pd.blit(canvas, plus, (x, y + 2))
+            x += plus.get_width() + 3
         x += ui.button_glyph(canvas, x, y, "A", g) + 4
         text = move.announce or move.name
         tag = self.tiny.render(tag_text, False, (255, 214, 120)) if tag_text else None
         room = right - x - (tag.get_width() + 8 if tag else 0)
-        t = ui.fit(text[0].upper() + text[1:], (240, 242, 255), room, 12, 8)
-        pd.blit(canvas, t, (x, y))
+        t = ui.fit(text[0].upper() + text[1:], (240, 242, 255), room, 13, 8)
+        pd.blit(canvas, t, (x, y + 1))
         if tag:
-            pd.blit(canvas, tag, (x + t.get_width() + 6, y + 1))
+            pd.blit(canvas, tag, (x + t.get_width() + 6, y + 2))
 
     def _center_text(self, canvas, rect: pygame.Rect, text: str, color) -> None:
         t = ui.fit(text, color, rect.w - 20, 12, 8)
-        pd.blit(canvas, t, (rect.centerx - t.get_width() // 2, rect.centery - t.get_height() // 2 + 6))
+        pd.blit(canvas, t, (rect.centerx - t.get_width() // 2, rect.centery - t.get_height() // 2))
 
     def _draw_legend(self, canvas: pygame.Surface) -> None:
-        bar = pygame.Rect(12, 306, 616, 22)
+        """Controls in two rows of four, with full-size glyphs so every button letter can be read."""
+        bar = pygame.Rect(12, 290, 616, 52)
         ui.window_d(canvas, bar)
-        x, y = bar.x + 10, bar.y + 5
-        g = 0.72
-        parts: list[tuple[str, tuple]] = [
-            ("Move", ("dpad", None)), ("Jump x2", ("btn", "Y", "X")), ("Attack", ("btn", "B")),
-            ("Special", ("btn", "A")), ("+ dir = more moves", ("dpad", "right")), ("Shield", ("btn", "L", "R")),
-            ("Duck", ("dpad", "down")),
+        items = [
+            [("Move", ("dpad", None)), ("Jump", ("btn", "Y", "X")), ("Attack", ("btn", "B")), ("Special", ("btn", "A"))],
+            [("More specials", ("dpad", "right", "btn", "A")), ("Shield", ("btn", "L", "R")),
+             ("Grab", ("btn", "L", "B")), ("Duck", ("dpad", "down"))],
         ]
-        used = sum(self.tiny.render(label, False, (226, 230, 250)).get_width() + 4
-                   + (17 + 2 if spec[0] == "dpad" else 17 * (len(spec) - 1)) for label, spec in parts)
-        gap = max(4, min(14, (bar.w - 20 - used) // len(parts)))
-        for label, spec in parts:
-            if spec[0] == "dpad":
-                x += ui.dpad_glyph(canvas, x, y, spec[1], g) + 2
-            else:
-                for b in spec[1:]:
-                    x += ui.button_glyph(canvas, x, y, b, g) + 1
-            t = self.tiny.render(label, False, (226, 230, 250))
-            pd.blit(canvas, t, (x + 2, y + 1))
-            x += t.get_width() + gap
+        col_w = (bar.w - 20) / 4
+        for r, row in enumerate(items):
+            y = bar.y + 5 + r * 23
+            for c, (label, spec) in enumerate(row):
+                x = bar.x + 10 + c * col_w
+                kind = spec[0]
+                if kind == "dpad":
+                    x += ui.dpad_glyph(canvas, x, y, spec[1], 0.95) + 3
+                    rest = spec[2:]
+                else:
+                    rest = spec
+                i = 0
+                while i < len(rest):
+                    if rest[i] == "btn":
+                        i += 1
+                        while i < len(rest) and rest[i] not in ("btn", "dpad"):
+                            x += ui.button_glyph(canvas, x, y, rest[i], 0.95) + 2
+                            i += 1
+                    else:
+                        i += 1
+                t = ui.fit(label, (226, 230, 250), bar.x + 10 + (c + 1) * col_w - x - 4, 13, 8)
+                pd.blit(canvas, t, (x + 3, y + 2))
 
 
 MOVE_ROWS = [(None, "special", ""), ("right", "special_side", ""), ("up", "special_up", "recovery"),

@@ -11,7 +11,7 @@ from k8ssmash.scenes.base import Scene
 
 STEP = 0.05
 REPEAT_DELAY, REPEAT_EVERY = 18, 3  # holding left/right keeps adjusting
-CONFIRM, BACK = {"SPECIAL", "START"}, {"ATTACK", "SELECT"}  # SNES layout: A confirms, B backs out
+CONFIRM, BACK = {"SPECIAL"}, {"ATTACK", "SELECT"}  # SNES layout: A confirms, B backs out
 
 STOCK_CHOICES = (1, 2, 3, 4, 5)
 TIME_CHOICES = (60, 90, 120, 180, 300)

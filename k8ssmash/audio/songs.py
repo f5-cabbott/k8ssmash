@@ -9,7 +9,7 @@ FULL = ("lead", "counter", "pad", "comp", "arp", "bass", "drums")
 
 def splash() -> Song:
     """The title-screen theme: fast, bouncy and cheerful, with a 5/4 detour and a key lift for the last chorus."""
-    inst = dict(lead="oboe", counter="clarinet", pad="strings", comp="piano", arp="pizz", bass="tuba")
+    inst = dict(lead="oboe", counter="clarinet", pad="emu_strings", comp="piano", arp="pizz", bass="tuba")
     a = [(0, "maj"), (5, "maj"), (0, "maj"), (7, "7"), (0, "maj"), (9, "min"), (5, "maj"), (7, "7")]
     b = [(5, "maj"), (2, "m7"), (7, "7"), (0, "maj")] * 2
     sw = dict(swing=0.1)
@@ -28,11 +28,11 @@ def splash() -> Song:
             **bounce, **sw),
         Sec(2, [(5, "maj"), (0, "maj")], layers=("arp", "bass", "drums"), arp="up", bass="pedal", drums="tag"),
     ]
-    return Song("splash", 150, 55, "major", inst, secs, seed=97, reverb=1.7, wet=0.2, lead_center=76)
+    return Song("splash", 150, 55, "major", inst, secs, seed=97, reverb=1.7, wet=0.2, lead_center=76, emu=0.3)
 
 
 def select() -> Song:
-    inst = dict(lead="sax", counter="epiano", pad="organ", comp="fuzz", arp="vibes", bass="bass_slap")
+    inst = dict(lead="sax", counter="emu_epiano", pad="emu_pad", comp="fuzz", arp="vibes", bass="bass_slap")
     a = [(0, "9"), (5, "9"), (0, "9"), (10, "maj"), (0, "9"), (5, "9"), (2, "m7"), (7, "7")]
     b = [(5, "maj7"), (4, "m7"), (2, "m7"), (7, "7")] * 2
     groove = dict(comp="funk16", bass="funk", drums="funk", swing=0.12)
@@ -49,11 +49,11 @@ def select() -> Song:
         Sec(4, [(0, "9"), (5, "9"), (10, "maj"), (0, "9")], layers=("comp", "bass", "drums", "pad"), crash=False,
             gain=0.95, **groove),
     ]
-    return Song("select", 112, 55, "mixolydian", inst, secs, seed=23, reverb=1.5, wet=0.2, lead_center=72)
+    return Song("select", 112, 55, "mixolydian", inst, secs, seed=23, reverb=1.5, wet=0.2, lead_center=72, emu=0.6)
 
 
 def datacenter() -> Song:
-    inst = dict(lead="lead_synth", counter="strings", pad="pad", comp="fuzz", arp="vibes", bass="bass_synth")
+    inst = dict(lead="lead_synth", counter="strings", pad="emu_pad", comp="fuzz", arp="vibes", bass="bass_synth")
     verse = [(0, "min"), (8, "maj"), (10, "maj"), (7, "7")] * 2
     chorus = [(5, "maj"), (8, "maj"), (0, "min"), (7, "7")] * 2
     drive = dict(bass="drive8", drums="drive", comp="stabs")
@@ -71,7 +71,7 @@ def datacenter() -> Song:
         Sec(4, [(0, "min"), (0, "min"), (7, "7"), (0, "min")], layers=("pad", "bass", "comp"), bass="pedal", comp="hold",
             crash=False, gain=0.8),
     ]
-    return Song("datacenter", 138, 45, "minor", inst, secs, seed=37, reverb=1.8, wet=0.22, lead_center=69)
+    return Song("datacenter", 138, 45, "minor", inst, secs, seed=37, reverb=1.8, wet=0.22, lead_center=69, emu=0.3)
 
 
 def controlplane() -> Song:
@@ -93,7 +93,7 @@ def controlplane() -> Song:
 
 
 def nodepool() -> Song:
-    inst = dict(lead="marimba", counter="clarinet", pad="strings", comp="accordion", arp="steel", bass="tuba")
+    inst = dict(lead="marimba", counter="clarinet", pad="emu_strings", comp="accordion", arp="steel", bass="tuba")
     a = [(0, "maj"), (0, "6"), (5, "maj"), (7, "7"), (0, "maj"), (9, "m7"), (2, "m7"), (7, "7")]
     sw = dict(swing=0.14)
     secs = [
@@ -113,7 +113,7 @@ def nodepool() -> Song:
 
 
 def training() -> Song:
-    inst = dict(lead="sax", counter="flute", pad="organ", comp="epiano", arp="vibes", bass="bass_fretless")
+    inst = dict(lead="sax", counter="flute", pad="emu_pad", comp="emu_epiano", arp="vibes", bass="bass_fretless")
     sw = dict(swing=0.22)
     a = [(0, "m9"), (5, "9"), (0, "m9"), (5, "9"), (3, "maj7"), (10, "9"), (0, "m9"), (7, "m7")]
     secs = [
@@ -127,12 +127,12 @@ def training() -> Song:
             inst={"lead": "flute", "counter": "vibes", "comp": "organ"}, comp="charleston", bass="walk", drums="swing", **sw),
         Sec(2, [(0, "m9"), (7, "7")], layers=("comp", "bass"), comp="sparse", bass="walk", crash=False, **sw),
     ]
-    return Song("training", 100, 50, "dorian", inst, secs, seed=67, reverb=1.6, wet=0.22, lead_center=69)
+    return Song("training", 100, 50, "dorian", inst, secs, seed=67, reverb=1.6, wet=0.22, lead_center=69, emu=0.6)
 
 
 def leaderboard() -> Song:
     """Hall of Fame: a bouncy game-show romp with a polka detour and two key lifts to a big finish."""
-    inst = dict(lead="clarinet", counter="brass", pad="organ", comp="honky", arp="vibes", bass="rubber_bass")
+    inst = dict(lead="clarinet", counter="brass", pad="emu_pad", comp="honky", arp="vibes", bass="rubber_bass")
     a = [(0, "maj"), (0, "6"), (5, "maj"), (5, "min"), (0, "maj"), (9, "m7"), (2, "m7"), (7, "7")]
     b = [(10, "maj"), (0, "maj"), (10, "maj"), (7, "7")] * 2
     sw = dict(swing=0.14)
@@ -155,15 +155,33 @@ def leaderboard() -> Song:
         Sec(2, [(5, "maj"), (0, "maj")], layers=("lead", "pad", "bass", "drums"), mel="F", transpose=5, inst={"lead": "brass"},
             drums="tag", bass="pedal", crash=True),
     ]
-    return Song("leaderboard", 128, 53, "major", inst, secs, seed=71, reverb=1.9, wet=0.24, lead_center=72)
+    return Song("leaderboard", 128, 53, "major", inst, secs, seed=71, reverb=1.9, wet=0.24, lead_center=72, emu=0.45)
 
 
 def results() -> Song:
-    """A short victory sting (plays once)."""
-    inst = dict(lead="brass", counter="horn", pad="strings", comp="toy_piano", arp="toy_piano", bass="tuba")
-    secs = [Sec(4, [(0, "maj"), (5, "maj"), (7, "7"), (0, "maj")], layers=("lead", "counter", "pad", "bass", "drums"),
-                mel="V", drums="tag", bass="rootfifth", busy=0.65, gain=1.0)]
-    return Song("results", 120, 51, "major", inst, secs, seed=83, reverb=2.4, wet=0.3, lead_center=72, loop=False)
+    """The victory theme (plays once): a brass fanfare, a soaring answer and a big final chord, in the spirit of a
+    boss-defeated jingle, with a lush sound-card string bed under it."""
+    inst = dict(lead="brass", counter="horn", pad="emu_strings", comp="orch_hit", arp="harp", bass="tuba")
+    prog = [(0, "maj"), (0, "maj"), (5, "maj"), (7, "maj"), (0, "maj"), (9, "min"), (5, "maj"), (7, "7"),
+            (0, "maj"), (5, "maj"), (7, "maj"), (0, "maj")]
+    line = (  # (step, length, midi); a bar is 16 steps
+        (0, 2, 67), (2, 2, 67), (4, 2, 67), (6, 10, 72),                          # G G G  C-----
+        (16, 2, 76), (18, 2, 74), (20, 2, 72), (22, 2, 74), (24, 8, 76),          # E D C D E--
+        (32, 2, 77), (34, 2, 76), (36, 2, 77), (38, 2, 79), (40, 8, 81),          # F E F G A--
+        (48, 2, 79), (50, 2, 77), (52, 2, 76), (54, 2, 74), (56, 8, 71),          # G F E D B-- (leaning on the dominant)
+        (64, 4, 72), (68, 2, 76), (70, 2, 79), (72, 8, 84),                       # the theme: C E G C^
+        (80, 4, 81), (84, 2, 79), (86, 2, 76), (88, 8, 81),                       # A G E A
+        (96, 4, 77), (100, 2, 81), (102, 2, 84), (104, 4, 86), (108, 4, 84),      # F A C D C
+        (112, 2, 83), (114, 2, 81), (116, 2, 79), (118, 2, 77), (120, 8, 74),     # B A G F D--
+        (128, 2, 72), (130, 2, 76), (132, 2, 79), (134, 2, 84), (136, 8, 88),     # rising arpeggio to the top
+        (144, 4, 81), (148, 4, 84), (152, 8, 89),
+        (160, 2, 86), (162, 2, 83), (164, 2, 79), (166, 2, 83), (168, 8, 86),
+        (176, 16, 84),                                                           # the final C
+    )
+    secs = [Sec(12, prog, layers=("lead", "counter", "pad", "comp", "arp", "bass", "drums"), line=line, double="horn",
+                harm="strings", comp="sparse", arp="updown", bass="rootfifth", drums="heroic", gain=1.05, orn=0.0,
+                inst={"counter": "emu_choir"})]
+    return Song("results", 138, 48, "major", inst, secs, seed=83, reverb=2.6, wet=0.32, lead_center=72, loop=False, emu=0.5)
 
 
 SONGS = {"splash": splash, "select": select, "datacenter": datacenter, "controlplane": controlplane,

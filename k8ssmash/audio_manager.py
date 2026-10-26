@@ -102,6 +102,12 @@ class Audio:
         except (pygame.error, FileNotFoundError):
             pass
 
+    def fade_out(self, ms: int = 900) -> None:
+        """Let the current music die away (the arena song when a match ends) instead of cutting or carrying on."""
+        self.current = None
+        if self.ok:
+            pygame.mixer.music.fadeout(ms)
+
     def toggle_mute(self) -> None:
         self.muted = not self.muted
         if not self.ok:

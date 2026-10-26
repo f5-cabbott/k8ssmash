@@ -180,7 +180,49 @@ def orch_hit(m: float, dur: float) -> np.ndarray:
     return sig * adsr(n, 0.004, 0.05, 0.6, 0.12) * 0.28
 
 
+# --- AWE64 / EMU8000-flavoured voices: the lush, chorused General MIDI sound of late-90s sound cards ------------
+def _cho(x: np.ndarray, depth: float = 0.003, rate: float = 0.5, mix: float = 0.6) -> np.ndarray:
+    """Thicken a mono voice with the card's built-in chorus (mono in, mono out)."""
+    return I.chorus(x, depth=depth, rate=rate, mix=mix).mean(axis=1)
+
+
+def emu_pad(m: float, dur: float) -> np.ndarray:
+    """A 'halo' pad: detuned saws and a triangle, a filter that slowly opens, then a deep chorus."""
+    f, n = hz(m), _len(dur, 0.9)
+    sig = sum(osc("saw", f * 2 ** (c / 1200), n, ph) for c, ph in ((-9, 0.0), (-3, 0.3), (4, 0.6), (10, 0.85))) / 4
+    sig += osc("tri", f * 2.0, n) * 0.18 + osc("sine", f * 0.5, n) * 0.2
+    open_ = adsr(n, 0.9, 0.5, 0.7, 0.4)
+    sig = lp(sig, min(1500, f * 3)) * (1 - open_) + lp(sig, min(3800, f * 6 + 800)) * open_
+    return _cho(sig * adsr(n, 0.5, 0.4, 0.85, 0.8), 0.004, 0.35, 0.8) * 0.7
+
+
+def emu_strings(m: float, dur: float) -> np.ndarray:
+    """String-machine strings: a smooth, slow-bowed saw ensemble, very wide."""
+    f, n = hz(m), _len(dur, 0.5)
+    sig = sum(osc("saw", f * _vibrato(n, 5.0 + 0.3 * k, 0.002, 0.3, 0.6, k) * 2 ** (c / 1200), n, k * 0.17)
+              for k, c in enumerate((-12, -5, 0, 6, 13))) / 5
+    sig = lp(sig, min(3400, f * 5 + 700))
+    return _cho(sig * adsr(n, 0.28, 0.3, 0.85, 0.45), 0.0035, 0.45, 0.7) * 0.85
+
+
+def emu_epiano(m: float, dur: float) -> np.ndarray:
+    return _cho(I.epiano(m, dur), 0.0025, 0.7, 0.65) * 0.9
+
+
+def emu_choir(m: float, dur: float) -> np.ndarray:
+    return _cho(I.choir(m, dur), 0.003, 0.4, 0.7) * 0.9
+
+
+def emu_bass(m: float, dur: float) -> np.ndarray:
+    f, n = hz(m), _len(min(dur, 1.2), 0.08)
+    t = np.arange(n) / SR
+    sig = lp(osc("saw", f, n), 300 + 1400 * np.exp(-t * 9)) * 0.8 + osc("sine", f, n) * 0.6
+    return sig * adsr(n, 0.004, 0.1, 0.8, 0.08) * 0.8
+
+
 I.INSTRUMENTS.update({
+    "emu_pad": emu_pad, "emu_strings": emu_strings, "emu_epiano": emu_epiano, "emu_choir": emu_choir,
+    "emu_bass": emu_bass,
     "piano": piano, "pizz": pizz, "nylon": nylon, "bass_pluck": bass_pluck, "glock": glock, "strings": strings,
     "horn": horn, "clarinet": clarinet, "oboe": oboe, "sax": sax, "synth_brass": synth_brass, "orch_hit": orch_hit,
 })

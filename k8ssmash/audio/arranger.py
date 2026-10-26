@@ -34,6 +34,7 @@ class Sec:
     crash: bool = True
     double: str = ""  # an instrument doubling the lead an octave down, for weight
     harm: str = ""  # an instrument shadowing the lead in parallel thirds below
+    line: tuple = ()  # an explicit lead line [(step, length in steps, midi)] used instead of a generated melody
     orn: float = 0.14  # chance a longer lead note gets a grace note (and long ones a trill)
 
 
@@ -51,6 +52,7 @@ class Song:
     lead_center: int = 69
     mix: dict = field(default_factory=dict)
     loop: bool = True
+    emu: float = 0.0  # 0..1: how much of the lush, chorused AWE64 / EMU8000 sound-card sheen to add
 
 
 # (gain, pan, reverb send)
@@ -304,7 +306,10 @@ def render(song: Song, return_events: bool = False):
         # lead + counter-melody share one generated line so repeats are exact
         if {"lead", "counter"} & set(sec.layers):
             key = f"{si if sec.mel == '' else sec.mel}|{sec.transpose}|{sec.bars}|{sec.meter}"
-            if key not in melodies:
+            if sec.line:
+                key = f"line{si}"
+                melodies[key] = [T.Note(st, ln * 0.96, midi, 1.0 if st % 4 == 0 else 0.88) for st, ln, midi in sec.line]
+            elif key not in melodies:
                 rng = random.Random(zlib.crc32(f"{song.seed}:{key}".encode()))
                 melodies[key] = T.melody(rng, tonic, scale, bars, song.lead_center + sec.transpose, busy=sec.busy)
             notes = melodies[key]
@@ -375,12 +380,12 @@ def render(song: Song, return_events: bool = False):
     for name in ("lead", "counter", "arp", "harm"):
         echo_in += buses[name].buf
     echo = I.echo(echo_in, spstep * 3, feedback=0.45, tone=2800.0)
-    out = dry + wet * song.wet * 2.2 + echo * 0.5
+    out = dry + wet * song.wet * 2.2 * (1 + 0.6 * song.emu) + echo * 0.5
     out = out[:size].copy()
     if song.loop:
         out[:tail] += out[n_loop:n_loop + tail]  # fold the reverb tail back onto the start so it loops
         out = out[:n_loop]
-    out = I.chorus(out, mix=0.35)  # ensemble shimmer across the whole mix
+    out = I.chorus(out, mix=0.35 + 0.4 * song.emu)  # ensemble shimmer across the whole mix (deeper on sound-card songs)
     out = I.lp(out.T, 12500).T
     # warm master: a full low end, a gentle low-mid body, and presence kept soft so nothing sounds buzzy or "chippy"
     out = out + 0.5 * I.lp(out.T, 150).T + 0.22 * I.bp(out.T, 250, 900).T + 0.2 * I.bp(out.T, 3000, 6500).T

@@ -50,3 +50,15 @@ def limb(s: Layer, pts, width: float) -> None:
         line(s, a, b, width)
     for p in pts:
         circle(s, p, width / 2)
+
+
+def taper(s: Layer, pts, widths) -> None:
+    """A limb whose thickness changes along its length (thigh to ankle, shoulder to wrist): quads between joints."""
+    for (a, b), (wa, wb) in zip(zip(pts, pts[1:]), zip(widths, widths[1:])):
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        d = (dx * dx + dy * dy) ** 0.5 or 1.0
+        nx, ny = -dy / d, dx / d
+        poly(s, [(a[0] + nx * wa / 2, a[1] + ny * wa / 2), (b[0] + nx * wb / 2, b[1] + ny * wb / 2),
+                 (b[0] - nx * wb / 2, b[1] - ny * wb / 2), (a[0] - nx * wa / 2, a[1] - ny * wa / 2)])
+    for p, w in zip(pts, widths):
+        circle(s, p, w / 2)

@@ -166,3 +166,34 @@ def test_generated_melodies_stay_in_a_playable_range():
     notes = T.melody(random.Random(5), 57, scale, bars, 72, busy=0.5)
     assert len(notes) >= 12 and all(-6 <= (n.midi - 57) <= 40 for n in notes)
     assert max(n.step for n in notes) < 8 * 16
+
+
+def test_arena_music_fades_out_when_a_match_ends_and_victory_theme_is_a_real_fanfare(app):
+    b = Battle(app, roster()[:2], human=[False, False])
+    app.set_scene(b)
+    assert app.audio.current is not None
+    b.fighters[1].stocks = 0
+    b.fighters[1].eliminated = True
+    b._check_end()
+    b._report_result()
+    assert app.audio.current is None  # the arena song is gone before the results screen
+    from k8ssmash.audio.songs import SONGS
+    song = SONGS["results"]()
+    assert not song.loop and song.emu > 0 and song.sections[0].line and len(song.sections[0].prog) >= 12
+    from k8ssmash.audio_manager import ASSETS
+    assert (ASSETS / "results.ogg").stat().st_size > 100_000  # ~20+ seconds, not the old 11 s sting
+
+
+def test_select_panel_rows_and_legend_stay_inside_their_windows(app):
+    from k8ssmash.scenes.select import CharacterSelect
+    sel = CharacterSelect(app)
+    sel.joined = [True, True]
+    for st_idx in range(len(sel.roster)):
+        sel.cursor = [st_idx, st_idx]
+        surf = pygame.Surface((960, 540))
+        sel.draw(surf)
+        panel_bottom = round((174 + 112) * ui.SCALE)
+        legend_top = round(290 * ui.SCALE)
+        # the strip between the player panels and the legend holds nothing but background
+        strip = [surf.get_at((x, y))[:3] for x in range(30, 930, 40) for y in range(panel_bottom + 6, legend_top - 1)]
+        assert all(c == (16, 20, 38) for c in strip)

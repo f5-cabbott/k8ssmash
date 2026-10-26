@@ -143,8 +143,7 @@ class Title(Scene):
             if "DOWN" in inp.pressed:
                 self.row = (self.row + 1) % len(MENU)
                 self.app.audio.play("menu_move")
-        # START with SELECT held is the controller-test combo, not "go".
-        go = any(("START" in p.pressed and "SELECT" not in p.held) or "SPECIAL" in p.pressed for p in players)
+        go = any("SPECIAL" in p.pressed for p in players)  # A picks the highlighted row; START is not a menu button
         if go:
             self.app.audio.play("menu_select")
             self._enter(MENU[self.row][1])
@@ -263,7 +262,7 @@ class Title(Scene):
         line = ui.fit(tag, tuple(int(255 * (0.25 + 0.75 * fade)) for _ in range(3)), ribbon.w - 16, 14)
         pd.blit(canvas, line, (ribbon.centerx - line.get_width() / 2, ribbon.y + 1))
         self._draw_menu(canvas)
-        hint = self.small.render("UP / DOWN choose      A or START go", False, (130, 146, 210))
+        hint = self.small.render("UP / DOWN choose      A select", False, (130, 146, 210))
         ui.blit_c(canvas, hint, 340)
 
     def _draw_menu(self, canvas: pygame.Surface) -> None:

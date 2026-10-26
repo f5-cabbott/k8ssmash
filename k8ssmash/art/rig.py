@@ -122,12 +122,30 @@ def solve(look: Look, pose: Pose) -> Rig:
 
 # --- default part drawing (supersampled) ----------------------------------------------------
 def draw_torso(s: draw.Layer, r: Rig) -> None:
+    """A body with a waist: narrow hips, a slightly pinched middle and broader shoulders, not a straight tube."""
     w = r.look.torso_w
     hx, hy = r.hip
     sx, sy = r.shoulder
-    draw.poly(s, [(hx - w / 2, hy), (hx + w / 2, hy), (sx + w / 2 + 1, sy), (sx - w / 2 - 1, sy)])
-    draw.circle(s, (hx, hy), w / 2)
-    draw.circle(s, (sx, sy + 1), w / 2 + 1)
+
+    def at(t: float, half: float):
+        x, y = hx + (sx - hx) * t, hy + (sy - hy) * t
+        return (x - half, y), (x + half, y)
+    (l0, r0), (l1, r1), (l2, r2), (l3, r3) = at(0.0, w * 0.40), at(0.35, w * 0.36), at(0.78, w * 0.54), at(1.0, w * 0.47)
+    draw.poly(s, [l0, l1, l2, l3, r3, r2, r1, r0])
+    draw.circle(s, (hx, hy), w * 0.42)
+    draw.circle(s, (sx, sy + 1), w * 0.5)
+
+
+def draw_arm(s: draw.Layer, shoulder, elbow, hand, w: float) -> None:
+    """Tapered arm with a mitt for a hand, so a punch ends in a fist rather than a rounded stub."""
+    draw.taper(s, [shoulder, elbow, hand], [w * 1.08, w * 0.88, w * 0.74])
+    draw.circle(s, hand, w * 0.62)
+
+
+def draw_leg(s: draw.Layer, hip, knee, foot, w: float) -> None:
+    """Tapered leg ending in a boot that points forward."""
+    draw.taper(s, [hip, knee, foot], [w * 1.12, w * 0.9, w * 0.72])
+    draw.ellipse(s, foot[0] - w * 0.55, foot[1] - w * 0.55, w * 1.9, w * 0.95)
 
 
 def draw_head(s: draw.Layer, r: Rig) -> None:
@@ -169,9 +187,9 @@ def cartoonish(look: Look) -> Look:
     head = 1 + 0.26 * g
     return replace(look, head_r=look.head_r * head,
                    head_w=look.head_w * head if look.head_w else 0, head_h=look.head_h * head if look.head_h else 0,
-                   torso_h=look.torso_h * (1 - 0.06 * g), leg_len=look.leg_len * (1 - 0.14 * g),
-                   leg_w=look.leg_w * (1 + 0.12 * g), arm_w=look.arm_w * (1 + 0.12 * g),
-                   arm_len=look.arm_len * (1 - 0.06 * g), torso_w=look.torso_w * (1 + 0.06 * g))
+                   torso_h=look.torso_h * (1 - 0.06 * g), leg_len=look.leg_len * (1 - 0.06 * g),
+                   leg_w=look.leg_w * (1 - 0.04 * g), arm_w=look.arm_w * (1 - 0.02 * g),
+                   arm_len=look.arm_len * (1 + 0.02 * g), torso_w=look.torso_w * (1 - 0.06 * g))
 
 
 def squashed(look: Look, k: float) -> Look:
@@ -215,12 +233,12 @@ def render(look: Look, pose: Pose) -> pygame.Surface:
     for fn, pal in look.back:
         part(fn, pal)
     leg_pal = look.leg_pal or look.limb_pal
-    part(lambda s, rg: draw.limb(s, [rg.shoulder, rg.elbow_b, rg.hand_b], look.arm_w), look.limb_pal + "_back")
-    part(lambda s, rg: draw.limb(s, [rg.hip, rg.knee_b, rg.foot_b], look.leg_w), leg_pal + "_back")
+    part(lambda s, rg: draw_arm(s, rg.shoulder, rg.elbow_b, rg.hand_b, look.arm_w), look.limb_pal + "_back")
+    part(lambda s, rg: draw_leg(s, rg.hip, rg.knee_b, rg.foot_b, look.leg_w), leg_pal + "_back")
     part(draw_torso, look.torso_pal)
-    part(lambda s, rg: draw.limb(s, [rg.hip, rg.knee_f, rg.foot_f], look.leg_w), leg_pal)
+    part(lambda s, rg: draw_leg(s, rg.hip, rg.knee_f, rg.foot_f, look.leg_w), leg_pal)
     part(draw_head, look.head_pal)
-    part(lambda s, rg: draw.limb(s, [rg.shoulder, rg.elbow_f, rg.hand_f], look.arm_w), look.limb_pal)
+    part(lambda s, rg: draw_arm(s, rg.shoulder, rg.elbow_f, rg.hand_f, look.arm_w), look.limb_pal)
     for fn, pal in look.front:
         part(fn, pal)
 

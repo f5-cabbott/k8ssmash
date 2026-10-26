@@ -113,9 +113,12 @@ class Battle(Scene):
         return self.metrics_mode or ("versus" if all(self.human) else "vs_cpu")
 
     def _report_result(self) -> None:
-        if self._reported or self.demo or self.winner is None:
+        if self._reported or self.winner is None:
+            return
+        if self.demo:
             return
         self._reported = True
+        self.app.audio.fade_out(900)  # the arena song dies away; the victory theme takes over on the results screen
         METRICS.inc("matches_finished_total", mode=self.mode_label)
         METRICS.observe("match_duration_seconds", (self.frame - READY_FRAMES) / FPS)
         if self.winner in (0, 1):
