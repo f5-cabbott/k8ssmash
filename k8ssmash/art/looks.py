@@ -81,13 +81,24 @@ def face(f, r: Rig, eyes: list[tuple[int, int]], size: tuple[int, int], iris, mo
 def pod() -> Look:
     """A whale-kid built from hand-shaped contours: a wedge head with a melon and a snout, paddle flippers, a potbelly,
     webbed foot-flippers, crescent flukes and a dorsal fin; no circles or capsules in the silhouette."""
-    pal = with_back_palettes({"body": (70, 150, 255), "leaf": (150, 225, 255), "face": (226, 240, 255)})
+    pal = with_back_palettes({"body": (62, 138, 240), "fin": (34, 92, 196), "cream": (242, 247, 255), "sheen": (178, 220, 255),
+                              "blush": (255, 150, 172), "leaf": (150, 225, 255)})
 
     def head(s, r: Rig) -> None:
         cx, cy = r.head
         k = r.look.head_r / 10.0
         pts = [(-9, -2), (-6.5, -8), (0, -10.5), (6, -9), (11, -4.5), (14, 0.5), (11.5, 4.5), (6, 7.5), (-1, 8.5), (-7, 6.5), (-9.5, 1.5)]
         draw.smooth(s, [(cx + x * k, cy + y * k) for x, y in pts])
+
+    def sheen(s, r: Rig) -> None:  # a hand-placed gloss on the melon, and a small one on the belly
+        cx, cy = r.head
+        k = r.look.head_r / 10.0
+        draw.smooth(s, [(cx + x * k, cy + y * k) for x, y in ((-5.5, -6.2), (-2.5, -8.6), (2, -8.8), (4.2, -7.6), (0.5, -7.0), (-3, -4.8))])
+
+    def blush(s, r: Rig) -> None:
+        cx, cy = r.head
+        k = r.look.head_r / 10.0
+        draw.ellipse(s, cx - 3.6 * k, cy + 1.0 * k, 3.2 * k, 2.0 * k)
 
     def muzzle(s, r: Rig) -> None:  # the pale lower jaw and throat: countershading like a real whale
         cx, cy = r.head
@@ -155,7 +166,9 @@ def pod() -> Look:
     def eye(f: pygame.Surface, x: float, y: float, expr: str, near: bool) -> None:
         """A hand-shaped eye: glossy sclera, a blue iris looking forward, pupil, glint, and lids that follow the expression."""
         ink = (24, 36, 96)
-        w, h = (3.6, 4.4) if expr != "shock" else (4.4, 5.2)
+        w, h = (5.8, 6.8) if near else (4.6, 5.6)
+        if expr == "shock":
+            w, h = w + 0.8, h + 0.8
         if expr == "blink":
             wd.line(f, ink, (x - w / 2, y + 0.4), (x + w / 2, y + 0.4), 0.9)
             return
@@ -167,24 +180,26 @@ def pod() -> Look:
             wd.lines(f, ink, False, [(x - sgn * 1.5, y - 1.9), (x + sgn * 1.5, y + 0.1), (x - sgn * 1.5, y + 2.0)], 0.9)
             return
         wd.ellipse(f, (252, 253, 255), (x - w / 2, y - h / 2, w, h))
-        wd.ellipse(f, (60, 118, 235), (x - w / 2 + w * 0.28, y - h / 2 + h * 0.18, w * 0.7, h * 0.72))
-        pr = 0.5 if expr == "shock" else 0.95
-        wd.ellipse(f, (14, 18, 52), (x + w * 0.14, y - h * 0.18, pr, pr * 1.5))
-        wd.circle(f, (255, 255, 255), (x + w * 0.1, y - h * 0.26), 0.45)
-        wd.ellipse(f, ink, (x - w / 2, y - h / 2, w, h), 0.5)
+        wd.ellipse(f, (20, 50, 138), (x - w / 2 + w * 0.36, y - h / 2 + h * 0.16, w * 0.6, h * 0.74))  # a deep iris, forward in the eye
+        wd.ellipse(f, (74, 134, 232), (x - w / 2 + w * 0.42, y + h * 0.08, w * 0.48, h * 0.3))  # lighter lower iris
+        pr = 0.7 if expr == "shock" else 1.4
+        wd.ellipse(f, (6, 10, 36), (x + w * 0.16, y - h * 0.16, pr, pr * 1.45))
+        wd.circle(f, (255, 255, 255), (x + w * 0.12, y - h * 0.28), 0.6)
+        wd.circle(f, (255, 255, 255), (x + w * 0.4, y + h * 0.14), 0.28)
+        wd.ellipse(f, ink, (x - w / 2, y - h / 2, w, h), 0.6)
         if expr in ("angry", "effort", "focus"):  # a heavy lid, slanting in toward the snout
             tilt = -1.1 if expr == "angry" else (-0.5 if near else 0.2)
             wd.line(f, ink, (x - w / 2 - 0.4, y - h / 2 + 0.7), (x + w / 2 + 0.4, y - h / 2 + 0.7 + tilt), 1.1)
-        else:
-            wd.line(f, ink, (x - w / 2, y - h / 2 + 0.1), (x + w / 2, y - h / 2 + 0.1), 0.6)
+        else:  # a thick upper lash line that flicks outward
+            wd.lines(f, ink, False, [(x - w / 2 - 0.3, y - h / 2 + 0.5), (x, y - h / 2 - 0.2), (x + w / 2 + 0.4, y - h / 2 + 0.3)], 1.0)
 
     def details(f: pygame.Surface, r: Rig) -> None:
         k = r.look.head_r / 10.0
         cx, cy = r.head
         expr = r.pose.face
-        eye(f, cx + 2.8 * k, cy - 2.6 * k, expr, True)
-        eye(f, cx + 8.8 * k, cy - 2.4 * k, expr, False)
-        wd.line(f, (40, 80, 170), (cx + 0.5 * k, cy - 6.4 * k), (cx + 11.5 * k, cy - 5.0 * k), 0.8)  # a heavy brow ridge
+        eye(f, cx + 1.6 * k, cy - 1.4 * k, expr, True)
+        eye(f, cx + 9.8 * k, cy - 1.2 * k, expr, False)
+        wd.line(f, (30, 70, 160), (cx - 0.5 * k, cy - 5.8 * k), (cx + 11.5 * k, cy - 4.4 * k), 0.8)  # a heavy brow ridge
         if expr in ("hurt", "shock"):  # mouth open: a dark oval under the snout
             wd.ellipse(f, (40, 14, 38), (cx + 8 * k, cy + 2.2 * k, 4.2 * k, 3.4 * k))
         else:
@@ -193,14 +208,13 @@ def pod() -> Look:
         hx, hy = r.hip
         sx, sy = r.shoulder
         w = r.look.torso_w
-        for t in (0.3, 0.46, 0.62, 0.78):  # throat pleats of a baleen whale
-            x, y = hx + (sx - hx) * t, hy + (sy - hy) * t
-            wd.line(f, (150, 188, 238), (x + w * 0.12, y), (x + w * 0.5, y + 0.2), 0.6)
 
-    return Look("Pod", pal, head_r=9.2, torso_w=17, torso_h=15, leg_len=12, leg_w=5.8, arm_len=16, arm_w=4.6, head_pal="body",
-                no_hue_shift=("face", "leaf"), back=[(tail_fin, "body"), (dorsal, "body")],
-                front=[(belly, "face"), (muzzle, "face"), (spout, "leaf")], details=details, head_fn=head, torso_fn=torso,
-                arm_fn=arm, leg_fn=leg, cartoon=0.3)
+    return Look("Pod", pal, head_r=9.2, torso_w=17, torso_h=16, leg_len=11.5, leg_w=5.8, arm_len=16, arm_w=4.6,
+                no_hue_shift=("cream", "sheen", "blush", "leaf"), head_pal="body", limb_pal="fin", leg_pal="fin",
+                back=[(tail_fin, "fin"), (dorsal, "fin")],
+                front=[(belly, "cream"), (muzzle, "cream"), (sheen, "sheen"), (spout, "leaf")], details=details,
+                head_fn=head, torso_fn=torso, arm_fn=arm, leg_fn=leg, cartoon=0.3,
+                cel=("body", "fin", "cream"), plain=("sheen", "blush"))
 
 
 # --- StatefulSet -------------------------------------------------------------------------------

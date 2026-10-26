@@ -63,8 +63,32 @@ def layer_mask(layer: Layer, size: int) -> np.ndarray:
     return cover >= 0.5
 
 
-def shade(mask: np.ndarray, shiny: bool, flat: bool = False, texture: str = "") -> np.ndarray:
+def _cel(mask: np.ndarray) -> np.ndarray:
+    """Hand-painted look: one flat base tone, a deliberate shadow shape along the lower-right edge (with a darker line
+    at the very rim), a bright rim on the upper-left and a slightly deeper foot, like cel animation."""
+    k = RS
+    idx = np.full(mask.shape, 5)
+    band = mask & ~shift(mask, -4 * k, -4 * k)
+    core = mask & ~shift(mask, -2 * k, -2 * k)
+    rim = mask & ~shift(mask, 3 * k, 3 * k)
+    rows = np.where(mask.any(axis=1))[0]
+    if len(rows):
+        y0, y1 = rows.min(), rows.max()
+        ys = np.arange(mask.shape[0])[:, None] * np.ones((1, mask.shape[1]))
+        idx = np.where(ys > y0 + 0.78 * (y1 - y0), 4, idx)
+    idx = np.where(band, 3, idx)
+    idx = np.where(core, 2, idx)
+    idx = np.where(rim & ~band, 7, idx)
+    return np.where(mask, idx, -1)
+
+
+def shade(mask: np.ndarray, shiny: bool, flat: bool = False, texture: str = "", cel: bool = False,
+          plain: bool = False) -> np.ndarray:
     """Tone index (0..LEVELS-1) for every pixel of the part, -1 outside it."""
+    if plain:
+        return np.where(mask, 5, -1)
+    if cel:
+        return _cel(mask)
     h_, w_ = mask.shape
     depth = np.zeros(mask.shape)
     cur = mask.copy()
@@ -126,9 +150,9 @@ def _texture(idx: np.ndarray, mask: np.ndarray, kind: str) -> np.ndarray:
 
 
 def paint_part(frame: np.ndarray, mask: np.ndarray, ramp: np.ndarray, shiny: bool, flat: bool = False,
-               texture: str = "") -> None:
+               texture: str = "", cel: bool = False, plain: bool = False) -> None:
     """Composite one shaded part (with a colored outline) onto the RGBA frame array."""
-    idx = shade(mask, shiny, flat, texture)
+    idx = shade(mask, shiny, flat, texture, cel, plain)
     grown = mask.copy()
     for _ in range(RS):  # the outline is one rig unit thick: RS output pixels
         step = grown.copy()

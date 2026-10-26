@@ -72,6 +72,8 @@ class Look:
     torso_fn: Callable[[draw.Layer, "Rig"], None] | None = None
     arm_fn: Callable[[draw.Layer, "Rig", bool], None] | None = None  # (layer, rig, is_back_arm)
     leg_fn: Callable[[draw.Layer, "Rig", bool], None] | None = None
+    cel: tuple[str, ...] = ()  # palette names painted in the hand-drawn cel style (flat base, shadow shape, rim light)
+    plain: tuple[str, ...] = ()  # palette names filled with one flat tone (hand-placed gloss, blush, markings)
     cartoon: float = 1.0  # how much of the global cartoon proportion boost this character gets
 
 
@@ -292,8 +294,9 @@ def render(look: Look, pose: Pose) -> pygame.Surface:
         _contact_shadow(arr, mask)
         base = look.pal[pal]
         shiny = any(k in pal for k in SHINY)
-        paint_part(arr, mask, _ramp(base), shiny, flat=pal.removesuffix("_back") in look.flat,
-                   texture=look.textures.get(pal.removesuffix("_back"), ""))
+        name = pal.removesuffix("_back")
+        paint_part(arr, mask, _ramp(base), shiny, flat=name in look.flat, texture=look.textures.get(name, ""),
+                   cel=name in look.cel, plain=name in look.plain)
 
     for fn, pal in look.back:
         part(fn, pal)
