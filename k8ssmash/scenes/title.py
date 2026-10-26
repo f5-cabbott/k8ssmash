@@ -8,7 +8,7 @@ import pygame
 from k8ssmash import logo, ui
 from k8ssmash.ui import pd
 from k8ssmash.backdrops import dither_gradient
-from k8ssmash.config import CANVAS_H, CANVAS_W, FPS, WORLD_H, WORLD_W
+from k8ssmash.config import CANVAS_H, CANVAS_W, FPS, PIX_H, PIX_W, RS
 from k8ssmash.particles import Particles
 from k8ssmash.roster import roster
 from k8ssmash.scenes.base import Scene
@@ -93,7 +93,8 @@ def _logo_art() -> dict:
     """The logo letters, built once: K8S in tube blue over a big hot SMASH."""
     global _logo
     if _logo is None:
-        _logo = {"top": logo.word("K8S", 78, logo.TUBE_BLUE, 7, gap=10), "main": logo.word("SMASH", 108, logo.HOT, 9, gap=8)}
+        _logo = {"top": logo.word("K8S", 78 * RS, logo.TUBE_BLUE, 7 * RS, gap=10 * RS),
+                 "main": logo.word("SMASH", 108 * RS, logo.HOT, 9 * RS, gap=8 * RS)}
     return _logo
 
 
@@ -181,7 +182,7 @@ class Title(Scene):
     def _background(self, canvas: pygame.Surface) -> None:
         global _sky
         if _sky is None:
-            _sky = dither_gradient(WORLD_W, WORLD_H, [(0, (4, 6, 22)), (0.4, (8, 20, 70)), (0.6, (14, 70, 150)),
+            _sky = dither_gradient(PIX_W, PIX_H, [(0, (4, 6, 22)), (0.4, (8, 20, 70)), (0.6, (14, 70, 150)),
                                                         (0.63, (90, 220, 255)), (0.64, (4, 8, 26)), (1, (2, 4, 14))], bands=24)
         pd.blit(canvas, _sky, (0, 0))
         t = self.frame
@@ -208,8 +209,8 @@ class Title(Scene):
             t = self.frame - (base_frame + i * 6)
             if t < 0:
                 continue
-            drop = 220 * math.exp(-t * 0.13) * abs(math.cos(t * 0.27))
-            bob = math.sin(self.frame * 0.08 + i * 0.7) * wave if t > 40 else 0
+            drop = 220 * RS * math.exp(-t * 0.13) * abs(math.cos(t * 0.27))
+            bob = math.sin(self.frame * 0.08 + i * 0.7) * wave * RS if t > 40 else 0
             canvas.blit(img, (round(x0 + dx), round(y - drop + bob)))
 
     def _shine(self, canvas: pygame.Surface, rect: pygame.Rect) -> None:
@@ -217,12 +218,12 @@ class Title(Scene):
         cycle = (self.frame - 120) % (6 * FPS)
         if self.frame < 120 or cycle > 50:
             return
-        x = rect.x - 60 + cycle / 50 * (rect.w + 120)
+        x = rect.x - 60 * RS + cycle / 50 * (rect.w + 120 * RS)
         band = pygame.Surface(rect.size, pygame.SRCALPHA)
-        for k in range(26):
-            a = 70 - abs(k - 13) * 5
+        for k in range(26 * RS):
+            a = 70 - abs(k - 13 * RS) * 5 // RS
             if a > 0:
-                pygame.draw.line(band, (a, a, a), (x - rect.x + k, 0), (x - rect.x + k - 40, rect.h))
+                pygame.draw.line(band, (a, a, a), (x - rect.x + k, 0), (x - rect.x + k - 40 * RS, rect.h))
         canvas.blit(band, rect.topleft, special_flags=pygame.BLEND_RGB_ADD)
 
     def draw(self, canvas: pygame.Surface) -> None:
@@ -248,7 +249,7 @@ class Title(Scene):
         self._draw_word(canvas, art["main"], cx, main_y, 30, 3.0)
         main_w = art["main"][-1][1]
         if t > 100:
-            self._shine(canvas, pygame.Rect(round(cx - main_w / 2), round(main_y), main_w, 118))
+            self._shine(canvas, pygame.Rect(round(cx - main_w / 2), round(main_y), main_w, 130 * RS))
         # a ribbon with a changing tagline
         tag = TAGLINES[(t // TAGLINE_FRAMES) % len(TAGLINES)]
         phase = t % TAGLINE_FRAMES

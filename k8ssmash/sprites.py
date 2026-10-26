@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pygame
 
+from k8ssmash.config import RS
+
 from k8ssmash.fighter import Fighter
 
 ASSETS = Path(__file__).resolve().parent.parent / "assets" / "sprites"
@@ -20,6 +22,11 @@ class SpriteSet:
         tag = f"{slug(name)}{'_alt' if alt else ''}"
         meta = json.loads((ASSETS / f"{tag}.json").read_text())
         sheet = pygame.image.load(str(ASSETS / f"{tag}.png")).convert_alpha()
+        built = meta["frame"] // 96  # the sheets are drawn at some pixels-per-rig-unit; the game may run at another
+        if built != RS:
+            k = RS / built
+            sheet = pygame.transform.smoothscale(sheet, (round(sheet.get_width() * k), round(sheet.get_height() * k)))
+            meta = {**meta, "frame": round(meta["frame"] * k), "feet": [round(v * k) for v in meta["feet"]]}
         self.size = meta["frame"]
         self.feet = tuple(meta["feet"])
         self.anims = meta["anims"]

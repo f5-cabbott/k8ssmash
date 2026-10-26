@@ -15,7 +15,13 @@ WORLD_H = 540
 MAX_CANVAS_W = 1296  # the widest play canvas (2.4:1); wider screens get pillarboxed beyond this
 FPS = 60
 
-RESOLUTIONS = [(1280, 720), (1920, 1080), (2560, 1440)]
+# Game logic stays in 960x540 "world units"; everything is drawn RS times bigger, so the picture is 1920x1080 at the
+# default RS=2 and sprites, scenery and text carry twice the detail. K8SSMASH_RS=1 draws at the old size (weak hardware).
+RS = max(1, min(3, int(os.environ.get("K8SSMASH_RS", "2") or 2)))
+PIX_W = WORLD_W * RS
+PIX_H = WORLD_H * RS
+
+RESOLUTIONS = [(1280, 720), (1600, 900), (1920, 1080), (2560, 1440)]
 
 ACTIONS = ("LEFT", "RIGHT", "UP", "DOWN", "JUMP", "ATTACK", "SPECIAL", "SHIELD", "START", "SELECT")
 

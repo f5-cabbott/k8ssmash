@@ -3,6 +3,7 @@ import time
 import pygame
 import pytest
 
+from k8ssmash.config import PIX_H, PIX_W
 from k8ssmash import backdrops
 from k8ssmash.config import WORLD_H as CANVAS_H, WORLD_W as CANVAS_W
 from k8ssmash.stage import STAGES
@@ -25,7 +26,7 @@ def test_every_stage_has_a_backdrop_builder():
 
 @pytest.mark.parametrize("theme", THEMES)
 def test_backdrop_fills_the_screen_and_survives_camera_extremes(theme):
-    canvas = pygame.Surface((CANVAS_W, CANVAS_H)).convert()
+    canvas = pygame.Surface((PIX_W, PIX_H)).convert()
     bd = backdrops.get_backdrop(theme)
     for cam in (-9999, -100, 0, 100, 9999):  # the camera is clamped, so layers never run out of art
         canvas.fill((255, 0, 255))
@@ -40,7 +41,7 @@ def test_layers_move_at_different_speeds_for_parallax(theme):
     bd = backdrops.get_backdrop(theme)
     factors = sorted({round(i.factor, 3) for i in bd.items if hasattr(i, "factor")})
     assert len(factors) >= 3  # at least three depth layers
-    a, b = pygame.Surface((CANVAS_W, CANVAS_H)), pygame.Surface((CANVAS_W, CANVAS_H))
+    a, b = pygame.Surface((PIX_W, PIX_H)), pygame.Surface((PIX_W, PIX_H))
     bd.draw(a, 100, -100)
     bd.draw(b, 100, 100)
     assert pygame.image.tobytes(a, "RGB") != pygame.image.tobytes(b, "RGB")
@@ -49,7 +50,7 @@ def test_layers_move_at_different_speeds_for_parallax(theme):
 @pytest.mark.parametrize("theme", THEMES)
 def test_animation_changes_over_time(theme):
     bd = backdrops.get_backdrop(theme)
-    a, b = pygame.Surface((CANVAS_W, CANVAS_H)), pygame.Surface((CANVAS_W, CANVAS_H))
+    a, b = pygame.Surface((PIX_W, PIX_H)), pygame.Surface((PIX_W, PIX_H))
     bd.draw(a, 10, 0)
     bd.draw(b, 200, 0)
     assert pygame.image.tobytes(a, "RGB") != pygame.image.tobytes(b, "RGB")
@@ -57,7 +58,7 @@ def test_animation_changes_over_time(theme):
 
 @pytest.mark.parametrize("theme", THEMES)
 def test_drawing_is_cheap_enough_for_a_pi(theme):
-    canvas = pygame.Surface((CANVAS_W, CANVAS_H)).convert()
+    canvas = pygame.Surface((PIX_W, PIX_H)).convert()
     bd = backdrops.get_backdrop(theme)
     t0 = time.perf_counter()
     for i in range(30):
@@ -75,7 +76,7 @@ def test_dither_gradient_is_banded_and_dithered():
 @pytest.mark.parametrize("theme", THEMES)
 def test_platforms_render_for_every_size(theme):
     from k8ssmash.stage import Platform
-    canvas = pygame.Surface((CANVAS_W, CANVAS_H))
+    canvas = pygame.Surface((PIX_W, PIX_H))
     for rect, thin in ((pygame.Rect(100, 250, 400, 40), False), (pygame.Rect(170, 185, 120, 8), True)):
         backdrops.draw_platform(canvas, Platform(rect, dropthrough=thin), theme)
 
@@ -97,7 +98,7 @@ def blob_motion(a, b, jump=45):
 
 @pytest.mark.parametrize("theme", THEMES)
 def test_backdrops_are_dim_and_have_no_bright_specks(theme):
-    canvas = pygame.Surface((CANVAS_W, CANVAS_H))
+    canvas = pygame.Surface((PIX_W, PIX_H))
     backdrops.get_backdrop(theme).draw(canvas, 300, 0)
     luma = _luma(canvas)
     assert (luma > 150).mean() < 0.03, "too much of the background is brightly lit"
@@ -108,7 +109,7 @@ def test_backdrops_are_dim_and_have_no_bright_specks(theme):
 @pytest.mark.parametrize("theme", THEMES)
 def test_background_has_no_small_fast_movers(theme):
     """Small bright things moving quickly look like projectiles. Only slow, large motion is allowed."""
-    canvas = pygame.Surface((CANVAS_W, CANVAS_H))
+    canvas = pygame.Surface((PIX_W, PIX_H))
     bd = backdrops.get_backdrop(theme)
     changed = []
     for start in range(400, 472, 9):  # many frame pairs, so one unlucky frame can't decide it
@@ -127,7 +128,7 @@ def test_background_has_no_small_fast_movers(theme):
 def test_platforms_outshine_the_scenery(theme):
     """A platform's top edge must be brighter than anything the backdrop itself draws around it."""
     from k8ssmash.stage import Platform
-    canvas = pygame.Surface((CANVAS_W, CANVAS_H))
+    canvas = pygame.Surface((PIX_W, PIX_H))
     backdrops.get_backdrop(theme).draw(canvas, 300, 0)
     backdrop_peak = float(_luma(canvas).max())
     for rect, thin in ((pygame.Rect(100, 250, 400, 40), False), (pygame.Rect(170, 185, 120, 8), True)):

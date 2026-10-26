@@ -8,6 +8,7 @@ import numpy as np
 import pygame
 
 from k8ssmash.art.draw import SS, Layer
+from k8ssmash.config import RS
 
 Color = tuple[int, int, int]
 LEVELS = 9  # tonal steps per material: a 16-bit sprite has far smoother form shading than an 8-bit one
@@ -57,7 +58,8 @@ def _erode(m: np.ndarray) -> np.ndarray:
 
 def layer_mask(layer: Layer, size: int) -> np.ndarray:
     a = pygame.surfarray.array_alpha(layer).T > 0  # (y, x), supersampled
-    cover = a.reshape(size, SS, size, SS).mean(axis=(1, 3))
+    k = SS // RS  # supersamples per output pixel (4)
+    cover = a.reshape(size, k, size, k).mean(axis=(1, 3))
     return cover >= 0.5
 
 
@@ -66,17 +68,18 @@ def shade(mask: np.ndarray, shiny: bool, flat: bool = False, texture: str = "") 
     h_, w_ = mask.shape
     depth = np.zeros(mask.shape)
     cur = mask.copy()
-    for _ in range(12):
+    for _ in range(12 * RS):
         if not cur.any():
             break
         depth += cur
         cur = _erode(cur)
     dmax = max(depth.max(), 1.0)
-    height = (depth / dmax) ** 0.55 * min(dmax, 5.0) * (0.35 if flat else 1.0)
+    height = (depth / dmax) ** 0.55 * min(dmax, 5.0 * RS) * (0.35 if flat else 1.0)
     # smooth the height a touch so bands follow the form instead of the pixel grid
     k = np.array([1, 2, 1]) / 4.0
     for axis in (0, 1):
-        height = np.apply_along_axis(lambda v: np.convolve(v, k, mode="same"), axis, height)
+        for _ in range(RS):
+            height = np.apply_along_axis(lambda v: np.convolve(v, k, mode="same"), axis, height)
     gy, gx = np.gradient(height)
     normal = np.dstack([-gx * 1.1, -gy * 1.1, np.ones_like(height)])
     normal /= np.linalg.norm(normal, axis=2, keepdims=True)
@@ -94,7 +97,7 @@ def shade(mask: np.ndarray, shiny: bool, flat: bool = False, texture: str = "") 
     if texture:
         idx = _texture(idx, mask, texture)
     # bounce light: the bottom-right rim catches a little light from the ground
-    rim = mask & ~shift(mask, -1, -1)
+    rim = mask & ~shift(mask, -RS, -RS)
     idx = np.where(rim & (idx < 3), 3, idx)
     return np.where(mask, idx, -1)
 
@@ -109,15 +112,15 @@ def _texture(idx: np.ndarray, mask: np.ndarray, kind: str) -> np.ndarray:
         stroke = (noise < 15) | (np.roll(noise, 1, 0) < 15) & (noise % 2 == 0)
         out = np.where(stroke & mask & (idx > 0), np.where(noise % 3 == 0, idx + 1, idx - 1), out)
     elif kind == "cloth":  # diagonal folds
-        fold = ((xs + 2 * ys) % 11 == 0) & (idx >= 2)
+        fold = ((xs + 2 * ys) % (11 * RS) < RS) & (idx >= 2)
         out = np.where(fold & mask, idx - 1, out)
-        crest = ((xs + 2 * ys) % 11 == 1) & (idx >= 2)
+        crest = (((xs + 2 * ys) % (11 * RS) >= RS) & ((xs + 2 * ys) % (11 * RS) < 2 * RS)) & (idx >= 2)
         out = np.where(crest & mask, idx + 1, out)
     elif kind == "metal":  # brushed horizontal banding with a bright edge
-        band = (ys % 6 == 0) & mask
+        band = (ys % (6 * RS) < RS) & mask
         out = np.where(band, idx + 1, out)
     elif kind == "panel":  # plate seams
-        seam = ((xs % 7 == 0) | (ys % 8 == 0)) & mask & (idx > 0)
+        seam = ((xs % (7 * RS) < RS) | (ys % (8 * RS) < RS)) & mask & (idx > 0)
         out = np.where(seam, idx - 1, out)
     return np.clip(out, 0, LEVELS - 1)
 
@@ -126,10 +129,13 @@ def paint_part(frame: np.ndarray, mask: np.ndarray, ramp: np.ndarray, shiny: boo
                texture: str = "") -> None:
     """Composite one shaded part (with a colored outline) onto the RGBA frame array."""
     idx = shade(mask, shiny, flat, texture)
-    ring = np.zeros_like(mask)
-    for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-        ring |= shift(mask, dy, dx)
-    ring &= ~mask
+    grown = mask.copy()
+    for _ in range(RS):  # the outline is one rig unit thick: RS output pixels
+        step = grown.copy()
+        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            step |= shift(grown, dy, dx)
+        grown = step
+    ring = grown & ~mask
     outline = tuple(int(v * 0.42) for v in _mix(tuple(float(x) for x in ramp[0]), (8, 4, 28), 0.5))  # a bolder, inkier outline
     frame[ring, :3] = outline
     frame[ring, 3] = 255
@@ -137,8 +143,8 @@ def paint_part(frame: np.ndarray, mask: np.ndarray, ramp: np.ndarray, shiny: boo
     frame[sel, :3] = ramp[np.clip(idx[sel], 0, LEVELS - 1)]
     frame[sel, 3] = 255
     # cool rim light from the backlight on the shadow-side edge, and a touch of ambient occlusion where parts curl under
-    edge_r = mask & ~shift(mask, -1, 0) & (idx >= 2)
-    edge_b = mask & ~shift(mask, 0, -1)
+    edge_r = mask & ~shift(mask, -RS, 0) & (idx >= 2)
+    edge_b = mask & ~shift(mask, 0, -RS)
     rimc = np.array([120, 175, 255], dtype=float)
     frame[edge_r, :3] = (frame[edge_r, :3] * 0.62 + rimc * 0.38).astype(np.uint8)
     frame[edge_b, :3] = (frame[edge_b, :3] * 0.80).astype(np.uint8)

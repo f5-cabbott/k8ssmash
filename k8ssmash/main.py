@@ -179,6 +179,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--colorblind", action="store_true", help="colorblind-safe player colors")
     ap.add_argument("--rebind", action="store_true", help="open the button rebinding screen first")
     ap.add_argument("--fps", action="store_true", help="show the FPS overlay (F8 toggles it)")
+    ap.add_argument("--render-scale", type=int, choices=(1, 2, 3), metavar="N",
+                    help="draw at N x 960x540 (default 2 = 1920x1080; 1 for weak hardware)")
+    ap.add_argument("--lowres", action="store_true", help="same as --render-scale 1")
     ap.add_argument("--software-render", action="store_true", help="scale on the CPU instead of the GPU")
     ap.add_argument("-v", "--verbose", action="store_true")
     return ap.parse_args(argv)

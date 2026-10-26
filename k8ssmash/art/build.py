@@ -38,7 +38,7 @@ def build(name: str, alt: bool = False) -> pygame.Surface:
     return sheet
 
 
-def contact_sheet(sheets: dict[str, pygame.Surface], path: Path, scale: int = 2) -> None:
+def contact_sheet(sheets: dict[str, pygame.Surface], path: Path, scale: int = 1) -> None:
     """One image: a few key poses for every fighter, for eyeballing the whole roster."""
     show = [("idle", 0), ("run", 1), ("jump", 0), ("jab", 1), ("side", 1), ("cast", 1), ("rise", 1), ("hurt", 0)]
     names = list(ANIMS)

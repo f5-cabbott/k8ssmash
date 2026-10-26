@@ -34,6 +34,7 @@ def portrait(name: str, color, w: int, h: int, floor: int) -> pygame.Surface:
     cached = _portraits.get(key)
     if cached is not None:
         return cached
+    R = ui.SCALE / 1.5  # the art below was drawn for a 1.5-pixel design unit; R keeps its proportions at any render scale
     surf = pygame.Surface((w, h), pygame.SRCALPHA)
     base_top, base_bot = (6, 8, 26), _mix((8, 10, 30), color, 0.28)
     for y in range(h):
@@ -41,41 +42,41 @@ def portrait(name: str, color, w: int, h: int, floor: int) -> pygame.Surface:
     cx = w // 2
     # a soft beam of light dropping onto the podium
     beam = pygame.Surface((w, h), pygame.SRCALPHA)
-    pygame.draw.polygon(beam, _mix(color, (255, 255, 255), 0.25) + (46,), [(cx - 14, 0), (cx + 14, 0), (cx + 58, floor), (cx - 58, floor)])
-    pygame.draw.polygon(beam, _mix(color, (255, 255, 255), 0.5) + (34,), [(cx - 6, 0), (cx + 6, 0), (cx + 26, floor), (cx - 26, floor)])
+    pygame.draw.polygon(beam, _mix(color, (255, 255, 255), 0.25) + (46,), [(cx - 14 * R, 0), (cx + 14 * R, 0), (cx + 58 * R, floor), (cx - 58 * R, floor)])
+    pygame.draw.polygon(beam, _mix(color, (255, 255, 255), 0.5) + (34,), [(cx - 6 * R, 0), (cx + 6 * R, 0), (cx + 26 * R, floor), (cx - 26 * R, floor)])
     surf.blit(beam, (0, 0))
     # halo behind the fighter, stepped so it stays pixel-crisp
     halo = pygame.Surface((w, h), pygame.SRCALPHA)
     for r, a in ((54, 14), (42, 20), (30, 28), (18, 36)):
-        pygame.draw.ellipse(halo, color + (a,), (cx - r * 1.2, floor - 38 - r * 0.8, r * 2.4, r * 1.6))
+        pygame.draw.ellipse(halo, color + (a,), (cx - r * R * 1.2, floor - 38 * R - r * R * 0.8, r * R * 2.4, r * R * 1.6))
     surf.blit(halo, (0, 0))
     # perspective grid on the floor
     grid = _mix(color, (255, 255, 255), 0.1)
     for k in range(-9, 10):
-        pygame.draw.line(surf, _mix(base_bot, grid, 0.5), (cx + k * 3, floor), (cx + k * 26, h), 1)
+        pygame.draw.line(surf, _mix(base_bot, grid, 0.5), (cx + k * 3 * R, floor), (cx + k * 26 * R, h), round(R))
     for i in range(1, 5):
         y = floor + round((h - floor) * (i / 4) ** 1.7)
-        pygame.draw.line(surf, _mix(base_bot, grid, 0.35 + 0.1 * i), (0, y), (w, y), 1)
+        pygame.draw.line(surf, _mix(base_bot, grid, 0.35 + 0.1 * i), (0, y), (w, y), round(R))
     # the podium: a glowing ellipse the fighter stands on
     for k, a in ((16, 36), (11, 70), (7, 140)):
         glow = pygame.Surface((w, h), pygame.SRCALPHA)
-        pygame.draw.ellipse(glow, _mix(color, (255, 255, 255), 0.2) + (a,), (cx - 34 - k, floor - 5 - k // 3, 68 + 2 * k, 10 + 2 * (k // 3)))
+        pygame.draw.ellipse(glow, _mix(color, (255, 255, 255), 0.2) + (a,), (cx - (34 + k) * R, floor - (5 + k // 3) * R, (68 + 2 * k) * R, (10 + 2 * (k // 3)) * R))
         surf.blit(glow, (0, 0))
-    pygame.draw.ellipse(surf, _mix(color, (255, 255, 255), 0.6), (cx - 34, floor - 5, 68, 10), 1)
+    pygame.draw.ellipse(surf, _mix(color, (255, 255, 255), 0.6), (cx - 34 * R, floor - 5 * R, 68 * R, 10 * R), round(R))
     # scanlines, so the art reads like a CRT card
-    for y in range(0, h, 3):
-        pygame.draw.line(surf, (0, 0, 0, 22), (0, y), (w, y))
+    for y in range(0, h, round(3 * R)):
+        pygame.draw.line(surf, (0, 0, 0, 22), (0, y), (w, y), round(R))
     # name plate along the bottom
     plate_h = round(19 * ui.SCALE)
     plate = pygame.Surface((w, plate_h), pygame.SRCALPHA)
     for y in range(plate_h):
         pygame.draw.line(plate, _mix(_mix(color, (255, 255, 255), 0.18), (8, 10, 30), y / plate_h) + (255,), (0, y), (w, y))
-    pygame.draw.line(plate, _mix(color, (255, 255, 255), 0.7), (0, 0), (w, 0), 2)
+    pygame.draw.line(plate, _mix(color, (255, 255, 255), 0.7), (0, 0), (w, 0), round(2 * R))
     surf.blit(plate, (0, h - plate_h))
     label = ui.fit(name, (255, 255, 255), w / ui.SCALE - 16, 13, 9)
     surf.blit(label, ((w - pygame.Surface.get_width(label)) // 2, h - plate_h + (plate_h - pygame.Surface.get_height(label)) // 2 + 1))
-    pygame.draw.rect(surf, (6, 8, 30), (0, 0, w, h), 1)
-    pygame.draw.rect(surf, _mix(color, (255, 255, 255), 0.35), (1, 1, w - 2, h - 2), 1)
+    pygame.draw.rect(surf, (6, 8, 30), (0, 0, w, h), round(R))
+    pygame.draw.rect(surf, _mix(color, (255, 255, 255), 0.35), (round(R), round(R), w - 2 * round(R), h - 2 * round(R)), round(R))
     _portraits[key] = surf
     return surf
 

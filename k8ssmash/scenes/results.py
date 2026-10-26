@@ -6,7 +6,7 @@ import pygame
 
 from k8ssmash import ui
 from k8ssmash.ui import pd
-from k8ssmash.config import CANVAS_W, FPS, WORLD_H, WORLD_W
+from k8ssmash.config import CANVAS_W, FPS, PIX_H, PIX_W, RS
 from k8ssmash.flair import WIN
 from k8ssmash.particles import Particles
 from k8ssmash.sprites import sprite_set
@@ -97,9 +97,10 @@ class Results(Scene):
                     anim, hop = "win", (0, -16, -22, -4)[idx]
                 else:
                     anim, idx, hop = "lose", 0, 0
-                img = sprites.get(anim, idx, 1 if slot == 0 else -1, 3.0)  # whole-number pixel scale: stays crisp
+                k = 3.0 / RS  # the same on-screen size as ever; the art underneath is RS times finer
+                img = sprites.get(anim, idx, 1 if slot == 0 else -1, k)
                 fx, fy = sprites.feet
-                ui.blit_sprite(canvas, img, cx, 214 + hop, (fx * 3, fy * 3))
+                ui.blit_sprite(canvas, img, cx, 214 + hop, (fx * k, fy * k))
             run = self.app.runs.runs[slot]
             if run.streak >= 2:
                 t = self.small.render(f"{run.streak} wins in a row!", False, (255, 215, 90))
@@ -130,6 +131,6 @@ class Results(Scene):
     def _backdrop(cls) -> pygame.Surface:
         if cls._bg is None:
             from k8ssmash.backdrops import dither_gradient
-            cls._bg = dither_gradient(WORLD_W, WORLD_H, [(0, (4, 6, 22)), (0.55, (10, 26, 84)), (0.62, (30, 130, 190)),
+            cls._bg = dither_gradient(PIX_W, PIX_H, [(0, (4, 6, 22)), (0.55, (10, 26, 84)), (0.62, (30, 130, 190)),
                                                             (0.64, (4, 8, 26)), (1, (2, 4, 14))], bands=22)
         return cls._bg

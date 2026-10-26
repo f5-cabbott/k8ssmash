@@ -6,10 +6,11 @@ import random
 import pygame
 
 from k8ssmash import backdrops, ui
+from k8ssmash.ui import wd
 from k8ssmash.ai import SimpleAI
 from k8ssmash.audio_manager import MUSIC_FOR_THEME
 from k8ssmash.backdrops import draw_backdrop, draw_platform
-from k8ssmash.config import FPS, WORLD_H, WORLD_W
+from k8ssmash.config import FPS, PIX_H, PIX_W, RS, WORLD_H, WORLD_W
 from k8ssmash.flair import INTRO
 from k8ssmash.fighter import (BUFF_ARMOR, BUFF_GUARD, BUFF_HASTE, BUFF_POWER, CALLOUT_FRAMES, Fighter,
                               FighterStats, Projectile)
@@ -39,7 +40,7 @@ COMBO_SHOW = 70  # frames the combo counter stays up after the last hit
 _VIGNETTES: dict[int, pygame.Surface] = {}
 
 
-def vignette(width: int = WORLD_W) -> pygame.Surface:
+def vignette(width: int = PIX_W) -> pygame.Surface:
     """A soft dark-edged overlay, built once per canvas width from a tiny gradient and smooth-scaled up."""
     if width not in _VIGNETTES:
         w, h = 64, 36
@@ -49,12 +50,12 @@ def vignette(width: int = WORLD_W) -> pygame.Surface:
                 d = math.hypot((xx - w / 2) / (w / 2), (yy - h / 2) / (h / 2))
                 a = max(0.0, min(1.0, (d - 0.55) / 0.8)) ** 1.4
                 small.set_at((xx, yy), (0, 0, 8, int(255 * a)))
-        _VIGNETTES[width] = pygame.transform.smoothscale(small, (width, WORLD_H))
+        _VIGNETTES[width] = pygame.transform.smoothscale(small, (width, PIX_H))
     return _VIGNETTES[width]
 
 
 class Battle(Scene):
-    native = (WORLD_W, WORLD_H)
+    native = (PIX_W, PIX_H)
     wide = True  # takes the whole (possibly ultrawide) canvas: scenery fills it, the arena sits in the middle
     metrics_mode: str | None = None  # None: derived from who is human
 
@@ -97,14 +98,14 @@ class Battle(Scene):
         self.hud_pulse = [0] * len(self.fighters)
         self.rng = random.Random()
         app.audio.music(MUSIC_FOR_THEME.get(self.stage.theme, "datacenter"))
-        self.font = ui.Font(22)
-        self.big = ui.Font(44)
-        self.huge = ui.Font(80)
-        self.callout_font = ui.Font(15)
-        self.tag_font = ui.Font(13)
-        self.finale_font = ui.Font(30)
-        self.pct_font = ui.Font(58)
-        self.pct_pulse = ui.Font(72)
+        self.font = ui.Font(22 * RS)
+        self.big = ui.Font(44 * RS)
+        self.huge = ui.Font(80 * RS)
+        self.callout_font = ui.Font(15 * RS)
+        self.tag_font = ui.Font(13 * RS)
+        self.finale_font = ui.Font(30 * RS)
+        self.pct_font = ui.Font(58 * RS)
+        self.pct_pulse = ui.Font(72 * RS)
         self.colors = player_colors(app.cfg)
 
     # --- logic ---------------------------------------------------------------------------
@@ -456,8 +457,8 @@ class Battle(Scene):
     # --- drawing -------------------------------------------------------------------------
     def draw(self, canvas: pygame.Surface) -> None:
         full = canvas
-        off = (full.get_width() - WORLD_W) // 2
-        canvas = full.subsurface((off, 0, WORLD_W, WORLD_H)) if off > 0 else full  # the 960x540 arena area
+        off = (full.get_width() - PIX_W) // 2
+        canvas = full.subsurface((off, 0, PIX_W, PIX_H)) if off > 0 else full  # the arena area
         live = [f for f in self.fighters if f.alive]
         cam = (sum(f.x for f in live) / len(live) - WORLD_W / 2) if live else 0.0
         self.cam += (cam - self.cam) * 0.05  # ease, so the scenery drifts rather than snaps
@@ -504,25 +505,27 @@ class Battle(Scene):
         veil = vignette(full.get_width())
         veil.set_alpha(int(200 * k))
         full.blit(veil, (0, 0))
-        bar = int(20 * k)
+        bar = int(20 * k) * RS
         pygame.draw.rect(full, (6, 6, 14), (0, 0, full.get_width(), bar))
-        pygame.draw.rect(full, (6, 6, 14), (0, WORLD_H - bar, full.get_width(), bar))
+        pygame.draw.rect(full, (6, 6, 14), (0, PIX_H - bar, full.get_width(), bar))
         text = "TERMINATED"
         glyphs = [self.finale_font.render(c, False, (255, 232, 176)) for c in text]
-        width = sum(g.get_width() for g in glyphs) + 5 * (len(text) - 1)
-        x, y = (WORLD_W - width) // 2, int(WORLD_H * 0.42) - int((1 - k) * 8)
+        gap = 5 * RS
+        width = sum(g.get_width() for g in glyphs) + gap * (len(text) - 1)
+        x, y = (PIX_W - width) // 2, int(PIX_H * 0.42) - int((1 - k) * 8 * RS)
         for g in glyphs:
-            shadow = self.finale_font.render(" ", False, (0, 0, 0))
             g.set_alpha(int(235 * k))
             canvas.blit(g, (x, y))
-            x += g.get_width() + 5
+            x += g.get_width() + gap
 
     def _center(self, canvas: pygame.Surface, text: str, font: pygame.font.Font, y: int,
                 color=(255, 255, 255), shadow: bool = False) -> None:
+        """Centred text; y is in world units."""
         surf = font.render(text, False, color)
-        x = (WORLD_W - surf.get_width()) // 2
+        x = (PIX_W - surf.get_width()) // 2
+        y = int(y * RS)
         if shadow:
-            canvas.blit(font.render(text, False, (16, 12, 28)), (x + 2, y + 2))
+            canvas.blit(font.render(text, False, (16, 12, 28)), (x + 2 * RS, y + 2 * RS))
         canvas.blit(surf, (x, y))
 
     def _draw_fighter(self, canvas: pygame.Surface, f: Fighter) -> None:
@@ -535,7 +538,7 @@ class Battle(Scene):
             anim, idx = pick_frame(f)
             img = sprites.get(anim, idx, f.facing, f.scale)
             fx, fy = sprites.feet
-            pos = (round(f.x - fx * f.scale), round(f.y - fy * f.scale))
+            pos = (round(f.x * RS - fx * f.scale), round(f.y * RS - fy * f.scale))
             self._draw_ghosts(canvas, f, img, pos)
             if f.state == "hurt" and f.anim_frame < 6:  # a brief steady brightening on impact that fades out (no flicker)
                 img = img.copy()
@@ -546,24 +549,24 @@ class Battle(Scene):
                 img.set_alpha(int(200 + 55 * math.sin(self.frame * 0.18)))
             canvas.blit(img, pos)
         else:
-            pygame.draw.rect(canvas, f.stats.color, box)
+            wd.rect(canvas, f.stats.color, box)
         if f.shielding:
-            r = int(18 + 12 * f.shield_hp / 60)
+            r = int((18 + 12 * f.shield_hp / 60) * RS)
             bubble = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
             pygame.draw.circle(bubble, (120, 220, 255, 70), (r, r), r)
-            pygame.draw.circle(bubble, (180, 240, 255, 200), (r, r), r, 2)
-            canvas.blit(bubble, (box.centerx - r, box.centery - r))
+            pygame.draw.circle(bubble, (180, 240, 255, 200), (r, r), r, 2 * RS)
+            canvas.blit(bubble, (box.centerx * RS - r, box.centery * RS - r))
         for buff, color in ((BUFF_ARMOR, (255, 170, 60)), (BUFF_GUARD, (120, 255, 150)),
                             (BUFF_POWER, (255, 120, 90)), (BUFF_HASTE, (255, 240, 120))):
             if f.has(buff) and (self.frame // 6) % 2 == 0:
-                pygame.draw.ellipse(canvas, color, box.inflate(6, 4), 1)
+                wd.ellipse(canvas, color, box.inflate(6, 4), 1)
         hb = f.active_hitbox()
         if hb is not None and self.debug:
-            pygame.draw.rect(canvas, (255, 240, 120), hb, 1)
+            wd.rect(canvas, (255, 240, 120), hb, 1)
         if self.debug:
-            pygame.draw.rect(canvas, (0, 255, 0), box, 1)
+            wd.rect(canvas, (0, 255, 0), box, 1)
             label = self.font.render(f"{f.state} {f.move_frame}", False, (255, 255, 255))
-            canvas.blit(label, (box.x - 10, box.y - 16))
+            canvas.blit(label, ((box.x - 10) * RS, (box.y - 16) * RS))
         self._draw_tag(canvas, f)
         if f.callout_timer > 0:
             alpha = min(255, f.callout_timer * 14)  # fades out over the last ~18 frames
@@ -571,8 +574,8 @@ class Battle(Scene):
             shadow = self.callout_font.render(f.callout, False, (16, 12, 28))
             text.set_alpha(alpha)
             shadow.set_alpha(alpha)
-            pos = (box.centerx - text.get_width() // 2, box.top - 30 - (CALLOUT_FRAMES - f.callout_timer) // 10)
-            canvas.blit(shadow, (pos[0] + 1, pos[1] + 1))
+            pos = (box.centerx * RS - text.get_width() // 2, (box.top - 30 - (CALLOUT_FRAMES - f.callout_timer) // 10) * RS)
+            canvas.blit(shadow, (pos[0] + RS, pos[1] + RS))
             canvas.blit(text, pos)
 
     def _draw_ghosts(self, canvas: pygame.Surface, f: Fighter, img: pygame.Surface, pos: tuple[int, int]) -> None:
@@ -597,58 +600,57 @@ class Battle(Scene):
         color = self.colors[f.slot]
         label = "CPU" if not self.human[f.slot] else f"P{f.slot + 1}"
         text = self.tag_font.render(label, False, color)
-        total = text.get_width() + 3 + 7
-        x = f.hurtbox.centerx - total // 2
-        y = f.hurtbox.top - 12
+        total = text.get_width() + 10 * RS
+        x = f.hurtbox.centerx * RS - total // 2
+        y = (f.hurtbox.top - 12) * RS
         canvas.blit(text, (x, y))
-        mx, my = x + text.get_width() + 3, y + 3
+        mx, my = x + text.get_width() + 3 * RS, y + 3 * RS
         if f.slot == 0:
-            pygame.draw.polygon(canvas, color, [(mx, my), (mx + 7, my), (mx + 3, my + 6)])
+            pygame.draw.polygon(canvas, color, [(mx, my), (mx + 7 * RS, my), (mx + 3 * RS, my + 6 * RS)])
         else:
-            pygame.draw.rect(canvas, color, (mx, my, 6, 6))
+            pygame.draw.rect(canvas, color, (mx, my, 6 * RS, 6 * RS))
 
     def _draw_combo(self, canvas: pygame.Surface) -> None:
         for slot, (n, t, _) in self.combos.items():
             if n < 2:
                 continue
-            f = self.fighters[slot]
             x = 26 if slot == 0 else WORLD_W - 26 - 250
             pop = 1.0 + 0.25 * max(0, t - (COMBO_SHOW - 6)) / 6  # a quick pop when the count goes up, then steady
             text = ui.scale_surface(self.big.render(f"{n} HITS", False, (255, 214, 90)), pop)
-            canvas.blit(text, (x, WORLD_H - 110 - text.get_height() // 2))
+            canvas.blit(text, (x * RS, (WORLD_H - 110) * RS - pygame.Surface.get_height(text) // 2))
 
     def _draw_hud(self, canvas: pygame.Surface) -> None:
         self._draw_combo(canvas)
         for f in self.fighters:
             color = self.colors[f.slot]
             x = 26 if f.slot == 0 else WORLD_W - 26 - 250
-            panel = pygame.Rect(x, WORLD_H - 82, 250, 66)
+            panel = pygame.Rect(x * RS, (WORLD_H - 82) * RS, 250 * RS, 66 * RS)
             ui.window(canvas, panel, accent=color)
             # portrait: head and shoulders from the idle frame
             sprites = sprite_set(f.stats.name)
-            box = pygame.Rect(panel.x + 4, panel.y + 4, 56, 58)
+            box = pygame.Rect(panel.x + 4 * RS, panel.y + 4 * RS, 56 * RS, 58 * RS)
             pygame.draw.rect(canvas, (24, 30, 56), box)
             if sprites is not None:
                 img = sprites.get("idle", 0, 1 if f.slot == 0 else -1)
                 canvas.set_clip(box)
                 fx, fy = sprites.feet
-                canvas.blit(img, (box.x + box.w // 2 - fx, box.y - (fy - 62)))
+                canvas.blit(img, (box.x + box.w // 2 - fx, box.y - (fy - 62 * RS)))
                 canvas.set_clip(None)
             # damage meter, severity-colored, pulses when hit
             font = self.pct_pulse if self.hud_pulse[f.slot] else self.pct_font
             num = font.render(str(int(f.percent)), False, damage_color(f.percent))
-            canvas.blit(font.render(str(int(f.percent)), False, (16, 12, 28)), (panel.x + 68, panel.y + 5))
-            canvas.blit(num, (panel.x + 66, panel.y + 3))
+            canvas.blit(font.render(str(int(f.percent)), False, (16, 12, 28)), (panel.x + 68 * RS, panel.y + 5 * RS))
+            canvas.blit(num, (panel.x + 66 * RS, panel.y + 3 * RS))
             canvas.blit(self.font.render("%", False, damage_color(f.percent)),
-                        (panel.x + 66 + num.get_width() + 2, panel.y + 30))
+                        (panel.x + 66 * RS + num.get_width() + 2 * RS, panel.y + 30 * RS))
             name = self.font.render(f.stats.name, False, (210, 214, 235))
-            canvas.blit(name, (panel.right - name.get_width() - 8, panel.y + 6))
+            canvas.blit(name, (panel.right - name.get_width() - 8 * RS, panel.y + 6 * RS))
             for i in range(max(f.stocks, 0)):
-                cx, cy = panel.x + 150 + i * 22, panel.bottom - 14
+                cx, cy = panel.x + (150 + i * 22) * RS, panel.bottom - 14 * RS
                 if f.slot == 0:
-                    pygame.draw.polygon(canvas, color, [(cx - 6, cy + 5), (cx + 6, cy + 5), (cx, cy - 6)])
+                    pygame.draw.polygon(canvas, color, [(cx - 6 * RS, cy + 5 * RS), (cx + 6 * RS, cy + 5 * RS), (cx, cy - 6 * RS)])
                 else:
-                    pygame.draw.rect(canvas, color, (cx - 5, cy - 5, 10, 10))
+                    pygame.draw.rect(canvas, color, (cx - 5 * RS, cy - 5 * RS, 10 * RS, 10 * RS))
         secs = max(self.time_left // FPS, 0)
         t = self.big.render(f"{secs // 60}:{secs % 60:02d}", False, (230, 230, 240))
-        canvas.blit(t, ((WORLD_W - t.get_width()) // 2, 14))
+        canvas.blit(t, ((PIX_W - t.get_width()) // 2, 14 * RS))

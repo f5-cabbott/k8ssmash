@@ -5,7 +5,7 @@ import pytest
 
 from k8ssmash import backdrops, ui
 from k8ssmash.audio import arranger, instruments as I, sfx
-from k8ssmash.config import Config
+from k8ssmash.config import PIX_H, PIX_W, Config
 from k8ssmash.fighter import Fighter
 from k8ssmash.main import App
 from k8ssmash.roster import roster
@@ -190,7 +190,7 @@ def test_select_panel_rows_and_legend_stay_inside_their_windows(app):
     sel.joined = [True, True]
     for st_idx in range(len(sel.roster)):
         sel.cursor = [st_idx, st_idx]
-        surf = pygame.Surface((960, 540))
+        surf = pygame.Surface((PIX_W, PIX_H))
         sel.draw(surf)
         panel_bottom = round((174 + 112) * ui.SCALE)
         legend_top = round(290 * ui.SCALE)

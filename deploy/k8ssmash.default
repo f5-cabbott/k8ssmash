@@ -7,3 +7,7 @@
 # If the display comes up at the wrong size, force a mode on the kernel command line instead
 # (see deploy/README.md), or tell the game which size to assume when windowed.
 #K8SSMASH_EXTRA_ARGS=--fps
+
+# Render scale: 1 draws the classic 960x540 picture (the service default on the Pi), 2 draws 1920x1080 with twice the detail.
+# Run `python tools/benchmark.py` on the Pi with K8SSMASH_RS=2 and only switch if it reports PASS.
+#K8SSMASH_RS=2

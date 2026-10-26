@@ -11,12 +11,13 @@ import numpy as np
 import pygame
 
 from k8ssmash.art.shade import BAYER
-from k8ssmash.config import CANVAS_H, CANVAS_W, WORLD_H, WORLD_W
+from k8ssmash.config import CANVAS_H, CANVAS_W, PIX_H, PIX_W, RS
+from k8ssmash.ui import wd
 from k8ssmash.stage import Platform
 from k8ssmash.ui import ScaledDraw
 
 W, H = CANVAS_W, CANVAS_H  # design grid
-U = WORLD_W / CANVAS_W  # design -> world scale (1.5)
+U = PIX_W / CANVAS_W  # design -> render pixels (3 at the default 2x)
 MARGIN = 160  # layers extend this far past each side so they cover an ultrawide canvas and can slide with the camera
 CAM_LIMIT = 150
 WIDE = W + 2 * MARGIN  # width of a parallax layer in design px
@@ -79,9 +80,9 @@ def _tint(color: Color, strength: int, w: int) -> pygame.Surface:
     """A full-width wash that is strongest in the sky and fades out toward the floor."""
     key = (color, strength, w)
     if key not in _tints:
-        surf = pygame.Surface((w, WORLD_H), pygame.SRCALPHA)
-        for y in range(0, WORLD_H, 2):
-            a = int(strength * (1.0 - 0.75 * y / WORLD_H))
+        surf = pygame.Surface((w, PIX_H), pygame.SRCALPHA)
+        for y in range(0, PIX_H, 2):
+            a = int(strength * (1.0 - 0.75 * y / PIX_H))
             pygame.draw.rect(surf, (*color, a), (0, y, w, 2))
         _tints[key] = surf
     return _tints[key]
@@ -124,15 +125,17 @@ class Layer:
     """A parallax layer authored in design px (wider than the screen by MARGIN each side)."""
 
     def __init__(self, surf: pygame.Surface, factor: float, y: int, drift: float = 0.0, wrap: bool = False, x: int = 0):
+        if pygame.display.get_surface() is not None:
+            surf = surf.convert_alpha() if surf.get_flags() & pygame.SRCALPHA else surf.convert()  # display format: much faster blits
         self.surf, self.factor, self.y, self.drift, self.wrap, self.x = surf, factor, y, drift, wrap, x
 
     def draw(self, canvas: pygame.Surface, frame: int, cam: float) -> None:
-        ox = (self.x - MARGIN - cam * self.factor + frame * self.drift) * U + (canvas.get_width() - WORLD_W) // 2
+        ox = (self.x - MARGIN - cam * self.factor + frame * self.drift) * U + (canvas.get_width() - PIX_W) // 2
         oy = self.y * U
         if self.wrap:
             w = self.surf.get_width()
             ox = ox % w - w
-            for k in range(0, int(WORLD_W // w) + 3):
+            for k in range(0, int(PIX_W // w) + 3):
                 canvas.blit(self.surf, (ox + k * w, oy))
         else:
             canvas.blit(self.surf, (ox, oy))
@@ -148,12 +151,12 @@ class Animated:
 
 class Backdrop:
     def __init__(self, sky: pygame.Surface, items: list, theme: str = ""):
-        self.sky, self.items, self.theme = sky, items, theme
+        self.sky, self.items, self.theme = (sky.convert() if pygame.display.get_surface() is not None else sky), items, theme
 
     def draw(self, canvas: pygame.Surface, frame: int, cam: float = 0.0) -> None:
         canvas.blit(self.sky, (0, 0))
-        cam = max(-CAM_LIMIT, min(CAM_LIMIT, cam / U))  # the camera arrives in world px; scenery thinks in design px
-        off = (canvas.get_width() - WORLD_W) // 2  # on a wide canvas the arena sits in the middle
+        cam = max(-CAM_LIMIT, min(CAM_LIMIT, cam / (U / RS)))  # the camera arrives in world units; scenery thinks in design px
+        off = (canvas.get_width() - PIX_W) // 2  # on a wide canvas the arena sits in the middle
         for item in self.items:
             if isinstance(item, Animated):
                 pd.ox = off
@@ -266,11 +269,11 @@ def _tower(surf, x, top, w, ground, accent, rng, led_out=None, leds=True, dark=(
 
 
 # --- Datacenter: the server hall, lit like the Grid ---------------------------------------------
-def build_datacenter(canvas_w: int = WORLD_W) -> Backdrop:
+def build_datacenter(canvas_w: int = PIX_W) -> Backdrop:
     rng = random.Random(7)
     accent = ACCENT["datacenter"]
     horizon = 214
-    sky = dither_gradient(canvas_w, WORLD_H, [(0, (2, 4, 14)), (0.35, (4, 10, 36)), (0.56, (8, 36, 92)), (0.595, (34, 150, 210)),
+    sky = dither_gradient(canvas_w, PIX_H, [(0, (2, 4, 14)), (0.35, (4, 10, 36)), (0.56, (8, 36, 92)), (0.595, (34, 150, 210)),
                                  (0.6, (4, 10, 30)), (1.0, (1, 3, 12))], bands=26)
 
     far = _wide()
@@ -350,11 +353,11 @@ def build_datacenter(canvas_w: int = WORLD_W) -> Backdrop:
 
 
 # --- Control Plane: the core chamber with a hologram of the helm wheel -----------------------------
-def build_controlplane(canvas_w: int = WORLD_W) -> Backdrop:
+def build_controlplane(canvas_w: int = PIX_W) -> Backdrop:
     rng = random.Random(11)
     accent, gold = ACCENT["controlplane"], SECOND["controlplane"]
     horizon = 236
-    sky = dither_gradient(canvas_w, WORLD_H, [(0, (3, 6, 24)), (0.4, (8, 18, 62)), (0.62, (22, 58, 140)), (0.655, (110, 190, 255)),
+    sky = dither_gradient(canvas_w, PIX_H, [(0, (3, 6, 24)), (0.4, (8, 18, 62)), (0.62, (22, 58, 140)), (0.655, (110, 190, 255)),
                                  (0.66, (4, 8, 28)), (1.0, (1, 3, 12))], bands=26)
 
     far = _wide()
@@ -446,11 +449,11 @@ def build_controlplane(canvas_w: int = WORLD_W) -> Backdrop:
 
 
 # --- Node Pool: an amber hot-aisle pod bay with honeycomb pod cells --------------------------------
-def build_nodepool(canvas_w: int = WORLD_W) -> Backdrop:
+def build_nodepool(canvas_w: int = PIX_W) -> Backdrop:
     rng = random.Random(23)
     accent, cyan = ACCENT["nodepool"], SECOND["nodepool"]
     horizon = 222
-    sky = dither_gradient(canvas_w, WORLD_H, [(0, (6, 2, 4)), (0.35, (22, 6, 8)), (0.56, (74, 22, 10)), (0.605, (255, 140, 34)),
+    sky = dither_gradient(canvas_w, PIX_H, [(0, (6, 2, 4)), (0.35, (22, 6, 8)), (0.56, (74, 22, 10)), (0.605, (255, 140, 34)),
                                  (0.61, (10, 4, 6)), (1.0, (3, 1, 2))], bands=26)
 
     far = _wide()
@@ -556,7 +559,7 @@ BUILDERS = {"datacenter": build_datacenter, "controlplane": build_controlplane, 
 _backdrops: dict[tuple[str, int], Backdrop] = {}
 
 
-def get_backdrop(theme: str, canvas_w: int = WORLD_W) -> Backdrop:
+def get_backdrop(theme: str, canvas_w: int = PIX_W) -> Backdrop:
     key = (theme, canvas_w)
     if key not in _backdrops:
         _backdrops[key] = BUILDERS.get(theme, build_datacenter)(canvas_w)
@@ -584,10 +587,10 @@ def draw_ripples(canvas: pygame.Surface, theme: str, floor_y: int) -> None:
         u = age / RIPPLE_LIFE
         r = 14 + 120 * (1 - (1 - u) ** 2)
         color = _scale(c, 0.55 * (1 - u))
-        pygame.draw.ellipse(canvas, color, (rip[0] - r, floor_y + 4 - r * 0.1, 2 * r, r * 0.2 + 2), 2)
+        wd.ellipse(canvas, color, (rip[0] - r, floor_y + 4 - r * 0.1, 2 * r, r * 0.2 + 2), 2)
         if u < 0.7:
             r2 = r * 0.6
-            pygame.draw.ellipse(canvas, _scale(c, 0.3 * (1 - u)), (rip[0] - r2, floor_y + 4 - r2 * 0.1, 2 * r2, r2 * 0.2 + 2), 1)
+            wd.ellipse(canvas, _scale(c, 0.3 * (1 - u)), (rip[0] - r2, floor_y + 4 - r2 * 0.1, 2 * r2, r2 * 0.2 + 2), 1)
 
 
 def tick_ripples() -> None:
@@ -597,9 +600,9 @@ def tick_ripples() -> None:
 
 
 def neon_px(surf: pygame.Surface, a, b, color: Color, w: int = 1) -> None:
-    """neon() for surfaces that are already in world pixels (platform art)."""
-    pygame.draw.line(surf, _scale(color, 0.2), a, b, w + 4)
-    pygame.draw.line(surf, _scale(color, 0.5), a, b, w + 2)
+    """neon() for surfaces that are already in render pixels (platform art)."""
+    pygame.draw.line(surf, _scale(color, 0.2), a, b, w + 4 * RS)
+    pygame.draw.line(surf, _scale(color, 0.5), a, b, w + 2 * RS)
     pygame.draw.line(surf, color, a, b, w)
 
 
@@ -607,48 +610,51 @@ def neon_px(surf: pygame.Surface, a, b, color: Color, w: int = 1) -> None:
 _platform_cache: dict[tuple, pygame.Surface] = {}
 
 
-def _platform_surface(w: int, h: int, theme: str, thin: bool) -> pygame.Surface:
+def _platform_surface(wu: int, hu: int, theme: str, thin: bool) -> pygame.Surface:
+    """Platform art for a platform wu x hu world units, drawn at render resolution."""
+    S = RS
+    w, h = wu * S, hu * S
     c = ACCENT.get(theme, ACCENT["datacenter"])
     c2 = SECOND.get(theme, SECOND["datacenter"])
-    s = pygame.Surface((w, h + 6), pygame.SRCALPHA)
-    rng = random.Random(w * 31 + h)
+    s = pygame.Surface((w, h + 6 * S), pygame.SRCALPHA)
+    rng = random.Random(wu * 31 + hu)
     if thin:  # a hologram plank: solid enough to never get lost against the scenery
         for y in range(h):
-            pygame.draw.line(s, _scale(c, 0.4) + (170 if y % 2 == 0 else 120,), (0, y), (w, y))
-        pygame.draw.rect(s, c, (0, 0, w, 3))
-        pygame.draw.line(s, (255, 255, 255), (2, 0), (w - 3, 0), 1)  # a hot white core along the top edge
-        pygame.draw.line(s, _scale(c, 0.6), (0, h - 1), (w, h - 1), 2)
-        for x in (0, w - 4):
-            pygame.draw.rect(s, c, (x, 0, 4, h))
-        for x in range(10, w - 10, 20):  # tick marks so it reads as a surface, not a line
-            pygame.draw.line(s, _scale(c, 0.9), (x, 3), (x + 7, 3), 1)
+            pygame.draw.line(s, _scale(c, 0.4) + (170 if (y // S) % 2 == 0 else 120,), (0, y), (w, y))
+        pygame.draw.rect(s, c, (0, 0, w, 3 * S))
+        pygame.draw.line(s, (255, 255, 255), (2 * S, 0), (w - 3 * S, 0), S)  # a hot white core along the top edge
+        pygame.draw.line(s, _scale(c, 0.6), (0, h - S), (w, h - S), 2 * S)
+        for x in (0, w - 4 * S):
+            pygame.draw.rect(s, c, (x, 0, 4 * S, h))
+        for x in range(10 * S, w - 10 * S, 20 * S):  # tick marks so it reads as a surface, not a line
+            pygame.draw.line(s, _scale(c, 0.9), (x, 3 * S), (x + 7 * S, 3 * S), S)
         return s
     for y in range(h):  # the slab: near-black glass gradient
         pygame.draw.line(s, _lerp((16, 24, 54), (3, 5, 16), y / max(1, h - 1)) + (255,), (0, y), (w, y))
     # etched circuit traces
-    for _ in range(max(3, w // 40)):
-        x, y = rng.randrange(8, w - 8), rng.randrange(10, max(11, h - 6))
-        pts = [(x, y)]
+    for _ in range(max(3, wu // 40)):
+        x, y = rng.randrange(8, wu - 8), rng.randrange(10, max(11, hu - 6))
+        pts = [(x * S, y * S)]
         for _ in range(4):
             if rng.random() < 0.5:
                 x += rng.choice([-1, 1]) * rng.randint(8, 24)
             else:
                 y += rng.choice([-1, 1]) * rng.randint(4, 10)
-            x, y = max(4, min(w - 4, x)), max(8, min(h - 3, y))
-            pts.append((x, y))
-        pygame.draw.lines(s, _scale(c, 0.3), False, pts, 1)
-        pygame.draw.circle(s, _scale(c2, 0.9), pts[-1], 1)
-    for x in range(0, w, 40):  # panel seams
-        pygame.draw.line(s, (2, 4, 12), (x, 6), (x, h))
-        pygame.draw.line(s, _scale(c, 0.22), (x + 1, 6), (x + 1, h))
-    pygame.draw.rect(s, c, (0, 0, w, 3))  # lit top edge with a hot white core and soft glow below
-    pygame.draw.line(s, (255, 255, 255), (2, 0), (w - 3, 0), 1)
-    pygame.draw.line(s, _scale(c, 0.45), (0, 3), (w, 3), 1)
-    pygame.draw.line(s, _scale(c, 0.2), (0, 4), (w, 4), 1)
-    neon_px(s, (0, h - 1), (w, h - 1), _scale(c, 0.55), 1)
-    for x in (0, w - 4):  # end caps
-        pygame.draw.rect(s, c2, (x, 0, 4, h))
-    pygame.draw.polygon(s, _scale(c, 0.25), [(14, h), (w - 14, h), (w - 30, h + 5), (30, h + 5)])
+            x, y = max(4, min(wu - 4, x)), max(8, min(hu - 3, y))
+            pts.append((x * S, y * S))
+        pygame.draw.lines(s, _scale(c, 0.3), False, pts, S)
+        pygame.draw.circle(s, _scale(c2, 0.9), pts[-1], S)
+    for x in range(0, w, 40 * S):  # panel seams
+        pygame.draw.line(s, (2, 4, 12), (x, 6 * S), (x, h), S)
+        pygame.draw.line(s, _scale(c, 0.22), (x + S, 6 * S), (x + S, h), S)
+    pygame.draw.rect(s, c, (0, 0, w, 3 * S))  # lit top edge with a hot white core and soft glow below
+    pygame.draw.line(s, (255, 255, 255), (2 * S, 0), (w - 3 * S, 0), S)
+    pygame.draw.line(s, _scale(c, 0.45), (0, 3 * S), (w, 3 * S), S)
+    pygame.draw.line(s, _scale(c, 0.2), (0, 4 * S), (w, 4 * S), S)
+    neon_px(s, (0, h - S), (w, h - S), _scale(c, 0.55), S)
+    for x in (0, w - 4 * S):  # end caps
+        pygame.draw.rect(s, c2, (x, 0, 4 * S, h))
+    pygame.draw.polygon(s, _scale(c, 0.25), [(14 * S, h), (w - 14 * S, h), (w - 30 * S, h + 5 * S), (30 * S, h + 5 * S)])
     return s
 
 
@@ -663,8 +669,8 @@ def draw_platform(canvas: pygame.Surface, plat: Platform, theme: str) -> None:
     if plat.glow < 0.99:
         ghost = surf.copy()
         ghost.set_alpha(int(255 * max(0.0, min(1.0, plat.glow))))
-        canvas.blit(ghost, r.topleft)
+        canvas.blit(ghost, (r.x * RS, r.y * RS))
         if not plat.solid:  # the warning outline: where it is about to appear
-            pygame.draw.rect(canvas, ACCENT.get(theme, ACCENT["datacenter"]), r.inflate(2, 2), 1)
+            wd.rect(canvas, ACCENT.get(theme, ACCENT["datacenter"]), r.inflate(2, 2), 1)
         return
-    canvas.blit(surf, r.topleft)
+    canvas.blit(surf, (r.x * RS, r.y * RS))

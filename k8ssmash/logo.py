@@ -6,6 +6,8 @@ import math
 
 import pygame
 
+from k8ssmash.config import RS
+
 OUTLINE = (6, 8, 30)
 
 # Letters are polylines in a unit box (0..1 across, 0..1 down). Curves are Catmull-Rom smoothed.
@@ -43,9 +45,10 @@ def _mix(a, b, t):
 
 def letter(ch: str, h: int, ramp: list[tuple[float, tuple]], depth: int, thick: int | None = None) -> pygame.Surface:
     """One finished letter: transparent surface with room for the outline and extrusion on the right/bottom."""
-    thick = thick or max(6, h // 5)
+    thick = thick or max(6 * RS, h // 5)
     w = round(h * WIDTH[ch])
-    pad = thick // 2 + 4
+    ol = 3 * RS  # outline width
+    pad = thick // 2 + ol + RS
     size = (w + 2 * pad + depth, h + 2 * pad + depth)
     mask = pygame.Surface(size, pygame.SRCALPHA)
     for smooth, pts in GLYPHS[ch]:
@@ -54,11 +57,11 @@ def letter(ch: str, h: int, ramp: list[tuple[float, tuple]], depth: int, thick: 
             pygame.draw.line(mask, (255, 255, 255), a, b, thick)
         for p in px:
             pygame.draw.circle(mask, (255, 255, 255), (round(p[0]), round(p[1])), thick // 2)
-    # outline: the mask grown by 3px
+    # outline: the mask grown by 3 units
     grown = pygame.Surface(size, pygame.SRCALPHA)
-    for dx in range(-3, 4):
-        for dy in range(-3, 4):
-            if dx * dx + dy * dy <= 10:
+    for dx in range(-ol, ol + 1):
+        for dy in range(-ol, ol + 1):
+            if dx * dx + dy * dy <= ol * ol + 1:
                 grown.blit(mask, (dx, dy))
     # extrusion: the grown shape stepped down and to the right, darkening with depth
     out = pygame.Surface(size, pygame.SRCALPHA)
@@ -85,7 +88,7 @@ def letter(ch: str, h: int, ramp: list[tuple[float, tuple]], depth: int, thick: 
     out.blit(face, (0, 0))
     rim = mask.copy()
     shifted = pygame.Surface(size, pygame.SRCALPHA)
-    shifted.blit(mask, (2, 2))
+    shifted.blit(mask, (2 * RS, 2 * RS))
     rim.blit(shifted, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)  # what is left is the top-left lip
     rim.fill((255, 255, 255, 0), special_flags=pygame.BLEND_RGBA_ADD)
     lip = pygame.Surface(size, pygame.SRCALPHA)
@@ -95,7 +98,7 @@ def letter(ch: str, h: int, ramp: list[tuple[float, tuple]], depth: int, thick: 
     out.blit(lip, (0, 0))
     # an inner shade along the bottom-right keeps big letters from looking flat
     inner = pygame.Surface(size, pygame.SRCALPHA)
-    inner.blit(mask, (-2, -2))
+    inner.blit(mask, (-2 * RS, -2 * RS))
     inner.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
     inner.fill((0, 0, 40, 255), special_flags=pygame.BLEND_RGBA_MULT)
     inner.set_alpha(90)

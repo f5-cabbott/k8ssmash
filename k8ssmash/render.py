@@ -1,6 +1,6 @@
-"""The virtual canvas, nearest-neighbor scaled to the window.
+"""The virtual canvas, scaled to the window.
 
-The play area is always 960x540. On a wider screen (an ultrawide monitor) the canvas grows sideways to match the
+Game logic is 960x540 world units drawn at RS times that (1920x1080 by default), so the play area is PIX_W x PIX_H pixels. On a wider screen (an ultrawide monitor) the canvas grows sideways to match the
 display, so the picture fills the screen instead of leaving black bars: battles draw the scenery across the whole
 width with the arena centred, and menus sit centred on border art.
 
@@ -13,14 +13,19 @@ from pathlib import Path
 
 import pygame
 
-from k8ssmash.config import MAX_CANVAS_W, RESOLUTIONS, WORLD_H, WORLD_W, Config
+from k8ssmash.config import MAX_CANVAS_W, PIX_H, PIX_W, RESOLUTIONS, RS, WORLD_H, WORLD_W, Config
 
 ASPECTS = ("16:9", "21:9", "auto")
 ASPECT_CANVAS_W = {"16:9": WORLD_W, "21:9": 1260}
 
 
-def integer_scale(out_w: int, out_h: int, canvas_w: int = WORLD_W) -> int:
-    return max(1, min(out_w // canvas_w, out_h // WORLD_H))
+def integer_scale(out_w: int, out_h: int, canvas_w: int = PIX_W) -> int:
+    return max(1, min(out_w // canvas_w, out_h // PIX_H))
+
+
+def fit_scale(out_w: int, out_h: int, canvas_w: int) -> float:
+    """The factor that fits the whole canvas inside the output, keeping its shape (letterboxing the rest)."""
+    return min(out_w / canvas_w, out_h / PIX_H)
 
 
 class Display:
@@ -30,8 +35,8 @@ class Display:
         self.gpu = False
         self.screen: pygame.Surface
         self.canvas: pygame.Surface
-        self.play: pygame.Surface  # the centred 960x540 area menus draw into
-        self.play_rect = pygame.Rect(0, 0, WORLD_W, WORLD_H)
+        self.play: pygame.Surface  # the centred PIX_W x PIX_H area menus draw into
+        self.play_rect = pygame.Rect(0, 0, PIX_W, PIX_H)
         self._scratch: dict[tuple[int, int], pygame.Surface] = {}
         self._border: pygame.Surface | None = None
         self._set_mode()
@@ -86,7 +91,7 @@ class Display:
         if self.prefer_gpu:
             flags = pygame.SCALED | pygame.RESIZABLE | (pygame.FULLSCREEN if self.cfg.fullscreen else 0)
             try:
-                self.screen = pygame.display.set_mode((cw, WORLD_H), flags, vsync=1)
+                self.screen = pygame.display.set_mode((cw * RS, PIX_H), flags, vsync=1)
                 self.gpu = True
                 if not self.cfg.fullscreen:
                     self._resize_window(*self.window_size())
@@ -96,8 +101,8 @@ class Display:
             flags = pygame.FULLSCREEN if self.cfg.fullscreen else 0
             self.screen = pygame.display.set_mode(self.window_size(), flags)
         pygame.mouse.set_visible(not self.cfg.fullscreen)
-        self.canvas = pygame.Surface((cw, WORLD_H)).convert()
-        self.play_rect = pygame.Rect((cw - WORLD_W) // 2, 0, WORLD_W, WORLD_H)
+        self.canvas = pygame.Surface((cw * RS, PIX_H)).convert()
+        self.play_rect = pygame.Rect((cw - WORLD_W) // 2 * RS, 0, PIX_W, PIX_H)
         self.play = self.canvas.subsurface(self.play_rect)
         self._border = None
 
@@ -106,8 +111,9 @@ class Display:
         return pygame.display.get_window_size() if self.gpu else self.screen.get_size()
 
     @property
-    def scale(self) -> int:
-        return integer_scale(*self.output_size, canvas_w=self.canvas.get_width())
+    def scale(self) -> float:
+        """How much bigger (or smaller) the window shows the canvas than its own pixels."""
+        return fit_scale(*self.output_size, self.canvas.get_width())
 
     def apply(self) -> None:
         """Rebuild the window after a display setting changed, and remember it."""
@@ -145,20 +151,21 @@ class Display:
 
     # --- drawing -------------------------------------------------------------------------
     def _border_art(self) -> pygame.Surface:
-        """What fills the space beside the 960x540 play area on a wide canvas: dark gradient, faint grid, neon rails."""
+        """What fills the space beside the play area on a wide canvas: dark gradient, faint grid, neon rails."""
         if self._border is None:
             from k8ssmash.backdrops import dither_gradient
 
             cw = self.canvas.get_width()
-            art = dither_gradient(cw, WORLD_H, [(0, (3, 5, 18)), (0.55, (7, 14, 44)), (1, (2, 3, 12))], bands=20)
-            for x in range(0, cw, 48):
-                pygame.draw.line(art, (10, 22, 56), (x, 0), (x, WORLD_H))
-            for y in range(0, WORLD_H, 48):
-                pygame.draw.line(art, (10, 22, 56), (0, y), (cw, y))
-            for x in (self.play_rect.left, self.play_rect.right - 1):
-                pygame.draw.line(art, (0, 130, 170), (x, 0), (x, WORLD_H), 2)
-                pygame.draw.line(art, (0, 70, 100), (x + (3 if x == self.play_rect.left else -4), 0),
-                                 (x + (3 if x == self.play_rect.left else -4), WORLD_H), 1)
+            art = dither_gradient(cw, PIX_H, [(0, (3, 5, 18)), (0.55, (7, 14, 44)), (1, (2, 3, 12))], bands=20)
+            step = 48 * RS
+            for x in range(0, cw, step):
+                pygame.draw.line(art, (10, 22, 56), (x, 0), (x, PIX_H), RS)
+            for y in range(0, PIX_H, step):
+                pygame.draw.line(art, (10, 22, 56), (0, y), (cw, y), RS)
+            for x in (self.play_rect.left, self.play_rect.right - RS):
+                pygame.draw.line(art, (0, 130, 170), (x, 0), (x, PIX_H), 2 * RS)
+                inner = x + (3 * RS if x == self.play_rect.left else -4 * RS)
+                pygame.draw.line(art, (0, 70, 100), (inner, 0), (inner, PIX_H), RS)
             self._border = art
         return self._border
 
@@ -168,7 +175,7 @@ class Display:
         if getattr(scene, "wide", False):
             scene.draw(self.canvas)
             return
-        if self.canvas.get_width() > WORLD_W:
+        if self.canvas.get_width() > PIX_W:
             self.canvas.blit(self._border_art(), (0, 0))
         size = tuple(scene.native)
         if size == self.play.get_size():
@@ -184,18 +191,18 @@ class Display:
         if self.gpu:
             self.screen.blit(self.canvas, (0, 0))
         else:
-            scale = self.scale
-            cw = self.canvas.get_width()
-            out_w, out_h = cw * scale, WORLD_H * scale
             sw, sh = self.screen.get_size()
-            scaled = pygame.transform.scale(self.canvas, (out_w, out_h))
+            k = self.scale
+            cw = self.canvas.get_width()
+            out_w, out_h = round(cw * k), round(PIX_H * k)
+            scaled = (pygame.transform.smoothscale(self.canvas, (out_w, out_h)) if (out_w, out_h) != (cw, PIX_H)
+                      else self.canvas)
             self.screen.fill((0, 0, 0))
             self.screen.blit(scaled, ((sw - out_w) // 2, (sh - out_h) // 2))
         pygame.display.flip()
 
     def screenshot(self, path: str | Path) -> None:
-        """Saves the canvas scaled by the current integer factor (same pixels the player sees)."""
+        """Saves the canvas at its own resolution (the pixels the game drew)."""
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        s = self.scale
-        pygame.image.save(pygame.transform.scale(self.canvas, (self.canvas.get_width() * s, WORLD_H * s)), str(path))
+        pygame.image.save(self.canvas, str(path))

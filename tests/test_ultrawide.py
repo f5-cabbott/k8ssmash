@@ -2,7 +2,7 @@ import pygame
 import pytest
 
 from k8ssmash import backdrops
-from k8ssmash.config import Config
+from k8ssmash.config import PIX_H, PIX_W, RS, Config
 from k8ssmash.main import App
 from k8ssmash.render import Display
 from k8ssmash.roster import roster
@@ -32,32 +32,32 @@ def test_fullscreen_canvas_follows_the_display_aspect(monkeypatch, desktop, expe
     monkeypatch.setattr(Display, "desktop_size", staticmethod(lambda: desktop))
     pygame.init()
     d = display(fullscreen=True, shape="auto")
-    assert d.canvas.get_size() == (expected, 540)
-    assert d.play_rect.width == 960 and d.play_rect.centerx == expected // 2  # the arena stays centred
-    assert d.play.get_size() == (960, 540)
+    assert d.canvas.get_size() == (expected * RS, PIX_H)
+    assert d.play_rect.width == PIX_W and d.play_rect.centerx == expected * RS // 2  # the arena stays centred
+    assert d.play.get_size() == (PIX_W, PIX_H)
 
 
 def test_the_scaled_canvas_exactly_fills_an_ultrawide_screen(ultrawide):
     d = display(fullscreen=True, shape="auto")
     cw = d.canvas.get_width()
-    assert abs(cw / 540 - 3440 / 1440) < 0.01  # same aspect as the screen: no black bars
+    assert abs(cw / PIX_H - 3440 / 1440) < 0.01  # same aspect as the screen: no black bars
 
 
 def test_default_is_16_by_9_and_explicit_21_by_9_widens(ultrawide):
-    assert display().canvas.get_size() == (960, 540)
-    assert display(fullscreen=True).canvas.get_size() == (960, 540)  # even fullscreen on an ultrawide: true 16:9 by default
+    assert display().canvas.get_size() == (PIX_W, PIX_H)
+    assert display(fullscreen=True).canvas.get_size() == (PIX_W, PIX_H)  # even fullscreen on an ultrawide: true 16:9 by default
     d = display(shape="21:9")
-    assert d.canvas.get_size() == (1260, 540)
+    assert d.canvas.get_size() == (1260 * RS, PIX_H)
     w, h = d.window_size()
     assert abs(w / h - 1260 / 540) < 0.02 and h <= 1440 * 0.86  # a wide window that still fits the desktop
-    assert display(shape="16:9", fullscreen=True).canvas.get_width() == 960
+    assert display(shape="16:9", fullscreen=True).canvas.get_width() == PIX_W
 
 
 def test_changing_aspect_rebuilds_the_canvas_and_saves(ultrawide, tmp_path, monkeypatch):
     monkeypatch.setenv("K8SSMASH_CONFIG", str(tmp_path / "c.json"))
     d = display()
     d.set_aspect("21:9")
-    assert d.canvas.get_width() == 1260
+    assert d.canvas.get_width() == 1260 * RS
     assert Config.load().shape == "21:9"
     d.set_aspect("nonsense")
     assert d.cfg.shape == "16:9"
@@ -66,11 +66,11 @@ def test_changing_aspect_rebuilds_the_canvas_and_saves(ultrawide, tmp_path, monk
 @pytest.mark.parametrize("theme", ["datacenter", "controlplane", "nodepool"])
 @pytest.mark.parametrize("cw", [960, 1290])
 def test_backdrops_cover_a_wide_canvas_edge_to_edge(ultrawide, theme, cw):
-    canvas = pygame.Surface((cw, 540))
+    canvas = pygame.Surface((cw * RS, PIX_H))
     for cam in (-200, 0, 200):
         canvas.fill((255, 0, 255))
         backdrops.draw_backdrop(canvas, theme, 300, cam)
-        gaps = sum(1 for x in range(0, cw, 30) for y in range(0, 540, 30) if canvas.get_at((x, y))[:3] == (255, 0, 255))
+        gaps = sum(1 for x in range(0, cw * RS, 30) for y in range(0, PIX_H, 30) if canvas.get_at((x, y))[:3] == (255, 0, 255))
         assert gaps == 0, f"{theme} cw={cw} cam={cam}: scenery stopped short of the edge"
 
 
@@ -83,13 +83,14 @@ def test_a_wide_battle_draws_the_arena_in_the_middle(ultrawide):
         b.update()
     app.display.draw_scene(b)
     canvas = app.display.canvas
-    assert canvas.get_width() == 1260
+    assert canvas.get_width() == 1260 * RS
     # platforms land in the centred arena area, the scenery continues out to both screen edges
-    left_edge = canvas.get_at((4, 270))[:3]
-    assert left_edge != (0, 0, 0) or canvas.get_at((4, 100))[:3] != (0, 0, 0)
-    platform_x = 150 + app.display.play_rect.left + 300  # the main floor's neon edge sits inside the arena area
+    left_edge = canvas.get_at((4, PIX_H // 2))[:3]
+    assert left_edge != (0, 0, 0) or canvas.get_at((4, 100 * RS))[:3] != (0, 0, 0)
+    platform_x = (150 + 300) * RS + app.display.play_rect.left  # the main floor's neon edge sits inside the arena area
     top = STAGES[0]().platforms[0].rect.top
-    assert max(canvas.get_at((platform_x, top + dy))[:3] for dy in range(0, 4))[2] > 100  # a bright edge pixel
+    # scan a stretch of the floor so a fighter standing on one spot cannot hide the edge
+    assert max(canvas.get_at((platform_x + dx, top * RS + dy))[:3] for dx in range(0, 200 * RS, 10) for dy in range(0, 4 * RS))[2] > 100  # a bright edge pixel
 
 
 def test_menus_sit_centred_on_border_art(ultrawide):
@@ -100,11 +101,11 @@ def test_menus_sit_centred_on_border_art(ultrawide):
         t.update()
     app.display.draw_scene(t)
     canvas = app.display.canvas
-    side, centre = canvas.get_at((20, 270))[:3], canvas.get_at((630, 270))[:3]
+    side, centre = canvas.get_at((20, PIX_H // 2))[:3], canvas.get_at((630 * RS, PIX_H // 2))[:3]
     assert side != (0, 0, 0)  # the border art, not black bars
     assert side != centre
     # and nothing is stretched: the logo's centre column stays at the middle of the wider canvas
-    assert app.display.play_rect.centerx == 630
+    assert app.display.play_rect.centerx == 630 * RS
 
 
 def test_settings_changes_screen_shape_and_fullscreen(ultrawide, tmp_path, monkeypatch):
@@ -114,7 +115,7 @@ def test_settings_changes_screen_shape_and_fullscreen(ultrawide, tmp_path, monke
     app.input.poll = lambda: None
     s = SettingsPage(app, "display")
     s.adjust("aspect", 1)  # 16:9 -> 21:9
-    assert app.cfg.shape == "21:9" and app.display.canvas.get_width() == 1260
+    assert app.cfg.shape == "21:9" and app.display.canvas.get_width() == 1260 * RS
     s.adjust("size", 1)
     assert (app.cfg.width, app.cfg.height) in app.display.sizes()
     assert [r[0] for r in PAGES["display"][2]][:3] == ["fullscreen", "aspect", "size"]

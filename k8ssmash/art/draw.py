@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import pygame
 
-SS = 4
+from k8ssmash.config import RS
+
+SS = 4 * RS  # layer pixels per rig unit: four samples per output pixel at any render scale
 WHITE = (255, 255, 255, 255)
 
 

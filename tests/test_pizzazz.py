@@ -1,6 +1,8 @@
 import math
 
 import pygame
+
+from k8ssmash.config import PIX_H, PIX_W
 import pytest
 
 from k8ssmash.config import Config
@@ -136,12 +138,12 @@ def test_no_strobing_sprite_visible_every_frame_while_invulnerable(app):
     b = started(app)
     f = b.fighters[0]
     f.invuln = 90
-    canvas = pygame.Surface((960, 540))
+    canvas = pygame.Surface((PIX_W, PIX_H))
     for i in range(30):
         canvas.fill((0, 0, 0))
         b.frame += 1
         b._draw_fighter(canvas, f)
-        assert pygame.mask.from_threshold(canvas, (0, 0, 0), (1, 1, 1)).count() < 960 * 540  # something is drawn every frame
+        assert pygame.mask.from_threshold(canvas, (0, 0, 0), (1, 1, 1)).count() < PIX_W * PIX_H  # something is drawn every frame
 
 
 def test_heavy_hit_star_draws_and_settles():

@@ -1,6 +1,8 @@
 import pygame
 import pytest
 
+from k8ssmash.config import PIX_W, RS
+
 from k8ssmash.config import WORLD_W
 from k8ssmash.fighter import Fighter, FighterStats
 from k8ssmash.input import PlayerInput
@@ -156,11 +158,12 @@ def test_special_spawns_projectile(stage):
     assert len(f.spawn_queue) == 1 and f.spawn_queue[0].vx > 0
 
 
-@pytest.mark.parametrize("size,scale", [((1920, 1080), 2), ((2560, 1440), 2), ((3840, 2160), 4), ((1280, 720), 1), ((800, 600), 1)])
+@pytest.mark.skipif(RS != 2, reason="expectations are for the default 2x render scale")
+@pytest.mark.parametrize("size,scale", [((1920, 1080), 1), ((2560, 1440), 1), ((3840, 2160), 2), ((1280, 720), 1), ((800, 600), 1)])
 def test_integer_scale(size, scale):
     assert integer_scale(*size) == scale
-    if size[0] >= WORLD_W:  # a window smaller than the world cannot hold even 1x
-        assert WORLD_W * scale <= size[0]
+    if size[0] >= PIX_W:  # a window smaller than the canvas cannot hold even 1x
+        assert PIX_W * scale <= size[0]
 
 
 def test_moving_platform_carries_rider():

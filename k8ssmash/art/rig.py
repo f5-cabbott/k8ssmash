@@ -11,10 +11,15 @@ import numpy as np
 import pygame
 
 from k8ssmash.art import draw
+from k8ssmash.ui import wd
 from k8ssmash.art.shade import SHINY, layer_mask, make_ramp, paint_part
 
-FRAME = 96
-FEET = (48, 90)  # where the fighter's feet sit inside a frame
+from k8ssmash.config import RS
+
+FRAME_U = 96  # the rig is authored on a 96-unit frame; every unit is RS output pixels
+FEET_U = (48, 90)  # where the fighter's feet sit inside a frame, in rig units
+FRAME = FRAME_U * RS
+FEET = (FEET_U[0] * RS, FEET_U[1] * RS)
 
 Color = tuple[int, int, int]
 Layer = tuple[Callable[[draw.Layer, "Rig"], None], str]  # (draw fn, palette key)
@@ -100,7 +105,7 @@ def _ik(a, b, l1: float, l2: float, bend: int = -1):
 
 
 def solve(look: Look, pose: Pose) -> Rig:
-    fx, fy = FEET
+    fx, fy = FEET_U
     hip = (fx + pose.hip_dx, fy - look.leg_len + pose.crouch + pose.bob)
     shoulder = (hip[0] + pose.lean, hip[1] - look.torso_h)
     head = (shoulder[0] + pose.head_dx + pose.lean * 0.3, shoulder[1] - look.head_r * 0.8 + pose.head_dy)
@@ -222,7 +227,7 @@ def render(look: Look, pose: Pose) -> pygame.Surface:
     arr = np.zeros((FRAME, FRAME, 4), dtype=np.uint8)
 
     def part(fn: Callable[[draw.Layer, Rig], None], pal: str) -> None:
-        layer = draw.new_layer(FRAME)
+        layer = draw.new_layer(FRAME_U)
         fn(layer, r)
         mask = layer_mask(layer, FRAME)
         base = look.pal[pal]
@@ -256,12 +261,12 @@ def render(look: Look, pose: Pose) -> pygame.Surface:
             d1, d2 = _dir(a1), _dir(a2)
             el = (sh[0] + d1[0] * half, sh[1] + d1[1] * half)
             hd = (el[0] + d2[0] * half, el[1] + d2[1] * half)
-            pygame.draw.line(ghost, (255, 244, 214, 150 - k * 36), (round(el[0]), round(el[1])), (round(hd[0]), round(hd[1])), 3)
+            wd.line(ghost, (255, 244, 214, 150 - k * 36), el, hd, 3)
         frame.blit(ghost, (0, 0))
     if pose.flash:
         for i in range(5):
             a = math.radians(-70 + i * 35)
             cx, cy = r.hip[0], r.hip[1] - 6
-            pygame.draw.line(frame, (255, 250, 200), (cx + math.cos(a) * 22, cy + math.sin(a) * 26),
-                             (cx + math.cos(a) * 30, cy + math.sin(a) * 34), 2)
+            wd.line(frame, (255, 250, 200), (cx + math.cos(a) * 22, cy + math.sin(a) * 26),
+                    (cx + math.cos(a) * 30, cy + math.sin(a) * 34), 2)
     return frame

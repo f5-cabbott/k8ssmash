@@ -324,7 +324,7 @@ def _background() -> pygame.Surface:
     global _bg
     if _bg is None:
         from k8ssmash.backdrops import dither_gradient
-        from k8ssmash.config import WORLD_H, WORLD_W
+        from k8ssmash.config import PIX_H as WORLD_H, PIX_W as WORLD_W
         _bg = dither_gradient(WORLD_W, WORLD_H, [(0, (4, 6, 22)), (0.5, (10, 24, 80)), (1, (3, 6, 24))], bands=20)
     return _bg
 

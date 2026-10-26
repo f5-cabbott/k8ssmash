@@ -17,6 +17,9 @@ User=__USER__
 SupplementaryGroups=video render input audio
 WorkingDirectory=__APP_DIR__
 # Overridable per machine (audio device, resolution, ...) without editing this file.
+# Draw at the classic 960x540 on the Pi until its frame time at 1920x1080 has been measured (tools/benchmark.py);
+# set K8SSMASH_RS=2 in /etc/default/k8ssmash to try the hi-res picture.
+Environment=K8SSMASH_RS=1
 EnvironmentFile=-/etc/default/k8ssmash
 Environment=SDL_VIDEODRIVER=kmsdrm
 Environment=K8SSMASH_BOOTH=1

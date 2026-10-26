@@ -8,6 +8,9 @@ from typing import Callable
 
 import pygame
 
+from k8ssmash.config import RS
+from k8ssmash.ui import wd
+
 from k8ssmash.config import FPS
 from k8ssmash.fighter import BUFF_ARMOR, BUFF_GUARD, BUFF_HASTE, BUFF_POWER, BUFF_SCALED, Fighter
 from k8ssmash.moves import ProjectileDef
@@ -156,9 +159,9 @@ def draw_item(canvas: pygame.Surface, item: Item, font: pygame.font.Font, frame:
     pts = [(cx + math.cos(i * 2 * math.pi / 7 - math.pi / 2) * 9, cy + math.sin(i * 2 * math.pi / 7 - math.pi / 2) * 9)
            for i in range(7)]  # heptagon: the Kubernetes logo shape
     if item.landed:
-        pygame.draw.ellipse(canvas, (0, 0, 0), (cx - 8, round(item.y) - 2, 16, 4))
-    pygame.draw.polygon(canvas, (16, 12, 28), [(x + (x - cx) * 0.18, y + (y - cy) * 0.18) for x, y in pts])
-    pygame.draw.polygon(canvas, item.defn.color, pts)
-    pygame.draw.polygon(canvas, (255, 255, 255), pts, 1)
+        wd.ellipse(canvas, (0, 0, 0), (cx - 8, round(item.y) - 2, 16, 4))
+    wd.polygon(canvas, (16, 12, 28), [(x + (x - cx) * 0.18, y + (y - cy) * 0.18) for x, y in pts])
+    wd.polygon(canvas, item.defn.color, pts)
+    wd.polygon(canvas, (255, 255, 255), pts, 1)
     glyph = font.render(item.defn.glyph, False, (20, 16, 36))
-    canvas.blit(glyph, (cx - glyph.get_width() // 2, cy - glyph.get_height() // 2 + 1))
+    canvas.blit(glyph, (cx * RS - glyph.get_width() // 2, cy * RS - glyph.get_height() // 2 + RS))

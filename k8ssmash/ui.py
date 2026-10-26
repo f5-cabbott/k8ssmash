@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import pygame
 
+from k8ssmash.config import RS
+
 Color = tuple[int, int, int]
 
 _text_cache: dict[tuple, pygame.Surface] = {}
@@ -23,7 +25,7 @@ class Font:
     def __init__(self, size: int):
         self.size_px = size
         self._font = pygame.font.Font(None, size)
-        self.outline = 1 if size < 44 else 2
+        self.outline = RS if size < 44 * RS else 2 * RS
 
     def flat(self, text: str, color: Color) -> pygame.Surface:
         """Plain anti-aliased text with no outline (for tiny labels inside glyphs)."""
@@ -76,30 +78,31 @@ def window(canvas: pygame.Surface, rect: pygame.Rect, accent: Color | None = Non
     surf = _window_cache.get(key)
     if surf is None:
         w, h = rect.size
+        r = RS
         surf = pygame.Surface((w, h), pygame.SRCALPHA)
         top, bottom = (36, 52, 150), (10, 14, 66)
         for y in range(h):
             pygame.draw.line(surf, _mix(top, bottom, y / max(1, h - 1)) + (alpha,), (0, y), (w, y))
         # dithered sheen on the upper third, like a CRT-era gradient
-        for y in range(2, h // 3, 2):
-            for x in range(2 + (y // 2) % 2, w - 2, 2):
-                surf.set_at((x, y), _mix(top, (200, 210, 255), 0.10) + (alpha,))
+        for y in range(2 * r, h // 3, 2 * r):
+            for x in range(2 * r + ((y // (2 * r)) % 2) * r, w - 2 * r, 2 * r):
+                surf.fill(_mix(top, (200, 210, 255), 0.10) + (alpha,), (x, y, r, r))
         edge = accent or (232, 236, 255)
-        pygame.draw.rect(surf, (6, 8, 30), (0, 0, w, h), 1, border_radius=4)
-        pygame.draw.rect(surf, edge, (1, 1, w - 2, h - 2), 1, border_radius=3)
-        pygame.draw.rect(surf, _mix(edge, (40, 50, 120), 0.7), (2, 2, w - 4, h - 4), 1, border_radius=2)
-        pygame.draw.line(surf, (255, 255, 255), (4, 1), (w - 5, 1))  # top specular
+        pygame.draw.rect(surf, (6, 8, 30), (0, 0, w, h), r, border_radius=4 * r)
+        pygame.draw.rect(surf, edge, (r, r, w - 2 * r, h - 2 * r), r, border_radius=3 * r)
+        pygame.draw.rect(surf, _mix(edge, (40, 50, 120), 0.7), (2 * r, 2 * r, w - 4 * r, h - 4 * r), r, border_radius=2 * r)
+        pygame.draw.line(surf, (255, 255, 255), (4 * r, r), (w - 5 * r, r), r)  # top specular
         _window_cache[key] = surf
     shadow = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
     shadow.fill((0, 0, 12, 90))
-    canvas.blit(shadow, (rect.x + 2, rect.y + 3))
+    canvas.blit(shadow, (rect.x + 2 * RS, rect.y + 3 * RS))
     canvas.blit(surf, rect.topleft)
 
 
 # --- design-unit scaling for the menu screens ------------------------------------------------------------
 # Menus are laid out on a 640x360 grid but drawn at the 960x540 world resolution, so text renders at its real size
 # and pixel art lands on whole pixels instead of being stretched (which blurred everything).
-SCALE = 1.5
+SCALE = 1.5 * RS
 
 
 class ScaledDraw:
@@ -113,7 +116,7 @@ class ScaledDraw:
         return round(pt[0] * self.u) + self.ox, round(pt[1] * self.u)
 
     def _w(self, w: float) -> int:
-        return int(w) if w <= 1 else max(1, round(w * self.u))  # hairlines stay hairlines
+        return RS if w <= 1 else max(1, round(w * self.u))  # hairlines stay hairlines (RS pixels at the render scale)
 
     def _r(self, rect) -> tuple[int, int, int, int]:
         x, y, w, h = rect
@@ -138,6 +141,9 @@ class ScaledDraw:
     def ellipse(self, surf, color, rect, width=0):
         pygame.draw.ellipse(surf, color, self._r(rect), self._w(width) if width else 0)
 
+    def arc(self, surf, color, rect, start, stop, width=1):
+        pygame.draw.arc(surf, color, self._r(rect), start, stop, self._w(width))
+
     def set_at(self, surf, pos, color):
         x, y = self._p(pos)
         size = max(1, round(self.u))
@@ -158,6 +164,7 @@ class ScaledDraw:
 
 
 pd = ScaledDraw(SCALE)
+wd = ScaledDraw(RS)  # world units (960x540 logic) to render pixels: battles, effects, particles
 
 
 class DSurface(pygame.Surface):
@@ -251,17 +258,17 @@ def button_glyph(canvas: pygame.Surface, x: int, y: int, label: str, s: float = 
     if label in BUTTON_COLORS:
         c = BUTTON_COLORS[label]
         r = round(7 * k)
-        pygame.draw.circle(canvas, (14, 10, 30), (X + r, Y + r), r + 2)
+        pygame.draw.circle(canvas, (14, 10, 30), (X + r, Y + r), r + RS)
         pygame.draw.circle(canvas, c, (X + r, Y + r), r)
-        pygame.draw.circle(canvas, _mix(c, (255, 255, 255), 0.45), (X + r - 2, Y + r - 2), round(2 * k))
+        pygame.draw.circle(canvas, _mix(c, (255, 255, 255), 0.45), (X + r - RS, Y + r - RS), round(2 * k))
         t = font.flat(label, (255, 255, 255))
-        canvas.blit(t, (X + r - t.get_width() // 2, Y + r - t.get_height() // 2 + 1))
+        canvas.blit(t, (X + r - t.get_width() // 2, Y + r - t.get_height() // 2 + RS))
         return round(16 * s)
     w, h = round(18 * k), round(12 * k)
-    pygame.draw.rect(canvas, (14, 10, 30), (X, Y + 1, w, h), border_radius=5)
-    pygame.draw.rect(canvas, (176, 182, 206), (X + 2, Y + 3, w - 4, h - 4), border_radius=4)
+    pygame.draw.rect(canvas, (14, 10, 30), (X, Y + RS, w, h), border_radius=5 * RS)
+    pygame.draw.rect(canvas, (176, 182, 206), (X + 2 * RS, Y + 3 * RS, w - 4 * RS, h - 4 * RS), border_radius=4 * RS)
     t = font.flat(label, (30, 34, 70))
-    canvas.blit(t, (X + w // 2 - t.get_width() // 2, Y + h // 2 - t.get_height() // 2 + 2))
+    canvas.blit(t, (X + w // 2 - t.get_width() // 2, Y + h // 2 - t.get_height() // 2 + 2 * RS))
     return round(19 * s)
 
 
@@ -270,7 +277,7 @@ def dpad_glyph(canvas: pygame.Surface, x: int, y: int, direction: str | None = N
     k = SCALE * s
     X, Y = round(x * SCALE), round(y * SCALE)
     arms = {"up": (5, 0, 4, 5), "down": (5, 9, 4, 5), "left": (0, 5, 5, 4), "right": (9, 5, 5, 4)}
-    pygame.draw.rect(canvas, (14, 10, 30), (X - 2, Y - 2, round(16 * k), round(16 * k)), border_radius=4)
+    pygame.draw.rect(canvas, (14, 10, 30), (X - 2 * RS, Y - 2 * RS, round(16 * k), round(16 * k)), border_radius=4 * RS)
     for name, (ax, ay, aw, ah) in arms.items():
         pygame.draw.rect(canvas, (255, 236, 130) if name == direction else (110, 118, 156),
                          (X + round(ax * k), Y + round(ay * k), round(aw * k), round(ah * k)))
