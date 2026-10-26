@@ -64,3 +64,47 @@ def taper(s: Layer, pts, widths) -> None:
                  (b[0] - nx * wb / 2, b[1] - ny * wb / 2), (a[0] - nx * wa / 2, a[1] - ny * wa / 2)])
     for p, w in zip(pts, widths):
         circle(s, p, w / 2)
+
+
+def catmull(pts, closed: bool = False, steps: int = 8):
+    """Smooth curve through the points (Catmull-Rom), returned as a dense list of points."""
+    n = len(pts)
+    if n < 3:
+        return list(pts)
+    out = []
+    count = n if closed else n - 1
+    for i in range(count):
+        if closed:
+            p0, p1, p2, p3 = pts[(i - 1) % n], pts[i], pts[(i + 1) % n], pts[(i + 2) % n]
+        else:
+            p0, p1, p2, p3 = pts[max(i - 1, 0)], pts[i], pts[i + 1], pts[min(i + 2, n - 1)]
+        for k in range(steps):
+            t = k / steps
+            out.append(tuple(0.5 * (2 * p1[c] + (-p0[c] + p2[c]) * t + (2 * p0[c] - 5 * p1[c] + 4 * p2[c] - p3[c]) * t * t
+                                    + (-p0[c] + 3 * p1[c] - 3 * p2[c] + p3[c]) * t ** 3) for c in (0, 1)))
+    if not closed:
+        out.append(tuple(pts[-1]))
+    return out
+
+
+def smooth(s: Layer, pts) -> None:
+    """A filled closed shape with a smooth, hand-drawn-looking contour (not a circle or a polygon)."""
+    poly(s, catmull(pts, closed=True))
+
+
+def ribbon(s: Layer, pts, widths, steps: int = 8) -> None:
+    """A curved limb or tail whose thickness follows `widths` (one per control point) along a smooth centreline."""
+    line_pts = catmull(pts, closed=False, steps=steps)
+    n = len(line_pts)
+    ws = catmull([(i, w) for i, w in enumerate(widths)], closed=False, steps=max(2, (n - 1) // max(1, len(widths) - 1) + 1))
+    left, right = [], []
+    for i, p in enumerate(line_pts):
+        a, b = line_pts[max(i - 1, 0)], line_pts[min(i + 1, n - 1)]
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        d = (dx * dx + dy * dy) ** 0.5 or 1.0
+        w = ws[min(len(ws) - 1, round(i / max(1, n - 1) * (len(ws) - 1)))][1] / 2
+        left.append((p[0] - dy / d * w, p[1] + dx / d * w))
+        right.append((p[0] + dy / d * w, p[1] - dx / d * w))
+    poly(s, left + right[::-1])
+    circle(s, line_pts[0], ws[0][1] / 2)
+    circle(s, line_pts[-1], ws[-1][1] / 2)

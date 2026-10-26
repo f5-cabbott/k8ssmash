@@ -79,39 +79,128 @@ def face(f, r: Rig, eyes: list[tuple[int, int]], size: tuple[int, int], iris, mo
 
 # --- Pod ---------------------------------------------------------------------------------------
 def pod() -> Look:
+    """A whale-kid built from hand-shaped contours: a wedge head with a melon and a snout, paddle flippers, a potbelly,
+    webbed foot-flippers, crescent flukes and a dorsal fin; no circles or capsules in the silhouette."""
     pal = with_back_palettes({"body": (70, 150, 255), "leaf": (150, 225, 255), "face": (226, 240, 255)})
 
-    def tail_fin(s, r: Rig) -> None:  # a whale's flukes curling up behind: it swishes with the motion
+    def head(s, r: Rig) -> None:
+        cx, cy = r.head
+        k = r.look.head_r / 10.0
+        pts = [(-9, -2), (-6.5, -8), (0, -10.5), (6, -9), (11, -4.5), (14, 0.5), (11.5, 4.5), (6, 7.5), (-1, 8.5), (-7, 6.5), (-9.5, 1.5)]
+        draw.smooth(s, [(cx + x * k, cy + y * k) for x, y in pts])
+
+    def muzzle(s, r: Rig) -> None:  # the pale lower jaw and throat: countershading like a real whale
+        cx, cy = r.head
+        k = r.look.head_r / 10.0
+        pts = [(-5, 3.5), (2, 2.2), (9, 1.2), (13, 2.2), (11.5, 4.8), (6, 7.6), (-1, 8.4), (-6, 6.5)]
+        draw.smooth(s, [(cx + x * k, cy + y * k) for x, y in pts])
+
+    def torso(s, r: Rig) -> None:  # barrel chest, a hump at the shoulders and a belly that bulges forward
+        w = r.look.torso_w
+        hx, hy = r.hip
+        sx, sy = r.shoulder
+        ux, uy = sx - hx, sy - hy
+
+        def at(t, side):
+            return (hx + ux * t + side * w * 0.5, hy + uy * t)
+        draw.smooth(s, [at(-0.1, 0), at(0.02, -0.82), at(0.4, -0.95), at(0.82, -0.9), at(1.06, -0.2), at(1.0, 0.7), at(0.7, 1.22),
+                        at(0.32, 1.24), at(0.04, 0.85)])
+
+    def belly(s, r: Rig) -> None:  # the pale belly with its throat pleats
+        w = r.look.torso_w
+        hx, hy = r.hip
+        sx, sy = r.shoulder
+        ux, uy = sx - hx, sy - hy
+
+        def at(t, side):
+            return (hx + ux * t + side * w * 0.5, hy + uy * t)
+        draw.smooth(s, [at(0.08, 0.35), at(0.3, 0.5), at(0.7, 0.5), at(0.92, 0.28), at(0.85, 0.82), at(0.55, 1.1), at(0.22, 1.1)])
+
+    def dorsal(s, r: Rig) -> None:  # a small dorsal fin on the upper back
+        sx, sy = r.shoulder
+        hx, hy = r.hip
+        mx, my = hx + (sx - hx) * 0.55 - r.look.torso_w * 0.5, hy + (sy - hy) * 0.55
+        draw.smooth(s, [(mx + 1, my - 2), (mx - 4.5, my - 6), (mx - 8, my - 10.5), (mx - 6.5, my - 3.5), (mx - 8.5, my + 1.5), (mx - 2, my + 2.5)])
+
+    def arm(s, r: Rig, back: bool) -> None:  # a paddle flipper: slim at the shoulder, widening toward a rounded tip
+        sh, el, hd = r.shoulder, (r.elbow_b if back else r.elbow_f), (r.hand_b if back else r.hand_f)
+        w = r.look.arm_w
+        tip = (hd[0] + (hd[0] - el[0]) * 0.18, hd[1] + (hd[1] - el[1]) * 0.18)
+        draw.ribbon(s, [sh, el, hd, tip], [w * 1.0, w * 0.85, w * 1.45, w * 0.7])
+
+    def leg(s, r: Rig, back: bool) -> None:  # a short thigh and a webbed flipper foot with a scalloped tip
+        hip, kn, ft = r.hip, (r.knee_b if back else r.knee_f), (r.foot_b if back else r.foot_f)
+        w = r.look.leg_w
+        draw.ribbon(s, [hip, kn, ft], [w * 1.2, w * 0.9, w * 0.7])
+        fx, fy = ft
+        draw.smooth(s, [(fx - w * 0.7, fy - w * 0.4), (fx + w * 0.2, fy - w * 0.55), (fx + w * 1.1, fy - w * 0.3), (fx + w * 1.8, fy + w * 0.05),
+                        (fx + w * 1.5, fy + w * 0.35), (fx + w * 1.7, fy + w * 0.7), (fx + w * 0.8, fy + w * 0.62), (fx - w * 0.5, fy + w * 0.5)])
+
+    def tail_fin(s, r: Rig) -> None:  # a tapered tail stalk ending in crescent flukes that swish with the motion
         hx, hy = r.hip
         sw = math.sin(r.pose.lean * 0.7 + r.pose.bob) * 2.0 + r.pose.lean * 0.3
-        draw.limb(s, [(hx - 4, hy), (hx - 11, hy + 1), (hx - 16 - sw, hy - 6), (hx - 15 - sw, hy - 13)], 4)
-        draw.poly(s, [(hx - 15 - sw, hy - 13), (hx - 23 - sw, hy - 19), (hx - 20 - sw, hy - 12), (hx - 24 - sw, hy - 9),
-                      (hx - 14 - sw, hy - 9)])
+        draw.ribbon(s, [(hx - 4, hy - 1), (hx - 11, hy + 1), (hx - 16 - sw, hy - 5), (hx - 16 - sw, hy - 11)], [5.0, 3.8, 2.8, 2.2])
+        tx, ty = hx - 16 - sw, hy - 11
+        draw.smooth(s, [(tx + 1, ty + 1), (tx - 2, ty - 3), (tx - 6, ty - 9), (tx - 10.5, ty - 8), (tx - 8, ty - 3.5), (tx - 4, ty - 0.5),
+                        (tx - 9, ty + 2.5), (tx - 10, ty + 6), (tx - 5.5, ty + 5), (tx - 1.5, ty + 3.5)])
 
-    def sprout(s, r: Rig) -> None:  # the water spout from the blowhole, drifting with the motion
+    def spout(s, r: Rig) -> None:  # the water spout from the blowhole
         cx, cy = r.head
+        k = r.look.head_r / 10.0
         sway = math.sin(r.pose.lean * 0.5 + r.pose.bob) * 1.5
-        draw.line(s, (cx + 1, cy - 9), (cx + 2 + sway, cy - 14), 2)
-        for dx, dy, rad in ((-4, -16, 1.8), (2, -19, 2.2), (8, -16, 1.8)):
-            draw.circle(s, (cx + dx + sway * 1.4, cy + dy), rad)
+        draw.line(s, (cx + 1 * k, cy - 10 * k), (cx + 1.5 * k + sway, cy - 15 * k), 1.8)
+        for dx, dy, rad in ((-3, -17, 1.4), (2, -20, 1.8), (7, -17, 1.4)):
+            draw.circle(s, (cx + dx * k + sway * 1.4, cy + dy * k), rad)
 
-    def belly(s, r: Rig) -> None:
-        hx, hy = r.hip[0] + r.pose.lean * 0.4, r.hip[1] - 9
-        draw.ellipse(s, hx - 2, hy - 5, 10, 13)
-
-    def face_plate(s, r: Rig) -> None:
-        cx, cy = r.head
-        draw.ellipse(s, cx - 6, cy - 6.5, 18, 14)
+    def eye(f: pygame.Surface, x: float, y: float, expr: str, near: bool) -> None:
+        """A hand-shaped eye: glossy sclera, a blue iris looking forward, pupil, glint, and lids that follow the expression."""
+        ink = (24, 36, 96)
+        w, h = (3.6, 4.4) if expr != "shock" else (4.4, 5.2)
+        if expr == "blink":
+            wd.line(f, ink, (x - w / 2, y + 0.4), (x + w / 2, y + 0.4), 0.9)
+            return
+        if expr == "happy":
+            wd.lines(f, ink, False, [(x - w / 2, y + 1.2), (x, y - 0.9), (x + w / 2, y + 1.2)], 0.9)
+            return
+        if expr == "hurt":
+            sgn = 1 if near else -1
+            wd.lines(f, ink, False, [(x - sgn * 1.5, y - 1.9), (x + sgn * 1.5, y + 0.1), (x - sgn * 1.5, y + 2.0)], 0.9)
+            return
+        wd.ellipse(f, (252, 253, 255), (x - w / 2, y - h / 2, w, h))
+        wd.ellipse(f, (60, 118, 235), (x - w / 2 + w * 0.28, y - h / 2 + h * 0.18, w * 0.7, h * 0.72))
+        pr = 0.5 if expr == "shock" else 0.95
+        wd.ellipse(f, (14, 18, 52), (x + w * 0.14, y - h * 0.18, pr, pr * 1.5))
+        wd.circle(f, (255, 255, 255), (x + w * 0.1, y - h * 0.26), 0.45)
+        wd.ellipse(f, ink, (x - w / 2, y - h / 2, w, h), 0.5)
+        if expr in ("angry", "effort", "focus"):  # a heavy lid, slanting in toward the snout
+            tilt = -1.1 if expr == "angry" else (-0.5 if near else 0.2)
+            wd.line(f, ink, (x - w / 2 - 0.4, y - h / 2 + 0.7), (x + w / 2 + 0.4, y - h / 2 + 0.7 + tilt), 1.1)
+        else:
+            wd.line(f, ink, (x - w / 2, y - h / 2 + 0.1), (x + w / 2, y - h / 2 + 0.1), 0.6)
 
     def details(f: pygame.Surface, r: Rig) -> None:
-        face(f, r, [(1, -3), (7, -3)], (4, 5), (60, 110, 230), (3, 5, 6), (50, 70, 140))
-        hx, hy = r.hip[0] + r.pose.lean * 0.4, r.hip[1] - 9
-        for i in range(-1, 2):  # throat pleats of a baleen whale
-            wd.line(f, (160, 196, 240), (round(hx + 1), round(hy + i * 3)), (round(hx + 6), round(hy + i * 3)), 1)
+        k = r.look.head_r / 10.0
+        cx, cy = r.head
+        expr = r.pose.face
+        eye(f, cx + 2.8 * k, cy - 2.6 * k, expr, True)
+        eye(f, cx + 8.8 * k, cy - 2.4 * k, expr, False)
+        wd.line(f, (40, 80, 170), (cx + 0.5 * k, cy - 6.4 * k), (cx + 11.5 * k, cy - 5.0 * k), 0.8)  # a heavy brow ridge
+        if expr in ("hurt", "shock"):  # mouth open: a dark oval under the snout
+            wd.ellipse(f, (40, 14, 38), (cx + 8 * k, cy + 2.2 * k, 4.2 * k, 3.4 * k))
+        else:
+            lift = 0.9 if expr in ("happy", "effort", "angry") else 0.0
+            wd.lines(f, (30, 60, 150), False, [(cx + 14 * k, cy + 0.2 * k), (cx + 10.5 * k, cy + (2.6 + lift) * k), (cx + 6 * k, cy + 3.4 * k)], 0.8)
+        hx, hy = r.hip
+        sx, sy = r.shoulder
+        w = r.look.torso_w
+        for t in (0.3, 0.46, 0.62, 0.78):  # throat pleats of a baleen whale
+            x, y = hx + (sx - hx) * t, hy + (sy - hy) * t
+            wd.line(f, (150, 188, 238), (x + w * 0.12, y), (x + w * 0.5, y + 0.2), 0.6)
 
-    return Look("Pod", pal, head_r=11, torso_w=16, torso_h=15, leg_len=13, leg_w=6, head_pal="body",
-                no_hue_shift=("face", "leaf"), back=[(tail_fin, "body")],
-                front=[(belly, "face"), (face_plate, "face"), (sprout, "leaf")], details=details)
+    return Look("Pod", pal, head_r=9.2, torso_w=17, torso_h=15, leg_len=12, leg_w=5.8, arm_len=16, arm_w=4.6, head_pal="body",
+                no_hue_shift=("face", "leaf"), back=[(tail_fin, "body"), (dorsal, "body")],
+                front=[(belly, "face"), (muzzle, "face"), (spout, "leaf")], details=details, head_fn=head, torso_fn=torso,
+                arm_fn=arm, leg_fn=leg, cartoon=0.3)
 
 
 # --- StatefulSet -------------------------------------------------------------------------------

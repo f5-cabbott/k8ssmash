@@ -67,6 +67,12 @@ class Look:
     back: list[Layer] = field(default_factory=list)  # accessories behind the body
     front: list[Layer] = field(default_factory=list)  # accessories over the body
     details: Callable[[pygame.Surface, "Rig"], None] | None = None  # flat face/chest details
+    # Hand-shaped replacements for the default round head / tube torso / capsule limbs (see draw.smooth and draw.ribbon).
+    head_fn: Callable[[draw.Layer, "Rig"], None] | None = None
+    torso_fn: Callable[[draw.Layer, "Rig"], None] | None = None
+    arm_fn: Callable[[draw.Layer, "Rig", bool], None] | None = None  # (layer, rig, is_back_arm)
+    leg_fn: Callable[[draw.Layer, "Rig", bool], None] | None = None
+    cartoon: float = 1.0  # how much of the global cartoon proportion boost this character gets
 
 
 @dataclass
@@ -186,7 +192,7 @@ CARTOON = 1.0  # cartoon strength: 0 leaves the proportions as designed, 1 is fu
 
 def cartoonish(look: Look) -> Look:
     """Cartoon proportions: a big head, a short chunky body and thick limbs, like a character model-sheet caricature."""
-    g = CARTOON
+    g = CARTOON * look.cartoon
     if g <= 0:
         return look
     head = 1 + 0.26 * g
@@ -292,12 +298,16 @@ def render(look: Look, pose: Pose) -> pygame.Surface:
     for fn, pal in look.back:
         part(fn, pal)
     leg_pal = look.leg_pal or look.limb_pal
-    part(lambda s, rg: draw_arm(s, rg.shoulder, rg.elbow_b, rg.hand_b, look.arm_w), look.limb_pal + "_back")
-    part(lambda s, rg: draw_leg(s, rg.hip, rg.knee_b, rg.foot_b, look.leg_w), leg_pal + "_back")
-    part(draw_torso, look.torso_pal)
-    part(lambda s, rg: draw_leg(s, rg.hip, rg.knee_f, rg.foot_f, look.leg_w), leg_pal)
-    part(draw_head, look.head_pal)
-    part(lambda s, rg: draw_arm(s, rg.shoulder, rg.elbow_f, rg.hand_f, look.arm_w), look.limb_pal)
+    arm = look.arm_fn or (lambda s, rg, back: draw_arm(s, rg.shoulder, rg.elbow_b if back else rg.elbow_f,
+                                                       rg.hand_b if back else rg.hand_f, look.arm_w))
+    leg = look.leg_fn or (lambda s, rg, back: draw_leg(s, rg.hip, rg.knee_b if back else rg.knee_f,
+                                                       rg.foot_b if back else rg.foot_f, look.leg_w))
+    part(lambda s, rg: arm(s, rg, True), look.limb_pal + "_back")
+    part(lambda s, rg: leg(s, rg, True), leg_pal + "_back")
+    part(look.torso_fn or draw_torso, look.torso_pal)
+    part(lambda s, rg: leg(s, rg, False), leg_pal)
+    part(look.head_fn or draw_head, look.head_pal)
+    part(lambda s, rg: arm(s, rg, False), look.limb_pal)
     for fn, pal in look.front:
         part(fn, pal)
 
