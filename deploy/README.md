@@ -15,6 +15,30 @@ no desktop, no compositor, and it comes back by itself after a crash, a hang or 
 - Both pads plugged in **before** power-up. Left pad in the left USB port, right pad in the right one: the
   order they enumerate in decides who is P1 (fixable in software, see "Pads" below).
 
+## 1b. What the Pi needs (prerequisites)
+
+Everything below is installed by `deploy/setup-pi.sh`; this is the list, so you can check an existing image.
+
+| Need | Detail |
+|---|---|
+| OS | Raspberry Pi OS **Lite, 64-bit** (Bookworm or newer; `uname -m` must say `aarch64`) |
+| Python | 3.11 or newer (Bookworm ships 3.11). `python3-venv` and `python3-pip` |
+| Python packages | **Only `pygame-ce`** (installed into the venv by the script; pip downloads a prebuilt 64-bit wheel) |
+| System libraries | `libdrm2 libgbm1 libegl1 libgles2 libudev1 libasound2` (KMS/DRM display, GPU scaling, pads, sound) and `alsa-utils` |
+| Service user | `kiosk` in the groups `video render input audio` (created for you) |
+| Pads | the udev rule `deploy/99-snes-pads.rules` (installed for you) |
+| Disk and memory | about 300 MB for the game, 1 GB of RAM is plenty at the Pi's default picture size |
+| Not needed on the Pi | `numpy`, `scipy`, `ffmpeg` and the speech library: the sounds, music, announcer and sprites are pre-built and committed. They are only for regenerating assets on a development machine |
+
+**One thing to verify on the real hardware:** the pygame wheel must include the KMS/DRM video driver. After setup, check:
+
+```bash
+sudo -u kiosk SDL_VIDEODRIVER=kmsdrm /opt/k8ssmash/.venv/bin/python -c "import pygame; pygame.display.init(); print(pygame.display.get_driver())"
+```
+
+It should print `kmsdrm`. If it says "No available video device", the wheel's SDL was built without KMS/DRM: install `libsdl2-dev` and
+build pygame-ce from source in the venv (`pip install --no-binary pygame-ce pygame-ce`), then repeat the check.
+
 ## 2. Prepare the OS
 
 1. Flash **Raspberry Pi OS Lite (64-bit)** with Raspberry Pi Imager. In the advanced options set a
@@ -89,10 +113,20 @@ the change, then enable it again.
 - **Other pads are ignored:** only devices whose name contains an entry of `pad_name_filter`
   (default `["USB Gamepad"]`) become players.
 
-## 7. Display modes
+## 7. Display modes and the render scale
 
-The game draws a 960x540 world and SDL scales it to the screen: exactly 2x at 1080p, and about 2.67x at 1440p (SDL
-scales on the GPU, so the extra fraction costs nothing). If
+The game logic runs on a 960x540 grid and is drawn at **render scale** times that. The booth service sets `K8SSMASH_RS=1`, so it draws
+960x540 and SDL scales that to the screen on the GPU (2x at 1080p, about 2.67x at 1440p, for free). The default on a desktop is
+`K8SSMASH_RS=2`: a 1920x1080 picture with twice the detail (sharper sprites, finer scenery and text), which costs about three times
+the drawing work. **Measure before switching the Pi to it**:
+
+```bash
+sudo systemctl stop k8ssmash
+sudo -u kiosk K8SSMASH_RS=2 SDL_VIDEODRIVER=kmsdrm /opt/k8ssmash/.venv/bin/python /opt/k8ssmash/tools/benchmark.py 20
+```
+
+If it prints `PASS: holds 60 fps`, put `K8SSMASH_RS=2` in `/etc/default/k8ssmash` and restart the service. If not, leave it at 1.
+Settings > Display also offers 720p, 900p, 1080p and 1440p window sizes on a desktop. If
 the Pi picks the wrong mode for your TV, force one on the kernel command line
 (`/boot/firmware/cmdline.txt`, keep it a single line, append):
 
@@ -113,7 +147,7 @@ Other aspect ratios still work; the picture is centered with black bars. On an u
 | Need the game windowed on a desktop Pi OS | `python -m k8ssmash --windowed --fps` (not the kiosk path; F8 toggles the FPS overlay, F10 cycles 1080p/1440p) |
 
 Useful flags: `--booth`, `--windowed`, `--size 2560x1440`, `--fps`, `--no-items`, `--mute`,
-`--colorblind`, `--rebind`, `--metrics-port`, `--software-render`. Set extra ones for the service with `K8SSMASH_EXTRA_ARGS` in `/etc/default/k8ssmash`.
+`--colorblind`, `--rebind`, `--metrics-port`, `--software-render`, `--render-scale N`, `--lowres`. Set extra ones for the service with `K8SSMASH_EXTRA_ARGS` in `/etc/default/k8ssmash`.
 
 ## 9. Optional: metrics for the booth dashboard
 
