@@ -461,15 +461,18 @@ class Battle(Scene):
             if box is None or atk.move is None:
                 continue
             for vic in self.fighters:
-                if vic is atk or vic.slot in atk.hit_targets or not vic.alive:
+                m = atk.move
+                again = m.rehit and atk.move_frame >= atk.rehit_at.get(vic.slot, 0)  # a multi-hit move may strike again
+                if vic is atk or (vic.slot in atk.hit_targets and not again) or not vic.alive:
                     continue
                 if box.colliderect(vic.hurtbox):
-                    m = atk.move
                     if m.grab:
                         if self._throw(atk, vic):
                             atk.hit_targets.add(vic.slot)
                     elif self._hit(vic, atk, m.damage, m.base_kb, m.kb_growth, m.angle, atk.facing):
                         atk.hit_targets.add(vic.slot)
+                        if m.rehit:
+                            atk.rehit_at[vic.slot] = atk.move_frame + m.rehit
 
     def _throw(self, atk: Fighter, vic: Fighter) -> bool:
         """A grab beats a shield. The way the stick is held when it connects picks the throw."""
@@ -573,6 +576,7 @@ class Battle(Scene):
         for kind, x, y, left in self.effects:
             draw_effect(canvas, kind, x, y, left)
         self.fx.draw(canvas)
+        self._draw_offscreen(canvas)
         self._draw_hud(canvas)
         if self.paused_for_pad:
             shade = pygame.Surface(full.get_size(), pygame.SRCALPHA)
@@ -630,6 +634,45 @@ class Battle(Scene):
         if shadow:
             canvas.blit(font.render(text, False, (16, 12, 28)), (x + 2 * RS, y + 2 * RS))
         canvas.blit(surf, (x, y))
+
+    def _draw_offscreen(self, canvas: pygame.Surface) -> None:
+        """A fighter knocked past the edge of the picture gets a bubble on the screen edge: their face, their damage and an
+        arrow toward where they are. It shrinks the farther they fly, so you can see when they are coming back."""
+        for f in self.fighters:
+            if not f.alive:
+                continue
+            cy = f.y - f.stats.height / 2
+            if -6 <= f.x <= WORLD_W + 6 and -6 <= cy <= WORLD_H + 6:
+                continue
+            ix = max(30.0, min(WORLD_W - 30.0, f.x))
+            iy = max(30.0, min(WORLD_H - 96.0, cy))  # stay above the damage panels
+            over = max(0.0, -f.x, f.x - WORLD_W, -cy, cy - WORLD_H)
+            k = max(0.55, 1.0 - over / 520.0)
+            r = int(25 * k * RS)
+            px, py = int(ix * RS), int(iy * RS)
+            color = self.colors[f.slot]
+            bubble = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
+            pygame.draw.circle(bubble, (10, 14, 40, 215), (r, r), r)
+            sprites = sprite_set(f.stats.name, self.variants[f.slot])
+            if sprites is not None:
+                img = sprites.get("idle", 0, f.facing)
+                fx, fy = sprites.feet
+                bubble.blit(img, (r - fx, r - (fy - int(f.stats.height * 0.78 * RS))))
+            mask = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
+            pygame.draw.circle(mask, (255, 255, 255, 255), (r, r), r - RS)
+            bubble.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+            pygame.draw.circle(bubble, color, (r, r), r, 2 * RS)
+            canvas.blit(bubble, (px - r, py - r))
+            dx, dy = f.x - ix, cy - iy
+            d = math.hypot(dx, dy) or 1.0
+            ux, uy = dx / d, dy / d
+            tip = (px + ux * (r + 9 * RS * k), py + uy * (r + 9 * RS * k))
+            base = (px + ux * (r + 1 * RS), py + uy * (r + 1 * RS))
+            nx, ny = -uy, ux
+            w = 6 * RS * k
+            pygame.draw.polygon(canvas, color, [tip, (base[0] + nx * w, base[1] + ny * w), (base[0] - nx * w, base[1] - ny * w)])
+            label = self.tag_font.render(f"{int(f.percent)}%", False, damage_color(f.percent))
+            canvas.blit(label, (px - label.get_width() // 2, py + r + 2 * RS))
 
     def _draw_fighter(self, canvas: pygame.Surface, f: Fighter) -> None:
         if not f.alive:

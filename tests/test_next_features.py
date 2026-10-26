@@ -382,3 +382,78 @@ def test_music_intensity_layer_starts_with_the_song_and_follows_the_damage(app):
     assert app.audio._stem_level > 0.5
     app.audio.music("select")
     assert app.audio.stem_name is None  # moving to another screen drops the layer
+
+
+# --- unique moves ------------------------------------------------------------------------------------------
+def test_every_fighters_four_normals_are_their_own():
+    from k8ssmash.moves import default_moveset
+    base = default_moveset()
+    seen = {}
+    for st in roster():
+        for key in ("jab", "side", "up", "down"):
+            m = st.moves[key]
+            assert m != base[key], (st.name, key)  # nobody is left with the generic default
+            sig = (m.startup, m.active, m.recovery, m.hitbox, m.damage, m.angle, m.rehit, m.projectile is not None)
+            assert sig not in seen, (st.name, key, seen.get(sig))
+            seen[sig] = (st.name, key)
+    jabs = {st.moves["jab"].name for st in roster()}
+    assert len(jabs) == 8  # eight different named jabs
+
+
+def test_a_multi_hit_move_strikes_the_same_target_again_but_a_normal_one_does_not(app):
+    b = Battle(app, roster()[:2], human=[False, False])
+    a, v = b.fighters
+    a.stats.moves["jab"]  # Pod's splash is a multi-hit move
+    v.x, v.y = a.x + 14, a.y
+    v.invuln = 0
+    a._begin(a.stats.moves["jab"])
+    hits = []
+    for _ in range(14):
+        a.move_frame += 1
+        before = v.percent
+        b._resolve_melee()
+        if v.percent > before:
+            hits.append(a.move_frame)
+        v.hitstun = 0
+        v.invuln = 0
+    assert len(hits) >= 2 and a.stats.moves["jab"].rehit
+    a2, v2 = Battle(app, roster()[1:3], human=[False, False]).fighters
+    assert a2.stats.moves["jab"].rehit == 0
+
+
+def test_projectile_normals_and_wavy_projectiles_exist(app):
+    side = next(r for r in roster() if r.name == "Sidecar")
+    assert side.moves["jab"].projectile is not None and side.moves["jab"].projectile.life <= 10
+    waves = [r.name for r in roster() for m in r.moves.values() if m.projectile and m.projectile.wave]
+    assert {"Pod", "Sidecar"} <= set(waves)
+    b = Battle(app, roster()[:2], human=[False, False])
+    from k8ssmash.fighter import Projectile
+    d = roster()[0].moves["special"].projectile
+    p = Projectile(b.fighters[0], d, 100.0, 100.0, d.speed, 0.0, 1, d.life)
+    ys = []
+    for _ in range(30):
+        p.update(b.stage)
+        ys.append(p.y)
+    assert max(ys) - min(ys) > 5  # the bubble weaves
+    from k8ssmash.fx import draw_projectile
+    for shape in ("bubble", "spark"):
+        from k8ssmash.moves import ProjectileDef
+        q = Projectile(b.fighters[0], ProjectileDef(3, 18, 14, 1, 1, 0, 0, shape=shape, color=(200, 200, 255)), 100.0, 100.0, 3.0, 0.0, 1, 10)
+        draw_projectile(pygame.Surface((PIX_W, PIX_H)), q)
+
+
+def test_a_fighter_knocked_off_screen_gets_an_edge_indicator(app):
+    b = Battle(app, roster()[:2], human=[False, False])
+    canvas = pygame.Surface((PIX_W, PIX_H))
+    canvas.fill((0, 0, 0))
+    b._draw_offscreen(canvas)
+    assert pygame.mask.from_threshold(canvas, (0, 0, 0), (1, 1, 1)).count() == PIX_W * PIX_H  # both on screen: nothing drawn
+    b.fighters[0].x, b.fighters[0].y = -240.0, 300.0
+    b._draw_offscreen(canvas)
+    assert pygame.mask.from_threshold(canvas, (0, 0, 0), (1, 1, 1)).count() < PIX_W * PIX_H
+    left = [canvas.get_at((x, 300 * RS - 40 + dy))[:3] for x in range(0, 140, 6) for dy in range(0, 80, 6)]
+    assert any(c != (0, 0, 0) for c in left)  # the bubble sits on the left edge, level with the fighter
+    b.fighters[0].y = 3000.0  # far below: the bubble stays above the damage panels
+    canvas.fill((0, 0, 0))
+    b._draw_offscreen(canvas)
+    b.draw(app.display.canvas)

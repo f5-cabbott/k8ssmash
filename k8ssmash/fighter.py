@@ -105,7 +105,7 @@ class Projectile:
             prev = self.y
             self.vy += d.gravity
             self.x += self.vx
-            self.y += self.vy
+            self.y += self.vy + (math.sin(self.age * 0.35) * d.wave if d.wave else 0.0)
             if d.stick and self.vy >= 0:
                 for plat in stage.live:
                     r = plat.rect
@@ -139,6 +139,7 @@ class Fighter:
         self.move: Move | None = None
         self.move_frame = 0
         self.hit_targets: set[int] = set()
+        self.rehit_at: dict[int, int] = {}  # multi-hit moves: victim slot -> move frame it may be hit again
         self.spawn_queue: list[Projectile] = []
         self.events: list[str] = []  # sound cues for the battle scene to play
         self.fx: list[tuple[str, float]] = []  # visual cues (landing dust, jump rings) for the battle scene
@@ -503,6 +504,7 @@ class Fighter:
         self.move = move
         self.move_frame = 0
         self.hit_targets = set()
+        self.rehit_at = {}
         self.state = "attack"
         if move.announce:
             self.say(move.announce)

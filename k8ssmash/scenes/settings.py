@@ -11,7 +11,7 @@ from k8ssmash.scenes.base import Scene
 
 STEP = 0.05
 REPEAT_DELAY, REPEAT_EVERY = 18, 3  # holding left/right keeps adjusting
-CONFIRM, BACK = {"SPECIAL"}, {"ATTACK", "SELECT"}  # SNES layout: A confirms, B backs out
+CONFIRM, BACK = {"SPECIAL", "START"}, {"ATTACK", "SELECT"}  # START or A confirms, B backs out
 
 STOCK_CHOICES = (1, 2, 3, 4, 5)
 TIME_CHOICES = (60, 90, 120, 180, 300)
@@ -189,7 +189,7 @@ class Settings(Scene):
                 pd.polygon(canvas, (255, 224, 90), [(rect.right + 8 + bob, rect.centery - 7),
                                                     (rect.right + 8 + bob, rect.centery + 7), (rect.right + 18 + bob, rect.centery)])
         self._draw_preview(canvas)
-        _hint(canvas, self.small, "UP / DOWN choose        A enter        B back")
+        _hint(canvas, self.small, "UP / DOWN choose        START or A enter        B back")
 
     def _draw_preview(self, canvas: pygame.Surface) -> None:
         panel = pygame.Rect(334, 62, 262, 222)

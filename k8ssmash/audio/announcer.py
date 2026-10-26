@@ -68,21 +68,45 @@ class _Speaker:
         return resample_poly(wave, SR, self.rate)
 
 
+def _humanize_pitch(voice: np.ndarray) -> np.ndarray:
+    """What a synthesizer lacks and a throat has: the pitch (and with it the formants) is never perfectly steady. A slow
+    drift, a ~5 Hz vibrato that grows on held sounds and a little jitter, applied by reading the audio at a wobbling speed."""
+    n = len(voice)
+    t = np.arange(n) / SR
+    rng = np.random.default_rng(11)
+    drift = np.cumsum(rng.standard_normal(n)) / np.sqrt(n)
+    drift = I.lp(drift, 3.0, 1) * 18.0  # slow wander, a fraction of a percent
+    env = np.minimum(1.0, np.abs(I.lp(np.abs(voice), 30.0, 1)) / (np.abs(voice).max() * 0.15 + 1e-9))
+    speed = 1.0 + 0.0045 * np.sin(2 * np.pi * 5.1 * t) * env + 0.003 * drift + 0.0012 * I.lp(rng.standard_normal(n), 60.0, 1) * 6
+    pos = np.cumsum(speed)
+    pos = np.clip(pos, 0, n - 1)
+    return np.interp(pos, np.arange(n), voice)
+
+
 def dress(voice: np.ndarray) -> np.ndarray:
-    """Arena-PA treatment: trim, body and presence EQ, compression, then a short slap-back and room."""
+    """Arena-PA treatment with a human edge: trim, humanize the pitch, warm and darken the tone (espeak is buzzy above
+    2 kHz), compress gently, add a breath of air, then a short slap-back and room."""
     voice = voice - voice.mean()
     keep = np.where(np.abs(voice) > 0.01 * np.abs(voice).max())[0]
     if len(keep):
         voice = voice[max(0, keep[0] - 200): keep[-1] + 1500]
-    voice = I.hp(voice, 110) + 0.35 * I.lp(I.hp(voice, 140), 420) + 0.28 * I.bp(voice, 2200, 4600)
-    voice = np.tanh(voice * 2.4 / (np.abs(voice).max() or 1.0))  # compression: even loudness from word to word
-    echo = np.zeros(len(voice) + int(0.4 * SR))
-    echo[: len(voice)] += voice
+    voice = _humanize_pitch(voice)
+    voice = resample_poly(voice, 100, 103)  # a hair slower and lower: a bigger, calmer speaker
+    body = I.hp(voice, 100) + 0.55 * I.lp(I.hp(voice, 120), 380)  # chest
+    body = I.lp(body, 4600, 2)  # roll off the synthetic top end...
+    tone = body - 0.45 * I.bp(body, 2400, 3800)  # ...and notch the harshest band
+    tone = tone + 0.10 * I.bp(voice, 1100, 2000)  # keep some clarity so the words stay crisp
+    env = np.minimum(1.0, I.lp(np.abs(voice), 40.0, 1) * 8.0)
+    breath = I.bp(np.random.default_rng(3).standard_normal(len(voice)), 1800, 6000) * env * 0.010  # a little air
+    mix = tone + breath
+    mix = np.tanh(mix * 1.5 / (np.abs(mix).max() or 1.0))  # gentler compression than before
+    echo = np.zeros(len(mix) + int(0.4 * SR))
+    echo[: len(mix)] += mix
     d = int(0.085 * SR)
-    echo[d: d + len(voice)] += 0.22 * I.lp(voice, 3200)
-    ir = I.make_ir(0.7, seed=5, bright=0.35)[:, 0]
+    echo[d: d + len(mix)] += 0.18 * I.lp(mix, 2600)
+    ir = I.make_ir(0.7, seed=5, bright=0.25)[:, 0]
     wet = fftconvolve(echo, ir)[: len(echo)]
-    out = echo + 0.16 * wet
+    out = echo + 0.14 * wet
     fade = int(0.012 * SR)
     out[:fade] *= np.linspace(0, 1, fade)
     out[-fade:] *= np.linspace(1, 0, fade)

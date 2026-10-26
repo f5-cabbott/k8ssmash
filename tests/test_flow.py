@@ -33,11 +33,15 @@ def tap(app, p0=(), p1=()):
     frame(app)
 
 
-def test_title_a_goes_to_select_and_start_does_not(app):
+def test_title_start_or_a_picks_the_highlighted_row(app):
     tap(app, {"START"})
-    assert isinstance(app.scene, Title)  # START is not a menu button
+    assert isinstance(app.scene, CharacterSelect)
+    app.set_scene(Title(app))
     tap(app, {"SPECIAL"})
     assert isinstance(app.scene, CharacterSelect)
+    app.set_scene(Title(app))
+    tap(app, {"START", "SELECT"})  # the controller-test combo is not "go"
+    assert isinstance(app.scene, Title)
 
 
 def test_title_idle_goes_to_attract_and_back_on_input(app):

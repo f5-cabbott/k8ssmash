@@ -116,9 +116,15 @@ def main() -> None:
     from k8ssmash.audio import arranger, songs, sfx
 
     OUT.mkdir(parents=True, exist_ok=True)
+    import sys
+
     from k8ssmash.audio import announcer
 
     make_announcer = announcer.available()
+    if "--announcer" in sys.argv:  # just the announcer lines, leaving the rest of the soundtrack alone
+        OUT.mkdir(parents=True, exist_ok=True)
+        print("announcer:", announcer.build(OUT, write_wav, finish_sfx), "lines")
+        return
     for old in OUT.glob("*"):
         if old.name.startswith("ann_") and not make_announcer:
             continue  # the speech engine is optional at build time: keep the clips we already have

@@ -119,7 +119,7 @@ class Tutorial(Scene):
         b.winner = None
         players = self.app.input.players
         if self.frame > 8:
-            if any(inp.pressed & {"RIGHT", "SPECIAL"} for inp in players):
+            if any(inp.pressed & {"RIGHT", "SPECIAL", "START"} for inp in players):
                 self.lesson = (self.lesson + 1) % len(LESSONS)
                 self.app.audio.play("menu_move")
                 self._start_lesson()
@@ -127,7 +127,7 @@ class Tutorial(Scene):
                 self.lesson = (self.lesson - 1) % len(LESSONS)
                 self.app.audio.play("menu_move")
                 self._start_lesson()
-            elif any(inp.pressed & {"ATTACK", "START"} for inp in players):
+            elif any(inp.pressed & {"ATTACK", "SELECT"} for inp in players):
                 self.app.audio.play("menu_select")
                 self.app.set_scene(Title(self.app))
 
@@ -146,5 +146,5 @@ class Tutorial(Scene):
                 x += ui.dpad_glyph(canvas, x, panel.y + 20, name if lit in self.held else None, 1.1) + 8
             else:
                 x += ui.button_glyph(canvas, x, panel.y + 20, name, 1.1) + 8
-        hint = self.small.render("LEFT / RIGHT or A: next lesson        B: back to the title", False, (170, 182, 226))
+        hint = self.small.render("LEFT / RIGHT or START: next lesson        B: back to the title", False, (170, 182, 226))
         ui.blit_c(canvas, hint, 340)

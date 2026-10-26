@@ -19,7 +19,7 @@ class ProjectileDef:
     spawn_dx: float = 14  # forward offset from fighter centre
     spawn_dy: float = -30  # offset from feet (chest height: a duck passes underneath)
     color: tuple[int, int, int] = (120, 200, 255)
-    shape: str = "orb"  # sprite flavour: orb, bolt, wheel, clock, bomb, drone, wall, skull
+    shape: str = "orb"  # sprite flavour: orb, bolt, wheel, clock, bomb, drone, wall, skull, drum, ring, bubble, spark
     count: int = 1
     spread: float = 0.0  # total fan angle in degrees when count > 1
     boomerang: bool = False  # reverses at half life and returns to the owner
@@ -31,6 +31,7 @@ class ProjectileDef:
     explode_damage: float = 0.0
     harmless_to_owner: bool = True
     replace_existing: bool = False  # a new copy removes the owner's previous one (drones, walls)
+    wave: float = 0.0  # sways up and down as it flies (bubbles, sparks); the amount is pixels per frame
 
 
 @dataclass(frozen=True)
@@ -55,6 +56,7 @@ class Move:
     buff: tuple[str, int] | None = None  # (buff name, frames) applied on the first active frame
     once_per_air: bool = False  # recovery moves: usable once until the fighter lands
     grab: bool = False  # connects through shields; the direction held when it lands picks the throw
+    rehit: int = 0  # >0: a multi-hit move; the same target can be hit again every this many frames while it is active
     projectile: ProjectileDef | None = None
     anim: str = ""  # sprite animation style; falls back to the move key
     announce: str = ""  # k8s-flavoured callout shown when the move is used

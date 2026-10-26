@@ -139,7 +139,7 @@ def test_specials_and_items_are_counted(app):
     f._begin(f.stats.moves["special"])
     f.events.append("special")
     b.update()
-    assert METRICS.get("specials_used_total", fighter="Pod", move="apply") >= 1
+    assert METRICS.get("specials_used_total", fighter="Pod", move="bubble") >= 1
 
 
 def test_app_collector_exposes_fps_pads_and_scores(app):

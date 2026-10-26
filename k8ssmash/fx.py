@@ -57,6 +57,25 @@ def draw_projectile(canvas: pygame.Surface, p: Projectile) -> None:
         a = t * 0.35
         wd.line(canvas, OUTLINE, (x, y), (x + math.cos(a) * 5, y + math.sin(a) * 5), 1)
         wd.line(canvas, (200, 50, 50), (x, y), (x + math.cos(a * 0.12) * 3, y + math.sin(a * 0.12) * 3), 1)
+    elif shape == "bubble":  # a wobbling soap bubble with a bright glint
+        r = d.width // 2
+        wob = round(math.sin(t * 0.3) * 1.2)
+        wd.circle(canvas, _dark(c, 0.5), (x, y), r + 1, 2)
+        wd.circle(canvas, c, (x, y), r, 2)
+        wd.circle(canvas, tuple(min(255, v + 70) for v in c), (x - r // 3, y - r // 3 + wob), max(2, r // 4))
+        wd.circle(canvas, (255, 255, 255), (x + r // 3, y + r // 4), 1)
+    elif shape == "spark":  # a crackling zig-zag of current
+        ang = math.atan2(p.vy, p.vx) if (p.vx or p.vy) else 0.0
+        pts = []
+        for i in range(7):
+            u = i / 6
+            off = ((i % 2) * 2 - 1) * (d.height * 0.5) * (0.4 + 0.6 * math.sin(t * 0.7 + i))
+            px = x - math.cos(ang) * d.width * (0.5 - u) * 1.6 - math.sin(ang) * off
+            py = y - math.sin(ang) * d.width * (0.5 - u) * 1.6 + math.cos(ang) * off
+            pts.append((px, py))
+        wd.lines(canvas, _dark(c, 0.5), False, pts, 5)
+        wd.lines(canvas, c, False, pts, 3)
+        wd.lines(canvas, (255, 255, 255), False, pts, 1)
     elif shape == "bomb":
         flash = d.explode_radius and p.life < 30 and (t // 3) % 2 == 0
         body = (255, 255, 255) if flash else _dark(c, 0.7)
