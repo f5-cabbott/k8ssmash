@@ -5,7 +5,7 @@ import math
 
 import pygame
 
-from k8ssmash.art import draw
+from k8ssmash.art import draw, shapes
 from k8ssmash.art.rig import Look, Rig, with_back_palettes
 from k8ssmash.ui import wd
 
@@ -217,6 +217,10 @@ def pod() -> Look:
                 cel=("body", "fin", "cream"), plain=("sheen", "blush"))
 
 
+SS_HEAD = shapes.head([(-9, -3), (-6, -8), (0, -9.5), (7, -8), (10.5, -3), (11, 3), (9, 8), (3, 10), (-4, 9.5), (-8.5, 5)])
+SS_TORSO = shapes.torso([(-0.05, 0), (0.02, -0.9), (0.45, -1.0), (0.85, -1.15), (1.05, -0.5), (1.05, 0.6), (0.85, 1.18), (0.45, 1.0), (0.04, 0.9)])
+
+
 # --- StatefulSet -------------------------------------------------------------------------------
 def statefulset() -> Look:
     pal = with_back_palettes({
@@ -273,7 +277,9 @@ def statefulset() -> Look:
         wd.rect(f, (255, 255, 255), (round(dx) - 3, round(dy) - 2, 6, 5))  # the drum's label
         wd.line(f, (60, 90, 150), (round(dx) - 2, round(dy)), (round(dx) + 2, round(dy)), 1)
 
-    return Look("StatefulSet", pal, torso_w=19, torso_h=17, leg_len=14, leg_w=7, arm_w=6, head_r=9, leg_pal="pants",
+    return Look("StatefulSet", pal, torso_w=19, torso_h=17, leg_len=14, leg_w=7, arm_w=6, head_r=9, leg_pal="pants", cartoon=0.45,
+                head_fn=SS_HEAD, torso_fn=SS_TORSO, arm_fn=shapes.arm("glove", (1.2, 1.05, 0.95)), leg_fn=shapes.leg("boot", (1.25, 1.0, 0.9)),
+                cel=("body", "skin", "pants", "boots", "hat", "stache", "drum"),
                 textures={"body": "cloth", "pants": "cloth", "drum": "metal", "hat": "metal"},
                 no_hue_shift=("skin", "stache", "hat", "drum", "boots", "lock"),
                 back=[(drum, "drum"), (drum2, "drum"), (hoops, "hat")],
@@ -323,7 +329,10 @@ def kubectl() -> Look:
     return Look("Kubectl", pal, head_style="box", head_w=22, head_h=16, head_r=9, torso_w=13, torso_h=16,
                 leg_len=15, leg_w=5, arm_w=4, arm_len=16, head_pal="screen", limb_pal="metal",
                 flat=("screen",), textures={"metal": "metal", "body": "panel"}, no_hue_shift=("screen", "metal"),
-                front=[(antenna, "acc")], details=details)
+                front=[(antenna, "acc")], details=details,
+                cartoon=0.4, head_fn=shapes.head([(-11, -6), (-8, -9), (8, -9), (11, -6), (11, 6), (8, 9), (-8, 9), (-11, 6)], 9.0, hard=True),
+                torso_fn=shapes.torso([(0, -0.7), (0.1, -0.95), (0.9, -1.05), (1.05, -0.8), (1.05, 0.8), (0.9, 1.05), (0.1, 0.95), (0, 0.7)], hard=True),
+                arm_fn=shapes.arm("mech", (1.0, 0.85, 0.8)), leg_fn=shapes.leg("piston", (1.1, 0.9, 0.85)))
 
 
 # --- CronJob -----------------------------------------------------------------------------------
@@ -372,10 +381,14 @@ def cronjob() -> Look:
         wd.line(f, (200, 50, 50), (round(hx + 1), round(hy)), (round(hx + 3), round(hy)), 1)
 
     return Look("CronJob", pal, torso_w=13, torso_h=14, leg_len=13, leg_w=5, arm_w=5, arm_len=17,
-                head_r=9, head_pal="body", textures={"body": "metal", "key": "metal"},
+                head_r=9, head_pal="body", textures={"key": "metal"},
                 no_hue_shift=("face", "bell", "key", "spring"),
                 back=[(spring, "spring"), (key, "key")], front=[(dial, "face"), (bells, "bell")],
-                details=details)
+                details=details,
+                cartoon=0.5, cel=("body", "face", "bell"),
+                head_fn=shapes.head([(-10, 0), (-8, -7), (-2, -10), (5, -9), (10, -4), (10.5, 3), (7, 8.5), (0, 10), (-7, 8)], 9.0),
+                torso_fn=shapes.torso([(-0.05, 0), (0.05, -0.95), (0.5, -0.85), (0.9, -0.75), (1.05, -0.2), (1.0, 0.55), (0.8, 0.95), (0.4, 1.05), (0.05, 0.9)]),
+                arm_fn=shapes.arm("glove", (1.0, 0.85, 0.8)), leg_fn=shapes.leg("sneaker", (1.15, 0.9, 0.8)))
 
 
 # --- Sidecar -----------------------------------------------------------------------------------
@@ -428,8 +441,12 @@ def sidecar() -> Look:
         wd.set_at(f, (round(dx - 1), round(dy - 9)), (255, 120, 110))
 
     return Look("Sidecar", pal, torso_w=14, torso_h=15, leg_len=14, head_r=9, head_pal="skin",
-                textures={"body": "cloth", "steel": "metal"}, no_hue_shift=("skin", "steel"),
-                back=[(scarf, "scarf")], front=[(helmet, "steel"), (drone, "steel")], details=details)
+                textures={"steel": "metal"}, no_hue_shift=("skin", "steel"),
+                back=[(scarf, "scarf")], front=[(helmet, "steel"), (drone, "steel")], details=details,
+                cartoon=0.5, cel=("body", "skin", "scarf"),
+                head_fn=shapes.head([(-9, -1), (-7, -7), (-1, -9.5), (6, -8), (10, -3), (10.5, 3), (7.5, 7.5), (1, 9), (-5, 8), (-9, 4.5)], 9.0),
+                torso_fn=shapes.torso([(-0.05, 0), (0.03, -0.85), (0.5, -0.9), (0.9, -1.0), (1.05, -0.3), (1.02, 0.55), (0.85, 1.0), (0.45, 0.95), (0.05, 0.8)]),
+                arm_fn=shapes.arm("glove", (1.05, 0.9, 0.85)), leg_fn=shapes.leg("boot", (1.2, 0.95, 0.85)))
 
 
 # --- Ingress -----------------------------------------------------------------------------------
@@ -473,8 +490,12 @@ def ingress() -> Look:
         wd.line(f, (255, 255, 255), (round(cx - 2), round(cy - 12)), (round(cx + 2), round(cy - 12)), 1)  # the cone's stripe
 
     return Look("Ingress", pal, torso_w=18, torso_h=16, leg_len=14, leg_w=6, arm_w=6, head_r=10,
-                head_pal="steel", leg_pal="dark", textures={"body": "panel", "steel": "metal"},
-                no_hue_shift=("steel", "dark", "cone"), front=[(crest, "cone"), (shield, "steel")], details=details)
+                head_pal="steel", leg_pal="dark", textures={"steel": "metal"},
+                no_hue_shift=("steel", "dark", "cone"), front=[(crest, "cone"), (shield, "steel")], details=details,
+                cartoon=0.4, cel=("body", "cone"),
+                head_fn=shapes.head([(-8, -8), (-3, -11), (4, -11), (9, -8), (10, -1), (9, 6), (5, 9.5), (-3, 9.5), (-8, 6), (-9.5, -1)], 10.0),
+                torso_fn=shapes.torso([(-0.05, 0), (0.0, -0.8), (0.4, -1.0), (0.85, -1.1), (1.05, -0.5), (1.05, 0.6), (0.85, 1.1), (0.4, 1.0), (0.0, 0.8)]),
+                arm_fn=shapes.arm("glove", (1.2, 1.0, 0.95)), leg_fn=shapes.leg("greave", (1.15, 0.95, 0.9)))
 
 
 # --- Operator ----------------------------------------------------------------------------------
@@ -514,8 +535,12 @@ def operator() -> Look:
         wd.rect(f, (255, 240, 250), (round(hx - 1), round(hy), 3, 6))
 
     return Look("Operator", pal, torso_w=14, torso_h=16, leg_len=15, leg_w=5, head_r=10, head_pal="skin",
-                leg_pal="dark", textures={"coat": "cloth", "body": "cloth"}, no_hue_shift=("skin", "coat", "dark"),
-                back=[(coat, "coat"), (cord, "dark")], front=[(hair, "hair"), (headset, "dark")], details=details)
+                leg_pal="dark", textures={}, no_hue_shift=("skin", "coat", "dark"),
+                back=[(coat, "coat"), (cord, "dark")], front=[(hair, "hair"), (headset, "dark")], details=details,
+                cartoon=0.5, cel=("body", "skin", "coat", "dark", "hair"),
+                head_fn=shapes.head([(-8.5, -2), (-6, -8), (0, -10), (6, -8.5), (9.5, -3), (9, 2), (5, 7.5), (0, 10), (-4.5, 7.5), (-8, 3)], 10.0),
+                torso_fn=shapes.torso([(-0.05, 0), (0.04, -0.8), (0.45, -0.75), (0.85, -0.95), (1.05, -0.3), (1.0, 0.5), (0.8, 0.95), (0.4, 0.85), (0.05, 0.7)]),
+                arm_fn=shapes.arm("glove", (1.0, 0.85, 0.8)), leg_fn=shapes.leg("pump", (1.1, 0.9, 0.75)))
 
 
 # --- OOMKiller ---------------------------------------------------------------------------------
@@ -573,9 +598,13 @@ def oomkiller() -> Look:
         wd.line(f, (238, 232, 215), (round(hx + 3), round(hy)), (round(hx - 3), round(hy + 6)), 1)
 
     return Look("OOMKiller", pal, torso_w=19, torso_h=19, leg_len=14, leg_w=7, arm_w=6, head_r=10,
-                head_pal="hood", textures={"body": "cloth", "hood": "cloth", "steel": "metal"},
+                head_pal="hood", textures={"steel": "metal"},
                 no_hue_shift=("bone", "steel", "wood", "pcb"),
-                front=[(skull, "bone"), (horns, "bone"), (scythe, "wood"), (blade, "pcb")], details=details)
+                front=[(skull, "bone"), (horns, "bone"), (scythe, "wood"), (blade, "pcb")], details=details,
+                cartoon=0.4, cel=("body", "hood", "bone", "wood"),
+                head_fn=shapes.head([(-8, -3), (-6, -9), (0, -10.5), (6, -9), (9, -3), (8.5, 2), (6, 4.5), (5, 9), (0, 10), (-5, 9), (-6, 4.5), (-8.5, 2)], 10.0),
+                torso_fn=shapes.torso([(-0.05, 0), (0.0, -0.9), (0.4, -1.0), (0.85, -1.15), (1.05, -0.6), (1.05, 0.7), (0.85, 1.2), (0.4, 1.1), (0.0, 0.95)]),
+                arm_fn=shapes.arm("bone", (1.1, 0.9, 0.8)), leg_fn=shapes.leg("boot", (1.2, 1.0, 0.9)))
 
 
 LOOKS = {"Pod": pod, "StatefulSet": statefulset, "Kubectl": kubectl, "CronJob": cronjob, "Sidecar": sidecar,
