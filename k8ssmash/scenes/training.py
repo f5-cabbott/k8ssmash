@@ -17,6 +17,7 @@ TRAINING_IDLE = 120 * FPS
 
 
 class Training(Battle):
+    can_pause = False
     metrics_mode = "training"
 
     def __init__(self, app, stats: list[FighterStats], stage: Stage | None = None):

@@ -98,7 +98,12 @@ def main() -> None:
     from k8ssmash.audio import arranger, songs, sfx
 
     OUT.mkdir(parents=True, exist_ok=True)
+    from k8ssmash.audio import announcer
+
+    make_announcer = announcer.available()
     for old in OUT.glob("*"):
+        if old.name.startswith("ann_") and not make_announcer:
+            continue  # the speech engine is optional at build time: keep the clips we already have
         old.unlink()  # regenerate cleanly: no stale files from earlier versions
     generic = generic_sfx()
     # fighting-game style fallbacks: swings, meaty impacts and a battle-cry whoosh (a fighter's own sounds replace these)
@@ -115,6 +120,8 @@ def main() -> None:
             write_wav(OUT / f"{slug}__{event}.wav", finish_sfx(sfx.fighter_sound(fighter, event), target_rms=0.2))
         for shift in sfx.MOTIF_SHIFTS:
             write_wav(OUT / f"{slug}__motif{shift}.wav", finish_sfx(sfx.leitmotif(fighter, shift), target_rms=0.12))
+    if make_announcer:
+        print("  announcer:", announcer.build(OUT, write_wav, finish_sfx), "lines")
     for name, make in songs.SONGS.items():
         song = make()
         audio = arranger.master(arranger.render(song))

@@ -7,6 +7,7 @@ dependencies = ["pygame-ce>=2.5"]
 
 [project.optional-dependencies]
 dev = ["pytest", "pyyaml"]
+audio = ["numpy", "scipy", "espeakng-loader"]  # only to regenerate the soundtrack and announcer (python -m k8ssmash.audio.build)
 
 [project.scripts]
 k8ssmash = "k8ssmash.main:main"

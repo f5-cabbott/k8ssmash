@@ -172,10 +172,12 @@ class CharacterSelect(Scene):
             self.app.set_scene(Training(self.app, [self.roster[self.cursor[0]], dummy],
                                         stage=STAGES[self.stage_idx]()))
             return
+        from k8ssmash.scenes.stageselect import StageSelect
+
         stats = [self.roster[self.cursor[s]] for s in (0, 1)]
         human = [self.joined[s] and not self.cpu[s] for s in (0, 1)]
         self.app.last_match = (list(self.cursor), human, self.stage_idx)
-        self.app.set_scene(Battle(self.app, stats, stage=STAGES[self.stage_idx](), human=human))
+        self.app.set_scene(StageSelect(self.app, stats, human, self.cursor, self.stage_idx))
 
     # --- drawing -------------------------------------------------------------------------
     def draw(self, canvas: pygame.Surface) -> None:

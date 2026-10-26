@@ -62,6 +62,11 @@ def test_select_two_players_starts_battle(app):
     assert sel.locked == [True, True]
     for _ in range(60):
         frame(app)
+    from k8ssmash.scenes.stageselect import StageSelect
+    assert isinstance(app.scene, StageSelect)  # then pick an arena (A fights on the highlighted one)
+    for _ in range(10):
+        frame(app)
+    tap(app, {"SPECIAL"})
     assert isinstance(app.scene, Battle) and app.scene.human == [True, True]
 
 
@@ -74,6 +79,9 @@ def test_lone_player_gets_cpu_opponent(app):
     tap(app, {"ATTACK"})
     for _ in range(60):
         frame(app)
+    for _ in range(10):
+        frame(app)
+    tap(app, {"SPECIAL"})
     assert isinstance(app.scene, Battle) and app.scene.human == [True, False]
 
 

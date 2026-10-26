@@ -45,6 +45,9 @@ class Results(Scene):
         if self.winner >= 0 and self.frame % 3 == 0:  # confetti rains over the winner
             self.fx.confetti(170 + self.winner * 300, -4, 1, width=140)
         self.fx.update()
+        if self.frame == 70:  # the announcer calls it once the fanfare has settled
+            name = self.summary[self.winner]["name"].lower() if 0 <= self.winner < len(self.summary) else None
+            self.app.audio.play(f"ann_win_{name}" if name else "ann_draw")
         if self.app.idle_frames >= TIMEOUT:
             self.app.go_title()
         elif self.frame > LOCK:
@@ -57,6 +60,17 @@ class Results(Scene):
                 r = roster()
                 self.app.set_scene(Battle(self.app, [r[cursor[0]], r[cursor[1]]], stage=STAGES[stage_idx](),
                                           human=human))
+            elif self.app.input.any_pressed("SHIELD"):  # L/R: pick the next stage for the rematch
+                from k8ssmash.stage import STAGES
+                cursor, human, stage_idx = self.app.last_match
+                self.app.last_match = (cursor, human, (stage_idx + 1) % len(STAGES))
+                self.app.audio.play("menu_move")
+            elif self.app.input.any_pressed("JUMP"):  # swap sides: who starts on the left
+                cursor, human, stage_idx = self.app.last_match
+                self.app.last_match = ([cursor[1], cursor[0]], [human[1], human[0]], stage_idx)
+                self.summary = self.summary[::-1]
+                self.winner = {0: 1, 1: 0}.get(self.winner, self.winner)
+                self.app.audio.play("menu_move")
             elif self.app.input.any_pressed("SELECT"):
                 self.app.set_scene(CharacterSelect(self.app))
             elif self.app.input.any_pressed("SPECIAL"):
@@ -105,16 +119,18 @@ class Results(Scene):
             if run.streak >= 2:
                 t = self.small.render(f"{run.streak} wins in a row!", False, (255, 215, 90))
                 pd.blit(canvas, t, (cx - t.get_width() // 2, 64))
-            panel = pygame.Rect(cx - 130, 226, 260, 98 if won else 82)
+            panel = pygame.Rect(cx - 130, 226, 260, 98 if won else 84)
             ui.window_d(canvas, panel, accent=colors[slot])
             pd.blit(canvas, self.big.render(row["name"], False, colors[slot]), (panel.x + 10, panel.y + 4))
-            for i, line in enumerate((f"KOs  {row['kos']}", f"Damage dealt  {int(row['damage'])}%", f"Stocks left  {row['stocks']}")):
-                pd.blit(canvas, self.small.render(line, False, (226, 230, 250)), (panel.x + 12, panel.y + 30 + i * 15))
+            lines = (f"KOs  {row['kos']}", f"Damage dealt  {int(row['damage'])}%", f"Stocks left  {row['stocks']}",
+                     f"Best combo  {row.get('combo', 0)} hits")
+            for i, line in enumerate(lines):
+                pd.blit(canvas, self.small.render(line, False, (226, 230, 250)), (panel.x + 12, panel.y + 28 + i * 13))
         if 0 <= self.winner < len(self.summary):
             quote = WIN.get(self.summary[self.winner]["name"], "")
             qx = 170 + self.winner * 300
             q = self.small.render(f"\"{quote}\"", False, (255, 224, 140))
-            pd.blit(canvas, q, (qx - q.get_width() // 2, 226 + 77))
+            pd.blit(canvas, q, (qx - q.get_width() // 2, 226 + 82))
         self.fx.draw(canvas)
         if self.prompts:
             who = " & ".join(f"P{p.slot + 1}" for p in self.prompts)
@@ -123,8 +139,11 @@ class Results(Scene):
             banner = ui.scale_surface(banner, pulse)
             ui.blit_c(canvas, banner, 318 - banner.get_height() // 2)
         if self.frame > LOCK:
-            hint = self.small.render("START rematch     SELECT change fighters     A main menu", False, (255, 224, 140))
-            ui.blit_c(canvas, hint, 340)
+            from k8ssmash.stage import STAGES
+            stage = STAGES[self.app.last_match[2]]().name
+            hint = ui.fit(f"START rematch     L/R stage: {stage}     Y/X swap sides     SELECT fighters     A menu",
+                          (255, 224, 140), 620, 15, 9)
+            ui.blit_c(canvas, hint, 338)
     _bg: pygame.Surface | None = None
 
     @classmethod

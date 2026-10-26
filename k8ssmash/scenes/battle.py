@@ -58,6 +58,7 @@ class Battle(Scene):
     native = (PIX_W, PIX_H)
     wide = True  # takes the whole (possibly ultrawide) canvas: scenery fills it, the arena sits in the middle
     metrics_mode: str | None = None  # None: derived from who is human
+    can_pause = True  # START opens the pause menu (training has its own use for START)
 
     def __init__(self, app, stats: list[FighterStats], stage: Stage | None = None, stocks: int | None = None,
                  human: list[bool] | None = None, demo: bool = False, items: bool | None = None):
@@ -88,6 +89,10 @@ class Battle(Scene):
                 METRICS.inc("fighter_picks_total", fighter=f.stats.name)
         self.cam = 0.0
         backdrops.REACT["ripples"].clear()
+        self.paused = False
+        self.pause_row = 0
+        self.best_combos = [0] * len(self.fighters)
+        self.kill_focus: tuple[float, float] | None = None
         self.hot = False  # the final-stock version of the music is playing
         self.motif_ready = [0] * len(self.fighters)  # frame when each fighter's leitmotif may play again
         self.fx = Particles()
@@ -119,6 +124,7 @@ class Battle(Scene):
         if self.demo:
             return
         self._reported = True
+        self.app.audio.play("ann_game")
         self.app.audio.fade_out(900)  # the arena song dies away; the victory theme takes over on the results screen
         METRICS.inc("matches_finished_total", mode=self.mode_label)
         METRICS.observe("match_duration_seconds", (self.frame - READY_FRAMES) / FPS)
@@ -148,6 +154,12 @@ class Battle(Scene):
     def update(self) -> None:
         if self.paused_for_pad:
             return
+        if self.can_pause and not self.demo and self.phase != "finished":
+            if any("START" in p.pressed and "SELECT" not in p.held for p in self.app.input.players):
+                self._set_paused(not self.paused)
+        if self.paused:
+            self._pause_input()
+            return
         inputs = self._inputs()
         self.frame += 1
         if self.phase == "finished":
@@ -155,7 +167,7 @@ class Battle(Scene):
             if self.finished_frames >= GAME_FRAMES and not self.demo:
                 from k8ssmash.scenes.results import Results
                 summary = [{"name": f.stats.name, "kos": f.kos, "damage": f.dealt_damage,
-                            "stocks": max(f.stocks, 0)} for f in self.fighters]
+                            "stocks": max(f.stocks, 0), "combo": self.best_combos[f.slot]} for f in self.fighters]
                 self.app.set_scene(Results(self.app, self.winner, summary, self.human))
             return
         if not self.demo and self.app.idle_frames >= IDLE_ABORT and any(self.human):
@@ -167,9 +179,13 @@ class Battle(Scene):
                     f.say(INTRO.get(f.stats.name, ""))
             if self.frame in (1, 31, 61):
                 self.app.audio.play("countdown")
+            if self.frame == 6 and not self.demo:
+                self.app.audio.play("ann_ready")
             return
         if self.frame == READY_FRAMES:
             self.app.audio.play("go")
+            if not self.demo:
+                self.app.audio.play("ann_fight")
         if self.hitstop > 0:
             self.hitstop -= 1
             return
@@ -224,9 +240,77 @@ class Battle(Scene):
                 self.announce(f"{f.stats.name}: {self.rng.choice(KO_REASONS)}", self.colors[f.slot])
                 if f.eliminated and not self.demo:
                     self.slowmo = SLOWMO_FRAMES
+                    self.kill_focus = (max(40.0, min(WORLD_W - 40.0, f.x)), max(40.0, min(WORLD_H - 120.0, f.y)))
         if self.slowmo == 0:
             self._check_end()
             self._report_result()
+
+    # --- pause menu ----------------------------------------------------------------------
+    PAUSE_ROWS = ("Resume", "Restart match", "Quit to title")
+
+    def _set_paused(self, on: bool) -> None:
+        self.paused, self.pause_row = on, 0
+        self.app.audio.play("menu_select" if on else "menu_move")
+        self.app.audio.pause_music(on)
+
+    def _pause_input(self) -> None:
+        players = self.app.input.players
+        for inp in players:
+            if "UP" in inp.pressed:
+                self.pause_row = (self.pause_row - 1) % len(self.PAUSE_ROWS)
+                self.app.audio.play("menu_move")
+            if "DOWN" in inp.pressed:
+                self.pause_row = (self.pause_row + 1) % len(self.PAUSE_ROWS)
+                self.app.audio.play("menu_move")
+        if any(inp.pressed & {"ATTACK"} for inp in players):
+            self._set_paused(False)
+        elif any("SPECIAL" in inp.pressed for inp in players):
+            choice = self.pause_row
+            self._set_paused(False)
+            if choice == 1:
+                self._restart()
+            elif choice == 2:
+                self.app.go_title()
+
+    def _restart(self) -> None:
+        from k8ssmash.stage import STAGES
+
+        stage = next((make() for make in STAGES if make().name == self.stage.name), None)
+        self.app.set_scene(Battle(self.app, [f.stats for f in self.fighters], stage=stage, human=self.human))
+
+    def _draw_pause(self, canvas: pygame.Surface) -> None:
+        from k8ssmash.ui import pd
+
+        shade = pygame.Surface(canvas.get_size(), pygame.SRCALPHA)
+        shade.fill((0, 0, 8, 170))
+        canvas.blit(shade, (0, 0))
+        if not hasattr(self, "_pause_fonts"):
+            self._pause_fonts = (ui.UIFont(34), ui.UIFont(22), ui.UIFont(13))
+        big, font, small = self._pause_fonts
+        panel = pygame.Rect(210, 100, 220, 150)
+        ui.window_d(canvas, panel, accent=(255, 224, 90))
+        title = big.render("PAUSED", False, (255, 224, 90))
+        pd.blit(canvas, title, (panel.centerx - title.get_width() // 2, panel.y + 8))
+        for i, label in enumerate(self.PAUSE_ROWS):
+            y = panel.y + 56 + i * 26
+            if i == self.pause_row:
+                pd.rect(canvas, (60, 90, 200), (panel.x + 10, y - 3, panel.w - 20, 24), border_radius=4)
+            t = font.render(label, False, (255, 255, 255) if i == self.pause_row else (180, 192, 232))
+            pd.blit(canvas, t, (panel.centerx - t.get_width() // 2, y))
+        hint = small.render("UP / DOWN choose     A select     START resume", False, (150, 166, 220))
+        pd.blit(canvas, hint, (panel.centerx - hint.get_width() // 2, panel.bottom - 20))
+
+    def _punch_in(self, canvas: pygame.Surface, k: float) -> None:
+        """Kill cam: ease the picture in toward where the last fighter was launched (a smooth zoom, never a flash)."""
+        if self.kill_focus is None or k <= 0.01:
+            return
+        z = 1.0 + 0.30 * k
+        w, h = int(PIX_W / z), int(PIX_H / z)
+        fx, fy = self.kill_focus[0] * RS, self.kill_focus[1] * RS
+        x = int(max(0, min(PIX_W - w, fx - w / 2)))
+        y = int(max(0, min(PIX_H - h, fy - h / 2)))
+        src = canvas.copy()
+        pygame.transform.smoothscale(src.subsurface((x, y, w, h)), canvas.get_size(), canvas)
 
     def _fighter_fx(self, f: Fighter) -> None:
         """Visual juice from what a fighter just did: landing dust, jump rings, run puffs, buff sparkles, launch streaks."""
@@ -263,6 +347,7 @@ class Battle(Scene):
         count, _, vslot = self.combos.get(attacker.slot, (0, 0, -1))
         count = count + 1 if chained and vslot == victim.slot and count else 1
         self.combos[attacker.slot] = (count, COMBO_SHOW, victim.slot)
+        self.best_combos[attacker.slot] = max(self.best_combos[attacker.slot], count)
         if count >= 3:
             self.fx.ring(victim.x, victim.y - victim.stats.height - 8, (255, 214, 90), 20 + count * 3, 16)
             self.app.audio.play("counter", pan=self.pan_of(victim))
@@ -282,6 +367,7 @@ class Battle(Scene):
         if f.stocks == 1 and not f.eliminated and not f.comeback and others and max(o.stocks for o in others) >= 2:
             f.comeback = True
             self.announce("LAST STOCK: SECOND WIND!", self.colors[f.slot])
+            self.app.audio.play("ann_final_stock")
             self.hot = True
             if not self.demo:  # the stage music lifts: faster and higher for the final stretch
                 self.app.audio.music(MUSIC_FOR_THEME.get(self.stage.theme, "datacenter") + "_hot")
@@ -485,12 +571,18 @@ class Battle(Scene):
             self._center(canvas, "CONTROLLER DISCONNECTED", self.big, WORLD_H // 2 - 50)
             self._center(canvas, f"Reconnect {who} controller to resume", self.font, WORLD_H // 2 - 4)
             return
+        if self.paused:
+            self._draw_pause(canvas)
+            return
         if self.phase == "ready":
             text = READY_STATUS[min(2, self.frame * 3 // READY_FRAMES)]
             self._center(canvas, text, self.huge if len(text) < 12 else self.big, int(WORLD_H * 0.36), shadow=True)
         elif self.phase == "finished":
             self._center(canvas, "GAME!", self.huge, int(WORLD_H * 0.32), shadow=True)
         elif self.slowmo > 0:
+            t = 1 - self.slowmo / SLOWMO_FRAMES
+            zk = min(1.0, t * 4) * min(1.0, self.slowmo / 24)
+            self._punch_in(canvas, zk * zk * (3 - 2 * zk))
             self._draw_finale(canvas, full)
         for i, (text, color, left) in enumerate(self.banners):
             slide = min(1.0, (BANNER_FRAMES - left) / 8)

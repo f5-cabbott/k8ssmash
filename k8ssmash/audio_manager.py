@@ -9,7 +9,8 @@ ASSETS = Path(__file__).resolve().parent.parent / "assets" / "audio"
 MUSIC_FOR_THEME = {"datacenter": "datacenter", "controlplane": "controlplane", "nodepool": "nodepool"}
 # Loud moments briefly pull the music down so the effects stay clear of it (name -> music level while it plays).
 DUCK = {"hit_heavy": 0.5, "ko": 0.4, "special": 0.72, "explosion": 0.5, "counter": 0.6, "pickup": 0.8, "go": 0.6,
-        "shield_break": 0.6}
+        "shield_break": 0.6,
+        "ann_ready": 0.55, "ann_fight": 0.5, "ann_game": 0.5, "ann_final_stock": 0.55}
 DUCK_RECOVERY = 0.035  # fraction of the gap closed per logic frame (about a third of a second)
 
 
@@ -101,6 +102,10 @@ class Audio:
             pygame.mixer.music.play(-1 if loop else 0)
         except (pygame.error, FileNotFoundError):
             pass
+
+    def pause_music(self, paused: bool) -> None:
+        if self.ok and not self.muted:
+            (pygame.mixer.music.pause if paused else pygame.mixer.music.unpause)()
 
     def fade_out(self, ms: int = 900) -> None:
         """Let the current music die away (the arena song when a match ends) instead of cutting or carrying on."""
