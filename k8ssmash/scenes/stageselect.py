@@ -17,6 +17,8 @@ BLURBS = {
     "Datacenter": ("Server hall", "A rack hot-swaps into the middle of the floor."),
     "Control Plane": ("Core chamber", "Leader election: the crown perch changes sides."),
     "Node Pool": ("Pod bay", "The scheduler lays a bridge across the gap now and then."),
+    "Etcd Vault": ("Crystal archive", "Consensus: three perches take turns appearing across the top."),
+    "Service Mesh": ("Floating islands", "The islands drift, and a high node joins the mesh now and then."),
 }
 _thumbs: dict[int, pygame.Surface] = {}
 
@@ -82,7 +84,9 @@ class StageSelect(Scene):
     def draw(self, canvas: pygame.Surface) -> None:
         canvas.fill((14, 18, 36))
         ui.blit_c(canvas, self.big.render("CHOOSE YOUR ARENA", False, (255, 255, 255)), 8)
-        card_w, card_h, gap = 140, 79, 8
+        gap = 6
+        card_w = min(140, (CANVAS_W - 40 - gap * (self.count - 1)) // self.count)
+        card_h = round(card_w * 9 / 16)
         x0 = (CANVAS_W - (self.count * card_w + (self.count - 1) * gap)) // 2
         for i in range(self.count):
             x, y = x0 + i * (card_w + gap), 62
@@ -111,5 +115,5 @@ class StageSelect(Scene):
         else:
             pd.blit(canvas, ui.fit("Random arena", (255, 224, 90), panel.w - 24, 20), (panel.x + 12, panel.y + 10))
             pd.blit(canvas, ui.fit("Let the scheduler pick.", (210, 220, 245), panel.w - 24, 15), (panel.x + 12, panel.y + 40))
-        hint = self.small.render("LEFT / RIGHT choose        A fight        B back to fighters", False, (150, 166, 220))
+        hint = self.small.render("LEFT / RIGHT choose        START or A fight        B back to fighters", False, (150, 166, 220))
         ui.blit_c(canvas, hint, 330)

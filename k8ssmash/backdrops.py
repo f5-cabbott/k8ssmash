@@ -71,6 +71,8 @@ MOODS = {
     "datacenter": [((0, 0, 0), 0), ((255, 150, 40), 34), ((40, 70, 255), 40)],  # day shift, backup window, night ops
     "controlplane": [((0, 0, 0), 0), ((255, 210, 110), 30), ((150, 80, 255), 36)],
     "nodepool": [((0, 0, 0), 0), ((0, 200, 255), 32), ((255, 90, 140), 30)],
+    "etcd": [((0, 0, 0), 0), ((110, 255, 176), 28), ((200, 120, 255), 34)],
+    "mesh": [((0, 0, 0), 0), ((255, 120, 220), 30), ((100, 200, 255), 32)],
 }
 MOOD_HOLD, MOOD_FADE = 2700, 700  # frames each mood holds, and how long the crossfade between moods takes
 _tints: dict[tuple, pygame.Surface] = {}
@@ -174,8 +176,10 @@ def _wide() -> pygame.Surface:
 
 
 # --- Tron-style neon helpers --------------------------------------------------------------------
-ACCENT = {"datacenter": (0, 226, 255), "controlplane": (176, 238, 255), "nodepool": (255, 150, 34)}
-SECOND = {"datacenter": (255, 140, 40), "controlplane": (255, 214, 110), "nodepool": (0, 214, 255)}
+ACCENT = {"datacenter": (0, 226, 255), "controlplane": (176, 238, 255), "nodepool": (255, 150, 34), "etcd": (110, 255, 176),
+          "mesh": (255, 120, 214)}
+SECOND = {"datacenter": (255, 140, 40), "controlplane": (255, 214, 110), "nodepool": (0, 214, 255), "etcd": (196, 120, 255),
+          "mesh": (110, 200, 255)}
 
 
 def _scale(c: Color, k: float) -> Color:
@@ -555,7 +559,126 @@ def build_nodepool(canvas_w: int = PIX_W) -> Backdrop:
     return Backdrop(sky, items, 'nodepool')
 
 
-BUILDERS = {"datacenter": build_datacenter, "controlplane": build_controlplane, "nodepool": build_nodepool}
+# --- Etcd Vault: a crystal archive where the cluster keeps its state --------------------------------------
+def _crystal(surf, x, base, w, h, color, rng, glow=0.5):
+    """A tall hexagonal crystal column: two lit facets and a dark one, with a pointed tip and faint inner light."""
+    tip = base - h
+    left, right = (x, base), (x + w, base)
+    pd.polygon(surf, _scale(color, 0.10), [left, (x, tip + w * 0.5), (x + w * 0.5, tip), (x + w * 0.5, base)])
+    pd.polygon(surf, _scale(color, 0.20), [(x + w * 0.5, base), (x + w * 0.5, tip), (x + w, tip + w * 0.5), right])
+    pd.line(surf, _scale(color, glow), (x + w * 0.5, tip), (x + w * 0.5, base), 1)
+    pd.lines(surf, _scale(color, glow * 0.8), False, [(x, base), (x, tip + w * 0.5), (x + w * 0.5, tip), (x + w, tip + w * 0.5), (x + w, base)], 1)
+    for yy in range(int(tip + w * 0.9), int(base) - 4, 11):  # etched rows of keys and values
+        if rng.random() < 0.7:
+            pd.rect(surf, _scale(color, 0.28), (x + 4 + rng.randint(0, 4), yy, rng.randint(4, int(w * 0.5)), 2))
+
+
+def build_etcd(canvas_w: int = PIX_W) -> Backdrop:
+    rng = random.Random(23)
+    accent, violet = ACCENT["etcd"], SECOND["etcd"]
+    horizon = 240
+    sky = dither_gradient(canvas_w, PIX_H, [(0, (2, 8, 12)), (0.42, (4, 24, 28)), (0.62, (12, 66, 60)), (0.665, (70, 210, 170)),
+                                 (0.67, (3, 10, 12)), (1.0, (1, 4, 6))], bands=26)
+    far = _wide()
+    x = 0
+    while x < WIDE:  # a distant range of small crystals
+        w, h = rng.randint(14, 26), rng.randint(30, 90)
+        _crystal(far, x, horizon, w, h, accent, rng, 0.45)
+        x += w + rng.randint(-4, 6)
+    mid = _wide()
+    for cx in range(10, WIDE - 40, 74):  # the great columns
+        w, h = rng.randint(34, 50), rng.randint(110, 200)
+        _crystal(mid, cx, horizon + 6, w, h, accent if rng.random() < 0.7 else violet, rng, 0.6)
+    near = _wide()
+    for gx in (MARGIN - 8, WIDE - MARGIN - 56):  # carved stone pillars with glowing runes
+        pd.rect(near, (3, 8, 12), (gx, 0, 64, H))
+        pd.rect(near, (10, 24, 30), (gx + 6, 0, 8, H))
+        for yy in range(16, H, 34):
+            pd.rect(near, _scale(violet, 0.6), (gx + 24, yy, 10, 2))
+            pd.lines(near, _scale(violet, 0.38), False, [(gx + 20, yy + 6), (gx + 29, yy + 12), (gx + 38, yy + 6)], 1)
+        neon(near, (gx + (60 if gx < W else 0), 0), (gx + (60 if gx < W else 0), H), accent, 1)
+    pd.rect(near, (2, 6, 8), (0, 0, WIDE, 20))
+    for k in range(-9, 10):  # stalactite crystals along the ceiling
+        cx = WIDE // 2 + k * 52
+        pd.polygon(near, _scale(accent, 0.16), [(cx - 8, 20), (cx + 8, 20), (cx + rng.randint(-2, 2), 20 + rng.randint(10, 26))])
+    neon(near, (0, 20), (WIDE, 20), _scale(accent, 0.5), 1)
+    _mute(far, 0.5)
+    _mute(mid, 0.62)
+    _mute(near, 0.74)
+    cubes = [(86, 70, 0.0), (210, 100, 1.7), (430, 52, 3.1), (560, 92, 4.4), (330, 130, 5.6)]
+
+    def cubes_fn(canvas, frame, cam):  # key-value cubes drifting in the air: big, dim and very slow
+        ox = -cam * 0.08
+        for x, y, ph in cubes:
+            yy = y + math.sin(frame * 0.012 + ph) * 3.5
+            for dx, dy, c in ((0, 0, 0.22), (6, -3, 0.34), (0, -6, 0.5)):
+                pd.polygon(canvas, _scale(accent if ph < 3 else violet, c), [(x + ox + dx, yy + dy), (x + ox + dx + 12, yy + dy), (x + ox + dx + 12, yy + dy + 12), (x + ox + dx, yy + dy + 12)])
+            neon_rect(canvas, (x + ox, yy, 12, 12), _scale(accent if ph < 3 else violet, 0.55))
+
+    def floor_fn(canvas, frame, cam):
+        grid_floor(canvas, frame, cam, horizon, accent, speed=0.003, fade=0.5)
+
+    def haze_fn(canvas, frame, cam):
+        haze_band(canvas, horizon, _scale(accent, 0.4), 90, 80)
+
+    items = [Layer(far, 0.03, 0), Animated(haze_fn), Animated(floor_fn), Layer(reflection(mid, horizon + 6, strength=70), 0.09, horizon + 6),
+             Layer(mid, 0.09, 0), Animated(cubes_fn), Layer(near, 0.13, 0)]
+    return Backdrop(sky, items, "etcd")
+
+
+# --- Service Mesh: islands in a night sky under a web of nodes ---------------------------------------------------
+def build_mesh(canvas_w: int = PIX_W) -> Backdrop:
+    rng = random.Random(31)
+    accent, blue = ACCENT["mesh"], SECOND["mesh"]
+    sky = dither_gradient(canvas_w, PIX_H, [(0, (6, 2, 18)), (0.35, (14, 6, 40)), (0.6, (40, 16, 86)), (0.82, (110, 40, 130)),
+                                 (1.0, (30, 12, 56))], bands=28)
+    far = _wide()
+    for _ in range(150):  # a dim, static starfield
+        pd.set_at(far, (rng.randrange(WIDE), rng.randrange(int(H * 0.8))), _scale((200, 190, 255), rng.choice([0.25, 0.4, 0.6])))
+    nodes = []
+    for _ in range(26):
+        nodes.append((rng.randrange(40, WIDE - 40), rng.randrange(24, 230)))
+    mid = _wide()
+    for i, (nx, ny) in enumerate(nodes):  # the mesh: each node links to its two nearest neighbours
+        near_ = sorted(nodes, key=lambda q: (q[0] - nx) ** 2 + (q[1] - ny) ** 2)[1:3]
+        for mx, my in near_:
+            pd.line(mid, _scale(blue, 0.22), (nx, ny), (mx, my), 1)
+    for nx, ny in nodes:
+        hexp = [(nx + math.cos(a) * 7, ny + math.sin(a) * 6) for a in [i * math.pi / 3 for i in range(6)]]
+        pd.polygon(mid, (10, 6, 28), hexp)
+        pd.lines(mid, _scale(accent, 0.55), True, hexp, 1)
+        pd.circle(mid, _scale(accent, 0.5), (nx, ny), 2)
+    _mute(far, 0.6)
+    _mute(mid, 0.55)
+    near = _wide()
+    pd.ellipse(near, (24, 8, 50), (-120, 308, WIDE + 240, 160))  # the curve of a huge planet far below
+    pd.lines(near, _scale(accent, 0.5), False, [(-60 + i * 12, 312 - math.sin(i / (WIDE / 12) * math.pi) * 30) for i in range(int(WIDE / 12) + 6)], 1)
+    _mute(near, 0.7)
+    pulse_nodes = [(120, 80), (320, 60), (500, 110), (260, 150)]
+
+    def pulse_fn(canvas, frame, cam):  # a few nodes breathe, slowly
+        ox = -cam * 0.05
+        for i, (x, y) in enumerate(pulse_nodes):
+            k = 0.5 + 0.5 * math.sin(frame * 0.015 + i * 1.7)
+            pd.circle(canvas, _scale(accent, 0.14 + 0.2 * k), (x + ox, y), 9 + 3 * k, 1)
+            pd.circle(canvas, _scale(accent, 0.25 + 0.2 * k), (x + ox, y), 3)
+
+    def ring_fn(canvas, frame, cam):  # a vast, faint orbital ring that creeps around
+        ox = -cam * 0.04
+        a = frame * 0.0015
+        for rr, c in ((150, 0.16), (156, 0.1)):
+            pts = [(W / 2 + ox + math.cos(t + a) * rr, 128 + math.sin(t + a) * rr * 0.28) for t in [i * math.pi / 24 for i in range(49)]]
+            pd.lines(canvas, _scale(blue, c), True, pts, 1)
+
+    def haze_fn(canvas, frame, cam):
+        haze_band(canvas, 262, _scale(accent, 0.35), 100, 70)
+
+    items = [Layer(far, 0.02, 0), Animated(ring_fn), Layer(mid, 0.06, 0), Animated(pulse_fn), Animated(haze_fn), Layer(near, 0.1, 0)]
+    return Backdrop(sky, items, "mesh")
+
+
+BUILDERS = {"datacenter": build_datacenter, "controlplane": build_controlplane, "nodepool": build_nodepool,
+            "etcd": build_etcd, "mesh": build_mesh}
 _backdrops: dict[tuple[str, int], Backdrop] = {}
 
 

@@ -132,4 +132,44 @@ def node_pool_stage() -> Stage:
     )
 
 
-STAGES = [datacenter_stage, control_plane_stage, node_pool_stage]
+def etcd_stage() -> Stage:
+    """Crystal vault: a wide floor, two side ledges and a throne above; the high platforms appear one after another, like a vote."""
+    return Stage(
+        name="Etcd Vault",
+        platforms=[
+            Platform(pygame.Rect(200, 410, 560, 38)),
+            Platform(pygame.Rect(70, 338, 130, 8), dropthrough=True),
+            Platform(pygame.Rect(760, 338, 130, 8), dropthrough=True),
+            Platform(pygame.Rect(390, 300, 180, 8), dropthrough=True, motion=("x", 45, 640)),
+            Platform(pygame.Rect(280, 225, 110, 8), dropthrough=True),
+            Platform(pygame.Rect(570, 225, 110, 8), dropthrough=True),
+            # set piece: consensus. Three perches take turns appearing across the top, left to right
+            Platform(pygame.Rect(120, 170, 100, 8), dropthrough=True, schedule=(2250, 800, 0)),
+            Platform(pygame.Rect(430, 140, 100, 8), dropthrough=True, schedule=(2250, 800, 750)),
+            Platform(pygame.Rect(740, 170, 100, 8), dropthrough=True, schedule=(2250, 800, 1500)),
+        ],
+        spawns=[(330, 410), (630, 410)],
+        theme="etcd",
+    )
+
+
+def mesh_stage() -> Stage:
+    """Floating islands: two drifting landmasses, a bridge-high span and a perch that comes and goes."""
+    return Stage(
+        name="Service Mesh",
+        platforms=[
+            Platform(pygame.Rect(130, 410, 300, 36), motion=("x", 28, 780)),
+            Platform(pygame.Rect(530, 410, 300, 36), motion=("x", -28, 780)),
+            Platform(pygame.Rect(345, 330, 270, 8), dropthrough=True, motion=("y", 22, 540)),
+            Platform(pygame.Rect(110, 270, 130, 8), dropthrough=True),
+            Platform(pygame.Rect(720, 270, 130, 8), dropthrough=True),
+            Platform(pygame.Rect(430, 215, 100, 8), dropthrough=True),
+            # set piece: an extra node joins the mesh up high, then drains away
+            Platform(pygame.Rect(400, 130, 160, 8), dropthrough=True, schedule=(2100, 750, 600)),
+        ],
+        spawns=[(280, 410), (680, 410)],
+        theme="mesh",
+    )
+
+
+STAGES = [datacenter_stage, control_plane_stage, node_pool_stage, etcd_stage, mesh_stage]

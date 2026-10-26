@@ -91,7 +91,7 @@ def encode_ogg(wav: Path) -> None:
     wav.unlink()
 
 
-HOT_SONGS = ("datacenter", "controlplane", "nodepool")
+HOT_SONGS = ("datacenter", "controlplane", "nodepool", "etcd", "mesh")
 
 
 def write_stem(song, full_mix: np.ndarray, name: str) -> None:

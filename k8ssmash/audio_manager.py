@@ -6,7 +6,8 @@ from pathlib import Path
 import pygame
 
 ASSETS = Path(__file__).resolve().parent.parent / "assets" / "audio"
-MUSIC_FOR_THEME = {"datacenter": "datacenter", "controlplane": "controlplane", "nodepool": "nodepool"}
+MUSIC_FOR_THEME = {"datacenter": "datacenter", "controlplane": "controlplane", "nodepool": "nodepool", "etcd": "etcd",
+                   "mesh": "mesh"}
 # Loud moments briefly pull the music down so the effects stay clear of it (name -> music level while it plays).
 DUCK = {"hit_heavy": 0.5, "ko": 0.4, "special": 0.72, "explosion": 0.5, "counter": 0.6, "pickup": 0.8, "go": 0.6,
         "shield_break": 0.6,

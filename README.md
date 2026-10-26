@@ -1,7 +1,7 @@
 # K8s Smash
 
 A 2-player, Smash-style platform fighter with a hand-painted 16-bit look, built for conference booths.
-**Pods vs. chaos**: eight Kubernetes-themed fighters, k8s power-ups, three stages, played with two SNES-style USB pads
+**Pods vs. chaos**: eight Kubernetes-themed fighters, k8s power-ups, five stages, played with two SNES-style USB pads
 on a Raspberry Pi 5 (or any computer: the keyboard works too). Kubernetes is the *theme*; nothing here needs a cluster.
 
 ```bash
@@ -42,9 +42,11 @@ Grab the heptagon power-ups: **HPA** (bigger + stronger), **Sidecar** (drone), *
 - **Settings**: a hub of Audio, Display, Gameplay and Controls; UP / DOWN pick, A enters, B goes back. Audio has master /
   effects / music volume and mute; Display has fullscreen, screen shape, window size and colorblind colors; Gameplay has
   stocks, time limit and power-ups; Controls opens the button rebinder, the controller test and the P1/P2 pad swap.
-- **Stage set pieces**: each stage changes shape now and then. Datacenter hot-swaps a server rack into the middle, the
-  Control Plane hands its crown perch from one side to the other (leader election), and the Node Pool scheduler lays a
-  bridge over the gap. They fade in as a ghost first and dim before they leave; none of them hurt.
+- **Five arenas, each with a set piece** that changes its shape now and then. Datacenter hot-swaps a server rack into the middle, the
+  Control Plane hands its crown perch from one side to the other (leader election), the Node Pool scheduler lays a bridge over the
+  gap, the Etcd Vault shows three perches one after another (consensus), and the Service Mesh has drifting islands and a high node
+  that joins and drains. Set pieces fade in as a ghost first and dim before they leave; none of them hurt.
+- **Off-screen indicators**: a fighter knocked past the edge gets a bubble on the screen edge with their face, damage % and an arrow.
 - **Leaving**: press A to back out of character select (un-lock, un-join, then leave) and on the results screen to return to the main menu.
 - **Leaderboard**: longest win streak and most KOs in a run (rematches continue a run; a loss ends it).
   Pick it on the title menu or tap SELECT on the title screen. Winners enter a 3-letter name.

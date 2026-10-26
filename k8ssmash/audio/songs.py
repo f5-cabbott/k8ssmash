@@ -74,6 +74,48 @@ def datacenter() -> Song:
     return Song("datacenter", 138, 45, "minor", inst, secs, seed=37, reverb=1.8, wet=0.22, lead_center=69, emu=0.3)
 
 
+def etcd() -> Song:
+    """Etcd Vault: slow and mysterious, bells over a choir pad, with a 5/4 detour and a big strings-and-horn finish."""
+    inst = dict(lead="glock", counter="oboe", pad="emu_pad", comp="harp", arp="harp", bass="bass_fretless")
+    a = [(0, "m7"), (5, "maj"), (10, "maj"), (7, "m7")] * 2
+    b = [(3, "maj7"), (10, "maj"), (5, "maj7"), (7, "7")] * 2
+    secs = [
+        Sec(4, [(0, "m7"), (7, "m7")], layers=("pad", "arp"), arp="updown", crash=False, gain=0.85),
+        Sec(8, a, layers=("lead", "pad", "arp", "bass", "drums"), mel="A", arp="broken", bass="rootfifth", drums="calm"),
+        Sec(8, b, layers=("lead", "counter", "pad", "comp", "arp", "bass", "drums"), mel="B", inst={"lead": "oboe", "counter": "horn"},
+            harm="clarinet", comp="sparse", bass="walk", drums="half", gain=1.05),
+        Sec(4, [(0, "m7"), (5, "maj"), (10, "maj"), (7, "7")], meter="5/4", layers=("lead", "comp", "bass", "drums"), mel="Z",
+            inst={"lead": "vibes", "comp": "epiano"}, comp="five4", bass="five4", drums="odd54", busy=0.7),
+        Sec(8, a, layers=FULL, mel="A", inst={"lead": "horn", "counter": "choir"}, double="strings", arp="updown", bass="rootfifth",
+            drums="heroic", gain=1.08),
+        Sec(8, b, layers=FULL, mel="B", inst={"lead": "brass", "counter": "choir"}, double="horn", harm="oboe", comp="sparse", bass="walk",
+            drums="heroic", gain=1.1),
+        Sec(4, [(0, "m7"), (5, "maj"), (7, "m7"), (0, "m7")], layers=("pad", "arp", "bass"), arp="up", bass="pedal", crash=False, gain=0.8),
+    ]
+    return Song("etcd", 96, 50, "dorian", inst, secs, seed=59, reverb=2.8, wet=0.3, lead_center=74, emu=0.4)
+
+
+def mesh() -> Song:
+    """Service Mesh: a driving night-drive synth track with sax, vibes and a swung middle."""
+    inst = dict(lead="lead_synth", counter="sax", pad="emu_pad", comp="emu_epiano", arp="marimba", bass="bass_synth")
+    verse = [(0, "min"), (8, "maj"), (10, "maj"), (5, "min")] * 2
+    chorus = [(8, "maj"), (10, "maj"), (0, "min"), (7, "min")] * 2
+    drive = dict(bass="drive8", drums="drive", comp="stabs")
+    secs = [
+        Sec(4, [(0, "min"), (0, "min"), (8, "maj"), (10, "maj")], layers=("comp", "bass", "drums"), gain=0.9, crash=False, **drive),
+        Sec(8, verse, layers=("lead", "pad", "arp", "comp", "bass", "drums"), mel="V", arp="broken", **drive),
+        Sec(8, chorus, layers=FULL, mel="C", inst={"lead": "synth_brass", "arp": "vibes"}, double="strings", harm="sax", arp="updown",
+            gain=1.06, **drive),
+        Sec(8, [(0, "m7"), (5, "m7"), (8, "maj7"), (7, "7")] * 2, layers=("lead", "pad", "comp", "bass", "drums"), mel="S",
+            inst={"lead": "sax", "comp": "epiano", "bass": "rubber_bass"}, swing=0.18, drums="half", comp="sparse", bass="bounce"),
+        Sec(8, verse, layers=("lead", "counter", "pad", "arp", "comp", "bass", "drums"), mel="V", arp="broken", **drive),
+        Sec(8, chorus, layers=FULL, mel="C", inst={"lead": "synth_brass", "arp": "vibes"}, double="strings", harm="sax", arp="updown",
+            gain=1.1, **drive),
+        Sec(4, [(0, "min"), (0, "min"), (7, "7"), (0, "min")], layers=("pad", "bass", "comp"), bass="pedal", comp="hold", crash=False, gain=0.8),
+    ]
+    return Song("mesh", 126, 52, "minor", inst, secs, seed=61, reverb=2.0, wet=0.24, lead_center=71, emu=0.5)
+
+
 def controlplane() -> Song:
     inst = dict(lead="brass", counter="strings", pad="choir", comp="harp", arp="harp", bass="bass_fretless")
     a = [(0, "maj"), (7, "maj"), (9, "min"), (4, "min"), (5, "maj"), (0, "maj"), (5, "maj"), (7, "7")]
@@ -185,4 +227,4 @@ def results() -> Song:
 
 
 SONGS = {"splash": splash, "select": select, "datacenter": datacenter, "controlplane": controlplane,
-         "nodepool": nodepool, "training": training, "leaderboard": leaderboard, "results": results}
+         "nodepool": nodepool, "etcd": etcd, "mesh": mesh, "training": training, "leaderboard": leaderboard, "results": results}
