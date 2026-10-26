@@ -536,3 +536,25 @@ def test_canary_adds_a_bird_to_every_swing_and_rate_limit_slows_the_opponent(app
 def test_chaos_bomb_is_lobbed_and_cannot_hurt_its_thrower(app):
     from k8ssmash.items import CHAOS_BOMB
     assert CHAOS_BOMB.harmless_to_owner and CHAOS_BOMB.speed > 0 and CHAOS_BOMB.vy < 0
+
+
+def test_oomkiller_and_statefulset_are_quicker_and_have_odd_new_tricks():
+    rs = {r.name: r for r in roster()}
+    oom, ss = rs["OOMKiller"], rs["StatefulSet"]
+    assert oom.run_speed > 3.5 and oom.air_jumps >= 3 and oom.moves["jab"].startup <= 3 and oom.moves["side"].startup <= 10
+    assert oom.moves["special"].projectile.count == 2 and oom.moves["special"].projectile.wave  # two weaving skulls
+    assert oom.moves["special_side"].blink and oom.moves["special_up"].rehit and oom.moves["special_down"].hitbox[2] >= 120
+    assert ss.run_speed > 3.2 and ss.moves["special_side"].rehit and ss.moves["special_down"].buff  # barrel roll, armor snapshot
+
+
+def test_cloud_native_arena_has_autoscaling_replicas_in_pairs_and_its_own_music():
+    from k8ssmash.audio_manager import ASSETS, MUSIC_FOR_THEME
+    from k8ssmash.stage import cloud_stage
+    st = cloud_stage()
+    assert st.theme == "cloud" and MUSIC_FOR_THEME["cloud"] == "cloud"
+    sched = [p for p in st.platforms if p.schedule]
+    assert len(sched) == 4 and len({p.schedule[2] for p in sched}) == 2  # two waves of two replica clouds
+    st.tick(300)
+    assert len(st.live) < len(st.platforms)
+    for suffix in ("", "_hot", "_stem", "_hot_stem"):
+        assert (ASSETS / f"cloud{suffix}.ogg").stat().st_size > 50_000

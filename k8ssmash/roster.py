@@ -36,26 +36,26 @@ def pod() -> FighterStats:
 
 
 def statefulset() -> FighterStats:
-    """Heavy keeper. Slow and sturdy, carries a storage drum, hits like a loaded pallet."""
+    """Sturdy foreman: big, friendly and tough, but no longer slow. Carries a storage drum and a pallet of ideas."""
     return FighterStats(
-        "StatefulSet", (240, 204, 58), weight=122, run_speed=2.86, air_speed=2.6, jump_vel=-8.45,
-        gravity=0.4, width=28, height=50, air_jumps=2, blurb="Heavy keeper. Slow, sturdy, hits hard.",
+        "StatefulSet", (240, 204, 58), weight=118, run_speed=3.3, air_speed=2.95, jump_vel=-8.9,
+        gravity=0.39, width=30, height=52, air_jumps=3, blurb="Sturdy foreman. Big hits, big heart.",
         moves=moveset(**{
-            "jab": Move("glove punch", 4, 3, 10, (8, -34, 28, 18), 5, 2.6, 0.024, 35, anim="jab"),
-            "side": Move("drum swing", 10, 5, 19, (8, -46, 48, 34), 13, 4.6, 0.075, 30, lunge=1.2, anim="side"),
-            "up": Move("hard-hat bonk", 6, 7, 16, (-10, -82, 26, 36), 9, 3.8, 0.06, 80, anim="up"),
-            "down": Move("ground pound", 10, 6, 21, (-46, -16, 92, 18), 12, 3.8, 0.065, 70, anim="down"),
-            "special": Move("persistent volume", 14, 1, 20, anim="cast", announce="Persistent Volume",
+            "jab": Move("glove punch", 3, 3, 9, (8, -34, 30, 18), 5, 2.6, 0.024, 35, anim="jab"),
+            "side": Move("drum swing", 9, 5, 18, (8, -46, 50, 34), 13, 4.6, 0.075, 30, lunge=1.5, anim="side"),
+            "up": Move("hard-hat bonk", 5, 7, 14, (-10, -84, 28, 38), 9, 3.8, 0.06, 80, anim="up"),
+            "down": Move("ground pound", 10, 6, 20, (-48, -16, 96, 18), 12, 3.8, 0.065, 70, anim="down"),
+            "special": Move("persistent volume", 12, 1, 18, anim="cast", announce="Persistent Volume",
                             projectile=ProjectileDef(
-                                speed=4.0, width=20, height=20, damage=7, base_kb=3.0, kb_growth=0.04, angle=40, life=80,
+                                speed=4.4, width=22, height=22, damage=7, base_kb=3.0, kb_growth=0.04, angle=40, life=80,
                                 spawn_dy=-30, color=(110, 150, 210), shape="drum", boomerang=True, pierce=True,
                                 hit_interval=30)),
-            "special_side": Move("ordered rollout", 14, 16, 22, (6, -42, 32, 38), 13, 4.6, 0.075, 30, dash=3.2,
-                                 anim="dash", announce="Ordered Rollout"),
-            "special_up": Move("scale up", 10, 10, 16, (-14, -70, 30, 52), 10, 4.2, 0.065, 82, rise=8.1,
+            "special_side": Move("barrel roll", 9, 18, 18, (6, -44, 38, 40), 5, 3.2, 0.04, 28, dash=4.6, rehit=6,
+                                 anim="dash", announce="Barrel Roll"),
+            "special_up": Move("scale up", 8, 10, 15, (-14, -72, 32, 54), 10, 4.2, 0.065, 82, rise=9.2,
                                once_per_air=True, anim="rise", announce="Scale Up"),
-            "special_down": Move("volume claim", 16, 5, 22, (-40, -26, 80, 26), 12, 4.0, 0.07, 55,
-                                 anim="down", announce="Volume Claim"),
+            "special_down": Move("volume snapshot", 10, 1, 24, anim="buff", announce="Snapshot",
+                                 buff=(BUFF_ARMOR, 200)),
         }))
 
 
@@ -174,24 +174,24 @@ def operator() -> FighterStats:
 
 
 def oomkiller() -> FighterStats:
-    """Heavy glass cannon. Huge damage, short reach, big recoveries."""
+    """A lanky, floaty reaper: fast on its feet, wildly hard-hitting, and full of odd tricks."""
     return FighterStats(
-        "OOMKiller", (205, 60, 70), weight=110, run_speed=2.99, width=28, height=50, jump_vel=-8.2, air_jumps=2,
-        blurb="Glass cannon. Huge damage.",
+        "OOMKiller", (205, 60, 70), weight=100, run_speed=3.7, air_speed=3.3, jump_vel=-9.0, gravity=0.37, width=26, height=54,
+        air_jumps=3, blurb="Floaty reaper. Fast, spooky and fun.",
         moves=moveset(**{
-            "jab": Move("claw rake", 5, 3, 12, (8, -36, 28, 16), 4, 2.6, 0.022, 38, anim="jab"),
-            "side": Move("scythe swing", 14, 6, 24, (4, -54, 56, 50), 14, 4.8, 0.08, 30, lunge=1.4, anim="side"),
-            "up": Move("reaper's lift", 9, 7, 20, (-16, -92, 40, 60), 11, 4.2, 0.07, 84, anim="up"),
-            "down": Move("grave dig", 12, 5, 22, (-36, -16, 74, 16), 10, 3.6, 0.06, 60, anim="down"),
-            "special": Move("sigkill", 18, 1, 26, anim="cast", announce="SIGKILL", projectile=ProjectileDef(
-                speed=3.0, width=22, height=16, damage=12, base_kb=4.0, kb_growth=0.065, angle=28, life=90,
-                color=(235, 70, 80), shape="skull")),
-            "special_side": Move("reap", 14, 14, 26, (4, -44, 40, 40), 13, 4.8, 0.08, 28, dash=3.0,
-                                 anim="dash", announce="Reap"),
-            "special_up": Move("memory leak", 10, 10, 20, (-14, -72, 32, 56), 11, 4.4, 0.07, 82, rise=7.8,
+            "jab": Move("claw rake", 3, 3, 9, (8, -38, 30, 18), 3.5, 2.4, 0.02, 40, anim="jab"),
+            "side": Move("scythe swing", 10, 6, 17, (4, -56, 58, 52), 12, 4.6, 0.08, 30, lunge=1.6, anim="side"),
+            "up": Move("reaper's lift", 7, 7, 15, (-16, -94, 42, 62), 10, 4.2, 0.07, 84, anim="up"),
+            "down": Move("grave dig", 9, 5, 17, (-38, -16, 78, 16), 9, 3.6, 0.06, 60, anim="down"),
+            "special": Move("zombie process", 12, 1, 18, anim="cast", announce="Zombie Process", projectile=ProjectileDef(
+                speed=3.4, width=20, height=16, damage=7, base_kb=3.2, kb_growth=0.05, angle=34, life=110, count=2, spread=26,
+                wave=1.2, color=(235, 70, 80), shape="skull")),
+            "special_side": Move("segfault", 8, 7, 16, (6, -48, 38, 40), 10, 4.2, 0.07, 30, blink=90,
+                                 anim="dash", announce="Segfault"),
+            "special_up": Move("memory leak", 7, 12, 17, (-14, -80, 34, 58), 3, 2.6, 0.02, 84, rise=9.4, rehit=4,
                                once_per_air=True, anim="rise", announce="Memory Leak"),
-            "special_down": Move("oom!", 20, 6, 26, (-46, -40, 92, 40), 14, 4.8, 0.08, 50,
-                                 anim="down", announce="OOM!"),
+            "special_down": Move("fork bomb", 14, 5, 22, (-62, -62, 124, 62), 11, 4.4, 0.075, 70,
+                                 anim="down", announce="Fork Bomb"),
         }))
 
 

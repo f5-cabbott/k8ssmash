@@ -172,4 +172,25 @@ def mesh_stage() -> Stage:
     )
 
 
-STAGES = [datacenter_stage, control_plane_stage, node_pool_stage, etcd_stage, mesh_stage]
+def cloud_stage() -> Stage:
+    """Cloud Native: a big cloud with bobbing side clouds and a drifting top cloud; autoscaling spins replicas up in pairs."""
+    return Stage(
+        name="Cloud Native",
+        platforms=[
+            Platform(pygame.Rect(250, 410, 460, 40)),
+            Platform(pygame.Rect(90, 360, 130, 10), dropthrough=True, motion=("y", 20, 540)),
+            Platform(pygame.Rect(740, 360, 130, 10), dropthrough=True, motion=("y", -20, 540)),
+            Platform(pygame.Rect(375, 295, 210, 10), dropthrough=True, motion=("x", 70, 820)),
+            Platform(pygame.Rect(430, 190, 100, 10), dropthrough=True),
+            # set piece: autoscaling. Replica clouds spin up in pairs (low pair, then high pair), then scale back in
+            Platform(pygame.Rect(110, 260, 110, 10), dropthrough=True, schedule=(2400, 760, 0)),
+            Platform(pygame.Rect(740, 260, 110, 10), dropthrough=True, schedule=(2400, 760, 0)),
+            Platform(pygame.Rect(210, 170, 110, 10), dropthrough=True, schedule=(2400, 760, 1200)),
+            Platform(pygame.Rect(640, 170, 110, 10), dropthrough=True, schedule=(2400, 760, 1200)),
+        ],
+        spawns=[(340, 410), (620, 410)],
+        theme="cloud",
+    )
+
+
+STAGES = [datacenter_stage, control_plane_stage, node_pool_stage, etcd_stage, mesh_stage, cloud_stage]

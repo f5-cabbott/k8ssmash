@@ -116,6 +116,29 @@ def mesh() -> Song:
     return Song("mesh", 126, 52, "minor", inst, secs, seed=61, reverb=2.0, wet=0.24, lead_center=71, emu=0.5)
 
 
+def cloud() -> Song:
+    """Cloud Native: sunny, bouncy and a little dreamy (lydian), with flutes and glockenspiel over a skipping groove."""
+    inst = dict(lead="flute", counter="glock", pad="strings", comp="piano", arp="marimba", bass="bass_pluck")
+    a = [(0, "maj"), (2, "maj"), (0, "maj7"), (7, "maj")] * 2
+    b = [(4, "m7"), (9, "m7"), (2, "maj"), (7, "maj")] * 2
+    sw = dict(swing=0.12)
+    skip = dict(comp="charleston", bass="bounce", drums="swing")
+    secs = [
+        Sec(4, [(0, "maj"), (7, "maj")], layers=("arp", "pad", "bass"), arp="updown", bass="pedal", crash=False, gain=0.85),
+        Sec(8, a, layers=("lead", "pad", "arp", "comp", "bass", "drums"), mel="A", arp="broken", **skip, **sw),
+        Sec(8, b, layers=("lead", "counter", "pad", "arp", "comp", "bass", "drums"), mel="B", inst={"lead": "oboe", "counter": "flute"},
+            arp="updown", **skip, **sw),
+        Sec(6, [(0, "maj"), (5, "maj"), (0, "maj"), (7, "7"), (0, "maj"), (7, "7")], meter="3/4", layers=("lead", "comp", "bass", "drums"),
+            mel="W", inst={"lead": "clarinet", "comp": "harp"}, comp="waltz", bass="waltz", drums="waltz"),
+        Sec(8, a, layers=FULL, mel="A", inst={"lead": "horn", "counter": "glock"}, double="strings", harm="flute", arp="updown", gain=1.06,
+            **skip, **sw),
+        Sec(8, b, layers=FULL, mel="B", inst={"lead": "brass", "counter": "flute", "arp": "vibes"}, double="horn", harm="oboe", arp="broken",
+            gain=1.1, **skip, **sw),
+        Sec(4, [(0, "maj"), (5, "maj"), (0, "maj7"), (0, "maj")], layers=("pad", "arp", "bass"), arp="up", bass="pedal", crash=False, gain=0.8),
+    ]
+    return Song("cloud", 116, 53, "lydian", inst, secs, seed=73, reverb=2.2, wet=0.26, lead_center=76, emu=0.35)
+
+
 def controlplane() -> Song:
     inst = dict(lead="brass", counter="strings", pad="choir", comp="harp", arp="harp", bass="bass_fretless")
     a = [(0, "maj"), (7, "maj"), (9, "min"), (4, "min"), (5, "maj"), (0, "maj"), (5, "maj"), (7, "7")]
@@ -227,4 +250,4 @@ def results() -> Song:
 
 
 SONGS = {"splash": splash, "select": select, "datacenter": datacenter, "controlplane": controlplane,
-         "nodepool": nodepool, "etcd": etcd, "mesh": mesh, "training": training, "leaderboard": leaderboard, "results": results}
+         "nodepool": nodepool, "etcd": etcd, "mesh": mesh, "cloud": cloud, "training": training, "leaderboard": leaderboard, "results": results}

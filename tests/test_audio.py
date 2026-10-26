@@ -85,7 +85,7 @@ import numpy as np
 from k8ssmash.audio.sfx import EVENTS, VOICES
 from k8ssmash.audio_manager import DUCK, slug
 
-MUSIC = ["splash", "select", "datacenter", "controlplane", "nodepool", "etcd", "mesh", "training", "leaderboard"]
+MUSIC = ["splash", "select", "datacenter", "controlplane", "nodepool", "etcd", "mesh", "cloud", "training", "leaderboard"]
 
 
 def _pcm(path):

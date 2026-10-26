@@ -73,6 +73,7 @@ MOODS = {
     "nodepool": [((0, 0, 0), 0), ((0, 200, 255), 32), ((255, 90, 140), 30)],
     "etcd": [((0, 0, 0), 0), ((110, 255, 176), 28), ((200, 120, 255), 34)],
     "mesh": [((0, 0, 0), 0), ((255, 120, 220), 30), ((100, 200, 255), 32)],
+    "cloud": [((0, 0, 0), 0), ((255, 150, 160), 26), ((120, 170, 255), 28)],
 }
 MOOD_HOLD, MOOD_FADE = 2700, 700  # frames each mood holds, and how long the crossfade between moods takes
 _tints: dict[tuple, pygame.Surface] = {}
@@ -177,9 +178,9 @@ def _wide() -> pygame.Surface:
 
 # --- Tron-style neon helpers --------------------------------------------------------------------
 ACCENT = {"datacenter": (0, 226, 255), "controlplane": (176, 238, 255), "nodepool": (255, 150, 34), "etcd": (110, 255, 176),
-          "mesh": (255, 120, 214)}
+          "mesh": (255, 120, 214), "cloud": (255, 214, 236)}
 SECOND = {"datacenter": (255, 140, 40), "controlplane": (255, 214, 110), "nodepool": (0, 214, 255), "etcd": (196, 120, 255),
-          "mesh": (110, 200, 255)}
+          "mesh": (110, 200, 255), "cloud": (150, 196, 255)}
 
 
 def _scale(c: Color, k: float) -> Color:
@@ -256,6 +257,31 @@ def _mute(surf: pygame.Surface, k: float, tint: Color = (8, 14, 36), desat: floa
     rgb[:] = np.where(live, out, rgb).astype(rgb.dtype)
 
 
+def _greeble(surf, x, y, w, h, accent, rng, density=1.0, dark=(4, 8, 20)):
+    """Fine machine detail at sub-unit scale: vent slats, label plates, rivet rows, panel seams and tiny status lights.
+    Only the hi-res canvas can show it; it is dim and static, so it adds richness without competing with the fighters."""
+    n = int(w * h / 240 * density)
+    leds = ((90, 255, 160), accent, (255, 190, 80))
+    for _ in range(n):
+        kind = rng.random()
+        px, py = x + rng.random() * w, y + rng.random() * h
+        if kind < 0.28:  # vent slats
+            for j in range(rng.randint(3, 5)):
+                pd.rect(surf, dark, (px, py + j * 1.3, rng.uniform(4, 8), 0.55))
+        elif kind < 0.48:  # a label plate with a lit edge
+            pw = rng.uniform(3.5, 7)
+            pd.rect(surf, _scale(accent, 0.09), (px, py, pw, 1.8))
+            pd.rect(surf, _scale(accent, 0.24), (px, py, pw, 0.45))
+        elif kind < 0.68:  # a row of rivets
+            for j in range(rng.randint(3, 6)):
+                pd.rect(surf, _scale(accent, 0.2), (px + j * 1.7, py, 0.55, 0.55))
+        elif kind < 0.84:  # a panel seam
+            pd.line(surf, _scale(accent, 0.10), (px, py), (px, py + rng.uniform(5, 13)), 1)
+        else:  # a cluster of tiny status lights
+            for j in range(rng.randint(2, 3)):
+                pd.rect(surf, _scale(rng.choice(leds), 0.34), (px + j * 1.5, py, 0.7, 0.7))
+
+
 def _tower(surf, x, top, w, ground, accent, rng, led_out=None, leds=True, dark=(8, 12, 28)):
     h = ground - top
     for yy in range(top, ground):
@@ -270,6 +296,7 @@ def _tower(surf, x, top, w, ground, accent, rng, led_out=None, leds=True, dark=(
             for k in range(3):
                 led_out.append((x + 8 + k * 5, yy + 2, rng.randint(0, 6),
                                 rng.choice([(90, 255, 160), accent, (255, 190, 80)])))
+    _greeble(surf, x + 3, top + 3, w - 6, h - 6, accent, rng, 1.3)
 
 
 # --- Datacenter: the server hall, lit like the Grid ---------------------------------------------
@@ -317,6 +344,11 @@ def build_datacenter(canvas_w: int = PIX_W) -> Backdrop:
             pd.line(near, _scale(accent, 0.28), (gx + 6, yy), (gx + 58, yy), 1)
             pd.rect(near, _scale(accent, 0.9), (gx + 22, yy + 3, 14, 2))
         neon(near, (gx + (60 if gx < W else 0), 0), (gx + (60 if gx < W else 0), H), accent, 1)
+    for gx in (MARGIN - 6, WIDE - MARGIN - 58):
+        _greeble(near, gx + 14, 20, 40, H - 40, accent, rng, 1.6)
+        for yy in range(6, H, 30):  # hazard-stripe bands across the pillars
+            for k in range(0, 56, 6):
+                pd.polygon(near, _scale((255, 190, 60), 0.16), [(gx + 4 + k, yy + 24), (gx + 8 + k, yy + 24), (gx + 11 + k, yy + 27), (gx + 7 + k, yy + 27)])
     pd.rect(near, (2, 4, 12), (0, 0, WIDE, 18))  # ceiling with converging light strips
     for k in range(-8, 9):
         neon(near, (WIDE // 2 + k * 60, 0), (WIDE // 2 + k * 18, 18), _scale(accent, 0.8), 1)
@@ -377,6 +409,9 @@ def build_controlplane(canvas_w: int = PIX_W) -> Backdrop:
             ox = hx + (26 if row % 2 else 0)
             pts = [(ox + math.cos(a * math.pi / 3 + math.pi / 6) * 22, hy + math.sin(a * math.pi / 3 + math.pi / 6) * 22) for a in range(6)]
             pd.polygon(far, _scale(accent, 0.12), pts, 1)
+            pd.polygon(far, _scale(accent, 0.06), [(ox + (px_ - ox) * 0.72, hy + (py_ - hy) * 0.72) for px_, py_ in pts], 1)
+            for a_ in range(0, 6, 2):  # a tiny circuit node on alternate corners
+                pd.rect(far, _scale(accent, 0.2), (pts[a_][0] - 0.5, pts[a_][1] - 0.5, 1, 1))
             if rng.random() < 0.18:
                 pd.polygon(far, (16, 52, 104), pts)
 
@@ -388,6 +423,10 @@ def build_controlplane(canvas_w: int = PIX_W) -> Backdrop:
         for yy in range(52, horizon - 4, 26):
             pd.line(mid, _scale(accent, 0.3), (tx + 3, yy), (tx + 23, yy), 1)
         tubes.append(tx)
+    for tx in tubes:  # fine rings and bubbles inside the glass conduits
+        for yy in range(40, horizon - 8, 13):
+            pd.rect(mid, _scale(accent, 0.16), (tx + 5 + (yy * 7) % 11, yy, 1.1, 1.1))
+            pd.line(mid, _scale(accent, 0.12), (tx + 2, yy + 5), (tx + 24, yy + 5), 1)
     for sx, w in ((MARGIN + 250, 36), (W + MARGIN - 286, 36)):  # server spines behind the core
         _tower(mid, sx, 120, w, horizon + 6, accent, rng, None, leds=False)
 
@@ -398,6 +437,8 @@ def build_controlplane(canvas_w: int = PIX_W) -> Backdrop:
         neon(near, (gx + (58 if side == 0 else 0), 0), (gx + (58 if side == 0 else 0), H), gold, 1)
         for yy in range(24, H, 36):
             pd.polygon(near, _scale(accent, 0.55), [(gx, yy), (gx + 58, yy + 6), (gx + 58, yy + 10), (gx, yy + 4)])
+    for gx in (MARGIN - 6, WIDE - MARGIN - 52):
+        _greeble(near, gx + 2, 14, 54, H - 30, accent, rng, 1.5)
     pd.rect(near, (3, 6, 20), (0, 0, WIDE, 12))
     neon(near, (0, 12), (WIDE, 12), gold, 1)
 
@@ -467,6 +508,7 @@ def build_nodepool(canvas_w: int = PIX_W) -> Backdrop:
             ox = hx + (15 if row % 2 else 0)
             pts = [(ox + math.cos(a * math.pi / 3 + math.pi / 6) * 15.5, hy + math.sin(a * math.pi / 3 + math.pi / 6) * 15.5) for a in range(6)]
             pd.polygon(far, _scale(accent, 0.13), pts, 1)
+            pd.polygon(far, _scale(accent, 0.07), [(ox + (px_ - ox) * 0.78, hy + (py_ - hy) * 0.78) for px_, py_ in pts], 1)
             roll = rng.random()
             if roll < 0.22:
                 pd.polygon(far, _scale(accent, 0.2), pts)
@@ -491,6 +533,9 @@ def build_nodepool(canvas_w: int = PIX_W) -> Backdrop:
         pd.rect(mid, (24, 12, 12), (px, py, nx - px - 0, 8))
         pd.line(mid, _scale(accent, 0.7), (px, py + 1), (nx, py + 1), 1)
         pd.line(mid, (6, 2, 2), (px, py + 7), (nx, py + 7), 1)
+        for jx in range(int(px) + 6, int(nx) - 4, 14):  # pipe flanges and bolts
+            pd.rect(mid, (40, 20, 18), (jx, py - 1, 2, 10))
+            pd.rect(mid, _scale(accent, 0.3), (jx, py + 2, 0.7, 0.7))
 
     near = _wide()
     for gx in (MARGIN - 8, WIDE - MARGIN - 56):
@@ -502,6 +547,8 @@ def build_nodepool(canvas_w: int = PIX_W) -> Backdrop:
             for k in range(4):
                 pd.circle(near, rng.choice([(90, 255, 140), accent, (255, 80, 60)]), (gx + 20 + k * 9, yy + 6), 2)
         neon(near, (gx + (62 if gx < W else 2), 0), (gx + (62 if gx < W else 2), H), accent, 1)
+    for gx in (MARGIN - 8, WIDE - MARGIN - 56):
+        _greeble(near, gx + 14, 4, 42, H - 8, accent, rng, 1.4, dark=(10, 4, 4))
     pd.rect(near, (4, 2, 3), (0, 0, WIDE, 14))
     for k in range(0, WIDE, 44):  # hanging cable swags
         pd.lines(near, (20, 8, 8), False, [(k + i * 4, 14 + math.sin(i / 11 * math.pi) * 9) for i in range(12)], 2)
@@ -677,8 +724,88 @@ def build_mesh(canvas_w: int = PIX_W) -> Backdrop:
     return Backdrop(sky, items, "mesh")
 
 
+# --- Cloud Native: a dusk sky of puffy clouds, floating server islands and a giant slowly-turning helm wheel ---------------
+def _cloud(surf, cx, cy, w, h, base, top, rng, puffs=None):
+    """A cumulus: a flat-bottomed heap of overlapping puffs, shaded darker underneath and lit on top."""
+    n = puffs or max(4, int(w / (h * 0.55)))
+    for i in range(n):
+        u = (i + 0.5) / n
+        r = h * (0.42 + 0.42 * math.sin(u * math.pi)) * rng.uniform(0.85, 1.1)
+        x = cx - w / 2 + u * w
+        pd.circle(surf, base, (x, cy - r * 0.5), r)
+    for i in range(n):
+        u = (i + 0.5) / n
+        r = h * (0.42 + 0.42 * math.sin(u * math.pi)) * 0.72
+        pd.circle(surf, top, (cx - w / 2 + u * w - r * 0.18, cy - h * 0.62 - r * 0.18), r)
+    pd.rect(surf, base, (cx - w / 2, cy - 2, w, 6))
+
+
+def build_cloud(canvas_w: int = PIX_W) -> Backdrop:
+    rng = random.Random(41)
+    accent, blue = ACCENT["cloud"], SECOND["cloud"]
+    sky = dither_gradient(canvas_w, PIX_H, [(0, (4, 8, 30)), (0.34, (12, 20, 66)), (0.6, (34, 32, 88)), (0.78, (84, 52, 94)),
+                                 (0.88, (104, 66, 90)), (1.0, (28, 20, 52))], bands=30)
+    far = _wide()
+    for _ in range(120):
+        pd.set_at(far, (rng.randrange(WIDE), rng.randrange(int(H * 0.55))), _scale((210, 200, 255), rng.choice([0.25, 0.4, 0.55])))
+    for x in range(-40, WIDE + 40, 70):  # a low, distant bank of cloud along the horizon
+        _cloud(far, x + rng.randint(-10, 10), 262, rng.randint(70, 110), rng.randint(26, 38), (40, 34, 78), (60, 50, 96), rng)
+    mid = _wide()
+    for _ in range(9):  # big cumulus clouds drifting at mid distance
+        _cloud(mid, rng.randrange(40, WIDE - 40), rng.randrange(60, 240), rng.randint(110, 190), rng.randint(34, 52),
+               (46, 40, 90), (74, 62, 110), rng)
+    for ix in (110, 300, 520, 700):  # floating server islands: a lump of rock under a rack of servers
+        iy = rng.randrange(120, 200)
+        pd.polygon(mid, (34, 28, 66), [(ix - 26, iy), (ix + 26, iy), (ix + 14, iy + 20), (ix + 2, iy + 34), (ix - 10, iy + 18)])
+        pd.rect(mid, (50, 44, 96), (ix - 26, iy - 3, 52, 4))
+        for k in range(3):
+            rx = ix - 18 + k * 14
+            pd.rect(mid, (24, 24, 58), (rx, iy - 24, 11, 21))
+            for ly in range(3):
+                pd.set_at(mid, (rx + 2 + ly * 3, iy - 20 + ly * 6), _scale(accent, 0.5))
+            pd.line(mid, _scale(blue, 0.45), (rx, iy - 24), (rx + 11, iy - 24), 1)
+    near = _wide()
+    for x in range(-60, WIDE + 60, 54):  # the sea of cloud far below the stage
+        _cloud(near, x + rng.randint(-8, 8), 318 + rng.randint(-4, 6), rng.randint(90, 130), rng.randint(40, 56), (58, 46, 92), (88, 70, 114), rng)
+    pd.rect(near, (24, 18, 50), (0, 326, WIDE, 40))
+    _mute(far, 0.7)
+    _mute(mid, 0.62)
+    _mute(near, 0.8)
+    blimps = [(0.0, 52, 0.11, 1.0), (330.0, 132, 0.07, 0.8)]
+
+    def sun_fn(canvas, frame, cam):  # a vast pale wheel for a sun, turning once in several minutes
+        ox = -cam * 0.03
+        cx, cy, rad = W * 0.62 + ox, 84, 64
+        a0 = frame * 0.0012
+        pd.circle(canvas, _scale((255, 200, 200), 0.16), (cx, cy), rad + 6)
+        pd.circle(canvas, _scale((255, 200, 200), 0.24), (cx, cy), rad, 2)
+        pd.circle(canvas, _scale((255, 200, 200), 0.3), (cx, cy), 10)
+        for i in range(7):
+            a = a0 + i * 2 * math.pi / 7
+            pd.line(canvas, _scale((255, 200, 200), 0.2), (cx + math.cos(a) * 10, cy + math.sin(a) * 10), (cx + math.cos(a) * rad, cy + math.sin(a) * rad), 2)
+            pd.circle(canvas, _scale((255, 200, 200), 0.26), (cx + math.cos(a) * (rad + 3), cy + math.sin(a) * (rad + 3)), 4)
+
+    def blimp_fn(canvas, frame, cam):  # big, slow server-crate blimps crossing the sky
+        for x0, y, spd, size in blimps:
+            x = ((x0 + frame * spd) % (W + 260)) - 130 - cam * 0.05
+            L, Hh = 70 * size, 22 * size
+            pd.ellipse(canvas, (58, 52, 112), (x - L / 2, y - Hh / 2, L, Hh))
+            pd.ellipse(canvas, (84, 74, 134), (x - L / 2 + 4, y - Hh / 2 + 1, L - 8, Hh * 0.45))
+            pd.polygon(canvas, (46, 40, 92), [(x - L / 2 + 2, y), (x - L / 2 - 9 * size, y - 9 * size), (x - L / 2 - 9 * size, y + 9 * size)])
+            pd.rect(canvas, (36, 32, 74), (x - 10 * size, y + Hh / 2, 20 * size, 7 * size))
+            pd.rect(canvas, _scale(accent, 0.34), (x - 8 * size, y + Hh / 2 + 1, 16 * size, 3 * size))
+            for k in range(4):
+                pd.set_at(canvas, (x - 12 * size + k * 8 * size, y - 1), _scale(blue, 0.45))
+
+    def haze_fn(canvas, frame, cam):
+        haze_band(canvas, 252, _scale((255, 160, 170), 0.5), 110, 70)
+
+    items = [Layer(far, 0.02, 0), Animated(sun_fn), Layer(mid, 0.06, 0), Animated(blimp_fn), Animated(haze_fn), Layer(near, 0.11, 0)]
+    return Backdrop(sky, items, "cloud")
+
+
 BUILDERS = {"datacenter": build_datacenter, "controlplane": build_controlplane, "nodepool": build_nodepool,
-            "etcd": build_etcd, "mesh": build_mesh}
+            "etcd": build_etcd, "mesh": build_mesh, "cloud": build_cloud}
 _backdrops: dict[tuple[str, int], Backdrop] = {}
 
 
@@ -733,10 +860,38 @@ def neon_px(surf: pygame.Surface, a, b, color: Color, w: int = 1) -> None:
 _platform_cache: dict[tuple, pygame.Surface] = {}
 
 
+def _cloud_platform(wu: int, hu: int, thin: bool) -> pygame.Surface:
+    """A cloud you can stand on: a bright, flat top edge with a fluffy underside of overlapping puffs."""
+    S = RS
+    w, h = wu * S, hu * S
+    drop = (12 if thin else 26) * S
+    s = pygame.Surface((w, h + drop + 6 * S), pygame.SRCALPHA)
+    rng = random.Random(wu * 17 + hu)
+    n = max(3, wu // (14 if thin else 26))
+    for i in range(n):  # underside puffs: lavender in shadow
+        u = (i + 0.5) / n
+        r = int((5 if thin else 11) * S * (0.7 + 0.5 * math.sin(u * math.pi)) * rng.uniform(0.9, 1.1))
+        pygame.draw.circle(s, (176, 170, 226), (int(w * u), h + int(r * 0.35)), r)
+    for i in range(n):  # lit puffs on top
+        u = (i + 0.5) / n
+        r = int((4 if thin else 9) * S * (0.7 + 0.5 * math.sin(u * math.pi)))
+        pygame.draw.circle(s, (232, 226, 252), (int(w * u), h + int(r * 0.1)), r)
+    body = pygame.Rect(0, 0, w, h)
+    pygame.draw.rect(s, (214, 208, 244), body, border_radius=3 * S)
+    pygame.draw.rect(s, (255, 246, 252), (0, 0, w, 3 * S), border_radius=2 * S)  # the bright top you stand on
+    pygame.draw.line(s, (255, 255, 255), (3 * S, 0), (w - 3 * S, 0), S)
+    pygame.draw.line(s, (255, 190, 214), (0, 3 * S), (w, 3 * S), S)
+    for x in range(8 * S, w - 8 * S, 22 * S):  # little glints along the edge
+        pygame.draw.line(s, (255, 255, 255), (x, S), (x + 6 * S, S), S)
+    return s
+
+
 def _platform_surface(wu: int, hu: int, theme: str, thin: bool) -> pygame.Surface:
     """Platform art for a platform wu x hu world units, drawn at render resolution."""
     S = RS
     w, h = wu * S, hu * S
+    if theme == "cloud":
+        return _cloud_platform(wu, hu, thin)
     c = ACCENT.get(theme, ACCENT["datacenter"])
     c2 = SECOND.get(theme, SECOND["datacenter"])
     s = pygame.Surface((w, h + 6 * S), pygame.SRCALPHA)

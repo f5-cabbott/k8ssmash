@@ -19,6 +19,7 @@ BLURBS = {
     "Node Pool": ("Pod bay", "The scheduler lays a bridge across the gap now and then."),
     "Etcd Vault": ("Crystal archive", "Consensus: three perches take turns appearing across the top."),
     "Service Mesh": ("Floating islands", "The islands drift, and a high node joins the mesh now and then."),
+    "Cloud Native": ("Sky of clouds", "Autoscaling: replica clouds spin up in pairs, then scale back in."),
 }
 _thumbs: dict[int, pygame.Surface] = {}
 

@@ -1,7 +1,7 @@
 # K8s Smash
 
 A 2-player, Smash-style platform fighter with a hand-painted 16-bit look, built for conference booths.
-**Pods vs. chaos**: eight Kubernetes-themed fighters, k8s power-ups, five stages, played with two SNES-style USB pads
+**Pods vs. chaos**: eight Kubernetes-themed fighters, k8s power-ups, six stages, played with two SNES-style USB pads
 on a Raspberry Pi 5 (or any computer: the keyboard works too). Kubernetes is the *theme*; nothing here needs a cluster.
 
 ```bash
@@ -25,8 +25,10 @@ For the Raspberry Pi booth (what it needs, install, smoke test, performance), se
 | Select | add a CPU opponent (select screen), leaderboard (title) | `Backspace` / numpad 0 |
 
 Knock the other pod off the stage. Damage % makes every hit launch farther; 3 stocks, 2 minutes (both are in Settings > Gameplay).
-Grab the heptagon power-ups: **HPA** (bigger + stronger), **Sidecar** (drone), **Cordon** (armor),
-**PDB** (half damage), **Chaos Bomb**, **Rollout Undo** (heal), **Readiness Probe** (speed).
+Grab the power-ups (each has its own icon and drops with a light beam; running ones show a timer ring over your head):
+**HPA** (bigger and stronger), **Sidecar** (a helper drone), **Cordon** (armor: hits do not flinch you), **PDB** (half damage taken),
+**Chaos Bomb** (lobbed ahead of you, spares you), **Rollout Undo** (heal), **Readiness Probe** (speed), **Canary** (every swing also
+fires a bird bolt) and **429** (rate-limits your opponent: slower movement and swings).
 
 ### Modes and screens
 - **Pause**: START during a match opens a pause menu (Resume, Restart match, Quit to title).
@@ -42,10 +44,10 @@ Grab the heptagon power-ups: **HPA** (bigger + stronger), **Sidecar** (drone), *
 - **Settings**: a hub of Audio, Display, Gameplay and Controls; UP / DOWN pick, A enters, B goes back. Audio has master /
   effects / music volume and mute; Display has fullscreen, screen shape, window size and colorblind colors; Gameplay has
   stocks, time limit and power-ups; Controls opens the button rebinder, the controller test and the P1/P2 pad swap.
-- **Five arenas, each with a set piece** that changes its shape now and then. Datacenter hot-swaps a server rack into the middle, the
+- **Six arenas, each with a set piece** that changes its shape now and then. Datacenter hot-swaps a server rack into the middle, the
   Control Plane hands its crown perch from one side to the other (leader election), the Node Pool scheduler lays a bridge over the
   gap, the Etcd Vault shows three perches one after another (consensus), and the Service Mesh has drifting islands and a high node
-  that joins and drains. Set pieces fade in as a ghost first and dim before they leave; none of them hurt.
+  that joins and drains, and Cloud Native spins up replica clouds in pairs (autoscaling). Set pieces fade in as a ghost first and dim before they leave; none of them hurt.
 - **Off-screen indicators**: a fighter knocked past the edge gets a bubble on the screen edge with their face, damage % and an arrow.
 - **Leaving**: press A to back out of character select (un-lock, un-join, then leave) and on the results screen to return to the main menu.
 - **Leaderboard**: longest win streak and most KOs in a run (rematches continue a run; a loss ends it).

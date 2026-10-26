@@ -140,8 +140,8 @@ def statefulset() -> Look:
         x, y = r.head
         k = r.look.head_r / 10
         e = r.pose.face
-        eye_hi(f, x + 3.6 * k, y - 0.2 * k, e, True, 4.6, 5.0, iris=((70, 44, 20), (140, 96, 50)), ink=(60, 36, 20), lash=False)
-        eye_hi(f, x + 9.4 * k, y - 0.1 * k, e, False, 4.6, 5.0, iris=((70, 44, 20), (140, 96, 50)), ink=(60, 36, 20), lash=False)
+        eye_hi(f, x + 3.6 * k, y - 0.2 * k, e, True, 5.6, 6.0, iris=((70, 44, 20), (140, 96, 50)), ink=(60, 36, 20), lash=False)
+        eye_hi(f, x + 9.6 * k, y - 0.1 * k, e, False, 5.6, 6.0, iris=((70, 44, 20), (140, 96, 50)), ink=(60, 36, 20), lash=False)
         brow(f, x + 1.0 * k, x + 6.2 * k, y - 3.0 * k, e, (70, 44, 26), 1.6)
         brow(f, x + 7.4 * k, x + 12 * k, y - 2.8 * k, e, (70, 44, 26), 1.6)
         wd.circle(f, (255, 255, 230), (x + 9.2 * k, y - 10.2 * k), 1.0 * k)  # the lamp lens
@@ -152,7 +152,7 @@ def statefulset() -> Look:
         wd.arc(f, (170, 176, 196), (lx - 2.2, ly - 6.2, 5.2, 7.2), 0, math.pi, 0.9)  # the padlock's shackle
         wd.circle(f, (50, 50, 70), (lx + 0.3, ly + 1.4), 0.7)
 
-    return Look("StatefulSet", pal, torso_w=19, torso_h=17, leg_len=14, leg_w=7, arm_w=6, head_r=9, leg_pal="pants", cartoon=0.45,
+    return Look("StatefulSet", pal, torso_w=22, torso_h=18, leg_len=15, leg_w=7.6, arm_w=7, arm_len=17, head_r=10, leg_pal="pants", cartoon=0.85,
                 head_fn=shapes.head([(-9, -3), (-6, -8), (0, -9.5), (7, -8), (10.5, -3), (11, 3), (9, 8), (3, 10), (-4, 9.5), (-8.5, 5)]),
                 torso_fn=shapes.torso([(-0.05, 0), (0.02, -0.9), (0.45, -1.0), (0.85, -1.15), (1.05, -0.5), (1.05, 0.6), (0.85, 1.18), (0.45, 1.0), (0.04, 0.9)]),
                 arm_fn=shapes.arm("glove", (1.2, 1.05, 0.95)), leg_fn=shapes.leg("boot", (1.25, 1.0, 0.9)),
@@ -528,82 +528,114 @@ def operator() -> Look:
                 front=[(panel, "panel"), (cheeks, "blush"), (bangs, "hair"), (bun, "hair"), (headset, "dark")], details=details)
 
 
-# --- OOMKiller: a hooded reaper with a RAM-stick scythe ----------------------------------------------------------
+# --- OOMKiller: a lanky, grinning reaper that floats on a ragged cloak --------------------------------------------
+def _tatter_legs():
+    """Legs drawn as the ragged hem of a cloak: tapering shreds that flutter as the reaper runs and hovers."""
+    def fn(s, r, back: bool) -> None:
+        hip = r.hip
+        kn, ft = (r.knee_b, r.foot_b) if back else (r.knee_f, r.foot_f)
+        w = r.look.leg_w
+        flutter = math.sin(r.pose.bob * 3 + (1.7 if back else 0.0)) * 1.3
+        draw.ribbon(s, [hip, kn, (ft[0] - 1.2 + flutter, ft[1] - 3)], [w * 1.5, w * 0.95, w * 0.2])
+        fx, fy = ft
+        draw.poly(s, [(fx - w * 0.9, fy - w * 1.4), (fx - w * 0.2 + flutter * 0.4, fy + w * 0.6), (fx + w * 0.5, fy - w * 1.2)])
+        draw.poly(s, [(fx + w * 0.1, fy - w * 1.3), (fx + w * 1.2 + flutter * 0.6, fy + w * 0.2), (fx + w * 1.1, fy - w * 1.4)])
+    return fn
+
+
 def oomkiller() -> Look:
-    pal = with_back_palettes({"body": (200, 56, 66), "hood": (80, 32, 70), "bone": (238, 232, 214), "steel": (186, 196, 216),
-                              "wood": (132, 88, 54), "pcb": (50, 166, 102), "socket": (34, 12, 30), "gold": (240, 200, 80)})
+    pal = with_back_palettes({"body": (206, 52, 72), "hood": (72, 30, 78), "bone": (240, 234, 216), "steel": (186, 196, 216),
+                              "wood": (132, 88, 54), "pcb": (50, 168, 104), "socket": (34, 12, 30), "gold": (240, 200, 80),
+                              "cape": (112, 30, 70), "chip": (30, 40, 48)})
 
     def skull(s, r):
-        open_ = 1.6 if r.pose.face in ("hurt", "shock", "effort") else 0.0
-        draw.smooth(s, hp(r, 10, [(0, -7.4), (6, -9), (10.6, -5.6), (11.2, 0), (9.4, 4), (8.8, 8.4 + open_), (3, 9.8 + open_), (-1, 7.4), (-2.4, 2), (-2.2, -4)]))
+        open_ = 2.2 if r.pose.face in ("hurt", "shock", "effort", "angry") else 0.0
+        draw.smooth(s, hp(r, 10, [(-1, -7.8), (5.5, -9.6), (11, -6.4), (12, -0.4), (10.6, 4.4), (10, 9.4 + open_), (3.6, 11.4 + open_),
+                                  (-1.4, 8.6), (-3.2, 2.4), (-3, -4.4)]))
 
-    def horn_back(s, r):
-        draw.smooth(s, hp(r, 10, [(-8, -8), (-12, -12), (-14.5, -18.5), (-10, -14), (-4.6, -10.4)]))
+    def hood_peak(s, r):  # the hood's drooping tip, flopping behind with the motion
+        cx, cy = r.head
+        k = r.look.head_r / 10
+        flop = r.pose.lean * -0.5 + math.sin(r.pose.bob * 2) * 1.2
+        draw.smooth(s, [(cx - 9 * k, cy - 8 * k), (cx - 15 * k + flop, cy - 12 * k), (cx - 21 * k + flop * 1.6, cy - 6 * k + flop), (cx - 14 * k, cy - 3 * k)])
 
     def horn_front(s, r):
-        draw.smooth(s, hp(r, 10, [(4, -10.4), (8, -14.4), (12.4, -21), (12.6, -13.6), (9.6, -8.8)]))
+        draw.smooth(s, hp(r, 10, [(3.6, -10.6), (8, -15.6), (13.6, -23), (13.6, -14.4), (10.2, -8.8)]))
 
-    def skirt(s, r):
+    def horn_back(s, r):
+        draw.smooth(s, hp(r, 10, [(-6, -10), (-9.6, -15), (-12.6, -22), (-8.4, -16.4), (-3.6, -10.4)]))
+
+    def cape(s, r):  # a long ragged cloak streaming out behind
+        sx, sy = r.shoulder
         hx, hy = r.hip
-        sw = math.sin(r.pose.bob * 2) * 1.0 + r.pose.lean * 0.3
-        draw.smooth(s, [(hx - 10, hy - 5), (hx + 10, hy - 5), (hx + 11, hy + 9 + sw), (hx + 7, hy + 5), (hx + 4, hy + 11 - sw), (hx, hy + 6),
-                        (hx - 4, hy + 11 + sw), (hx - 7, hy + 5), (hx - 11, hy + 9 - sw)])
+        sw = math.sin(r.pose.bob * 2 + r.pose.lean * 0.4) * 2.2 + r.pose.lean * 0.6
+        pts = [(sx - 4, sy - 2), (sx - 11 - sw * 0.4, sy + 3), (hx - 18 - sw, hy + 8), (hx - 22 - sw * 1.3, hy + 15), (hx - 15 - sw, hy + 12),
+               (hx - 13 - sw * 0.8, hy + 18), (hx - 8, hy + 12), (hx - 5, hy + 16), (hx - 1, hy + 4), (hx - 4, hy - 4)]
+        draw.smooth(s, pts)
 
-    def sash(s, r):
-        draw.poly(s, [tp(r, 0.08, -0.95), tp(r, 0.08, 0.95), tp(r, 0.2, 0.98), tp(r, 0.2, -0.98)])
+    def belt(s, r):
+        draw.poly(s, [tp(r, 0.04, -0.98), tp(r, 0.04, 1.0), tp(r, 0.17, 1.02), tp(r, 0.17, -1.0)])
+
+    def sticks(s, r):  # RAM sticks hanging off the belt on chains
+        sw = math.sin(r.pose.bob * 3) * 1.4 + r.pose.lean * 0.3
+        for i, t in enumerate((-0.4, 0.2, 0.7)):
+            x, y = tp(r, 0.08, t)
+            draw.smooth(s, [(x - 1.6 + sw * 0.3 * i, y), (x + 1.6 + sw * 0.3 * i, y), (x + 1.8 + sw * 0.7, y + 7 + i), (x - 1.8 + sw * 0.7, y + 7 + i)])
 
     def scythe(s, r):
         hx, hy = r.hand_f
-        draw.ribbon(s, [(hx - 2, hy + 15), (hx, hy - 8), (hx + 3, hy - 34)], [3.0, 2.8, 2.6])
+        draw.ribbon(s, [(hx - 3, hy + 17), (hx, hy - 8), (hx + 2, hy - 44)], [3.0, 2.8, 2.6])
 
     def blade(s, r):
         hx, hy = r.hand_f
-        draw.smooth(s, [(hx + 3, hy - 36), (hx + 11, hy - 39.5), (hx + 21, hy - 35), (hx + 27, hy - 25), (hx + 21, hy - 27), (hx + 12, hy - 30), (hx + 3, hy - 28.5)])
+        draw.smooth(s, [(hx + 2, hy - 46), (hx + 12, hy - 51), (hx + 24, hy - 46), (hx + 31, hy - 35), (hx + 24, hy - 38), (hx + 13, hy - 41), (hx + 2, hy - 39)])
 
     def details(f, r):
         cx, cy = r.head
         k = r.look.head_r / 10
         e = r.pose.face
         glow = {"angry": (255, 196, 90), "effort": (255, 150, 80), "happy": (150, 255, 160), "shock": (255, 255, 255),
-                "hurt": (255, 255, 255), "focus": (255, 70, 70), "blink": (90, 30, 50)}.get(e, (255, 90, 80))
-        for ex, big in ((2.4, 1.0), (7.8, 0.84)):  # deep sockets with an ember inside
+                "hurt": (255, 255, 255), "focus": (255, 70, 70), "blink": (90, 30, 50)}.get(e, (255, 96, 84))
+        for ex, big in ((2.8, 1.18), (8.6, 0.98)):  # big hollow sockets with embers burning inside
             x, y = cx + ex * k, cy - 2.0 * k
-            wd.ellipse(f, (34, 12, 30), (x - 2.6 * big, y - 2.9 * big, 5.2 * big, 5.8 * big))
+            wd.ellipse(f, (34, 12, 30), (x - 3.0 * big, y - 3.4 * big, 6.0 * big, 6.8 * big))
             if e == "hurt":
-                wd.line(f, glow, (x - 1.2, y - 1.2), (x + 1.2, y + 1.2), 0.9)
-                wd.line(f, glow, (x + 1.2, y - 1.2), (x - 1.2, y + 1.2), 0.9)
+                wd.line(f, glow, (x - 1.4, y - 1.4), (x + 1.4, y + 1.4), 1.0)
+                wd.line(f, glow, (x + 1.4, y - 1.4), (x - 1.4, y + 1.4), 1.0)
             elif e == "happy":
-                wd.lines(f, glow, False, [(x - 1.4, y + 0.8), (x, y - 1.0), (x + 1.4, y + 0.8)], 0.9)
+                wd.lines(f, glow, False, [(x - 1.6, y + 1.0), (x, y - 1.2), (x + 1.6, y + 1.0)], 1.0)
             elif e == "blink":
-                wd.line(f, glow, (x - 1.4, y), (x + 1.4, y), 0.7)
+                wd.line(f, glow, (x - 1.6, y), (x + 1.6, y), 0.8)
             else:
-                r_ = 1.1 if e in ("angry", "effort") else 1.5
-                wd.circle(f, glow, (x + 0.3, y), r_ * big)
-                wd.circle(f, (255, 255, 255), (x - 0.1, y - 0.5), 0.45)
-        if e in ("angry", "effort", "focus"):  # a heavy brow ridge
-            wd.line(f, (70, 40, 56), (cx + 0.4 * k, cy - 5.6 * k), (cx + 5.0 * k, cy - 3.8 * k), 1.2)
-            wd.line(f, (70, 40, 56), (cx + 6.2 * k, cy - 3.8 * k), (cx + 10.4 * k, cy - 5.4 * k), 1.2)
-        wd.polygon(f, (50, 24, 42), [(cx + 5.2 * k, cy + 1.6 * k), (cx + 7.2 * k, cy + 1.6 * k), (cx + 6.2 * k, cy + 3.6 * k)])  # nose cavity
-        jaw = 1.6 if e in ("hurt", "shock", "effort") else 0.0
-        for i in range(5):  # teeth
-            x = cx + (1.0 + i * 2.1) * k
-            wd.rect(f, (250, 246, 232), (x, cy + (5.4 + jaw * 0.2) * k, 1.5, 2.6 + jaw * 0.4))
-            wd.line(f, (90, 56, 70), (x - 0.3, cy + 5.4 * k), (x - 0.3, cy + (8.0 + jaw * 0.6) * k), 0.4)
-        bx, by = r.hand_f  # memory chips and gold contacts on the RAM-stick blade
+                rr = 1.3 if e in ("angry", "effort") else 1.9
+                wd.circle(f, glow, (x + 0.3, y), rr * big)
+                wd.circle(f, (255, 255, 255), (x - 0.2, y - 0.6), 0.55)
+        if e in ("angry", "effort", "focus"):
+            wd.line(f, (70, 40, 56), (cx + 0.2 * k, cy - 6.6 * k), (cx + 5.6 * k, cy - 4.2 * k), 1.5)
+            wd.line(f, (70, 40, 56), (cx + 6.8 * k, cy - 4.4 * k), (cx + 11.4 * k, cy - 6.4 * k), 1.5)
+        wd.polygon(f, (50, 24, 42), [(cx + 6.0 * k, cy + 1.8 * k), (cx + 8.4 * k, cy + 1.8 * k), (cx + 7.2 * k, cy + 4.2 * k)])
+        jaw = 2.2 if e in ("hurt", "shock", "effort", "angry") else 0.0
+        wd.rect(f, (60, 24, 44), (cx + 1.0 * k, cy + 5.6 * k, 10.4 * k, (3.2 + jaw) * k))  # the dark mouth, a huge grin
+        for i in range(6):  # a row of big teeth
+            x = cx + (1.2 + i * 1.75) * k
+            wd.rect(f, (252, 248, 236), (x, cy + 5.6 * k, 1.4 * k, (2.6 + jaw * 0.6) * k))
+            if jaw:
+                wd.rect(f, (252, 248, 236), (x, cy + (8.4 + jaw * 0.2) * k, 1.4 * k, 1.8 * k))
+        bx, by = r.hand_f
         for i in range(3):
-            wd.rect(f, (24, 30, 34), (bx + 6 + i * 4.4, by - 34 + i * 2.2, 3.2, 2.2))
-        wd.line(f, (240, 200, 80), (bx + 5, by - 29.6), (bx + 19, by - 27.6), 0.9)
-        for i in range(5):
-            wd.line(f, (240, 200, 80), (bx + 6 + i * 3, by - 30.4 + i * 0.5), (bx + 6 + i * 3, by - 28.2 + i * 0.4), 0.5)
-        x, y = tp(r, 0.55, 0.0)
-        wd.line(f, (250, 240, 220), (x - 2.2, y - 2.2), (x + 2.2, y + 2.2), 0.9)  # the crossbones on the robe
-        wd.line(f, (250, 240, 220), (x + 2.2, y - 2.2), (x - 2.2, y + 2.2), 0.9)
+            wd.rect(f, (22, 28, 32), (bx + 7 + i * 4.6, by - 45 + i * 2.2, 3.4, 2.4))
+        wd.line(f, (240, 200, 80), (bx + 6, by - 40.4), (bx + 22, by - 38.2), 1.0)
+        for i in range(6):
+            wd.line(f, (240, 200, 80), (bx + 7 + i * 2.8, by - 41.2 + i * 0.5), (bx + 7 + i * 2.8, by - 38.8 + i * 0.4), 0.5)
+        x, y = tp(r, 0.58, 0.0)
+        wd.line(f, (252, 240, 222), (x - 2.4, y - 2.4), (x + 2.4, y + 2.4), 1.0)
+        wd.line(f, (252, 240, 222), (x + 2.4, y - 2.4), (x - 2.4, y + 2.4), 1.0)
 
-    return Look("OOMKiller", pal, torso_w=19, torso_h=19, leg_len=14, leg_w=7, arm_w=6, head_r=10, head_pal="hood", limb_pal="bone",
-                leg_pal="hood", cartoon=0.4, cel=("body", "hood", "bone", "wood", "pcb"), plain=("socket",),
-                textures={"steel": "metal"}, no_hue_shift=("bone", "steel", "wood", "pcb", "socket", "gold"),
-                head_fn=shapes.head([(-10, -2), (-9, -9), (-3, -13), (5, -12), (11, -6), (12.4, 0), (10.4, 6), (5, 9.4), (-4, 9.6), (-9, 6)], 10.0),
-                torso_fn=shapes.torso([(-0.05, 0), (0.0, -0.9), (0.4, -1.0), (0.85, -1.15), (1.05, -0.6), (1.05, 0.7), (0.85, 1.2), (0.4, 1.1), (0.0, 0.95)]),
-                arm_fn=shapes.arm("bone", (1.1, 0.9, 0.8)), leg_fn=shapes.leg("boot", (1.2, 1.0, 0.9)),
-                back=[(skirt, "body"), (scythe, "wood"), (horn_back, "bone")],
-                front=[(sash, "hood"), (skull, "bone"), (horn_front, "bone"), (blade, "pcb")], details=details)
+    return Look("OOMKiller", pal, torso_w=15, torso_h=21, leg_len=15, leg_w=6, arm_w=5, arm_len=19, head_r=11, head_pal="hood", limb_pal="bone",
+                leg_pal="body", cartoon=0.7, cel=("body", "hood", "bone", "wood", "pcb", "cape", "chip"), plain=("socket",),
+                no_hue_shift=("bone", "steel", "wood", "pcb", "socket", "gold", "chip"),
+                head_fn=shapes.head([(-10, -2), (-9, -9), (-3, -13.4), (5, -13), (11.6, -6.6), (13, 0), (11.2, 7), (5.4, 11), (-4.4, 11.4), (-9.6, 7)], 10.0),
+                torso_fn=shapes.torso([(-0.05, 0), (0.0, -0.8), (0.4, -0.85), (0.85, -1.15), (1.08, -0.6), (1.0, 0.5), (0.8, 0.9), (0.4, 0.82), (0.0, 0.72)]),
+                arm_fn=shapes.arm("bone", (1.1, 0.85, 0.7)), leg_fn=_tatter_legs(),
+                back=[(cape, "cape"), (hood_peak, "hood"), (scythe, "wood"), (horn_back, "bone")],
+                front=[(belt, "hood"), (sticks, "pcb"), (skull, "bone"), (horn_front, "bone"), (blade, "pcb")], details=details)
