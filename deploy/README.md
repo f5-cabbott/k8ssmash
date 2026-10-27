@@ -23,12 +23,12 @@ Everything below is installed by `deploy/setup-pi.sh`; this is the list, so you 
 |---|---|
 | OS | Raspberry Pi OS **Lite, 64-bit** (Bookworm or newer; `uname -m` must say `aarch64`) |
 | Python | 3.11 or newer (Bookworm ships 3.11). `python3-venv` and `python3-pip` |
-| Python packages | **Only `pygame-ce`** (installed into the venv by the script; pip downloads a prebuilt 64-bit wheel) |
+| Python packages | **`pygame-ce` and `numpy`** (installed into the venv by the script from `pyproject.toml`; pip downloads prebuilt 64-bit wheels). A numpy installed with apt is invisible to the venv, so do not rely on it |
 | System libraries | `libdrm2 libgbm1 libegl1 libgles2 libudev1 libasound2` (KMS/DRM display, GPU scaling, pads, sound) and `alsa-utils` |
 | Service user | `kiosk` in the groups `video render input audio` (created for you) |
 | Pads | the udev rule `deploy/99-snes-pads.rules` (installed for you) |
 | Disk and memory | about 300 MB for the game, 1 GB of RAM is plenty at the Pi's default picture size |
-| Not needed on the Pi | `numpy`, `scipy`, `ffmpeg` and the speech library: the sounds, music, announcer and sprites are pre-built and committed. They are only for regenerating assets on a development machine |
+| Not needed on the Pi | `scipy`, `ffmpeg` and the speech library: the sounds, music, announcer and sprites are pre-built and committed. They are only for regenerating assets on a development machine |
 
 **One thing to verify on the real hardware:** the pygame wheel must include the KMS/DRM video driver. After setup, check:
 
@@ -140,7 +140,7 @@ Other aspect ratios still work; the picture is centered with black bars. On an u
 
 | Symptom | Try |
 |---|---|
-| Black screen, service restarting | `journalctl -u k8ssmash -b`. Permission errors on `/dev/dri/card*` → check `id kiosk` lists `video render input`. "No available video device" → another process owns the display (a desktop session?). Boot to console: `sudo raspi-config nonint do_boot_behaviour B1` |
+| Black screen, service restarting | `journalctl -u k8ssmash -b` (the screen stays black while the game crash-loops, because the service owns tty1; a missing Python package shows up here as a clear message). Permission errors on `/dev/dri/card*` → check `id kiosk` lists `video render input`. "No available video device" → another process owns the display (a desktop session?). Boot to console: `sudo raspi-config nonint do_boot_behaviour B1` |
 | No sound | `aplay -L`, pick the HDMI device, set `SDL_AUDIODRIVER=alsa` and `AUDIODEV=...` in `/etc/default/k8ssmash`, restart |
 | Pads not detected | `lsusb` should list `0079:0011`; `ls /dev/input/js*`; confirm the udev rule: `udevadm test /sys/class/input/event*` |
 | Choppy frames | Run the benchmark. Check for throttling: `vcgencmd get_throttled` (`0x0` is healthy) |

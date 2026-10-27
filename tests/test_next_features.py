@@ -586,3 +586,50 @@ def test_every_arena_has_whimsy_props_and_cloud_has_no_wheel(app):
     backdrops._zeppelin(surf, 400, 200, 1.0, 10)
     backdrops._whale(surf, 600, 300, 1.0, 10)
     backdrops._balloon(surf, 200, 150, 1.0, 10, 0.0)
+
+
+# --- regression tests for the two issues found on the Pi ------------------------------------------------------------
+def test_a_counter_that_cancels_the_attackers_move_mid_loop_does_not_crash_melee(app):
+    """Issue 1: with a counter-stance victim and a third fighter later in the list, the bounced attacker's move became
+    None part-way through the victim loop and the next iteration read None.rehit."""
+    from k8ssmash.fighter import Fighter
+    rs = {r.name: r for r in roster()}
+    b = Battle(app, [rs["Pod"], rs["Operator"]], human=[False, False])
+    atk, vic = b.fighters
+    third = Fighter(rs["Kubectl"], 2)
+    third.spawn((atk.x + 10, atk.y), -1)
+    b.fighters = [atk, vic, third]
+    vic.x, vic.y = atk.x + 16, atk.y
+    third.x, third.y = atk.x + 14, atk.y
+    vic.invuln = third.invuln = 0
+    vic._begin(vic.stats.moves["special"])  # Operator's Reconcile: a counter
+    vic.move_frame = vic.move.startup + 1
+    atk._begin(atk.stats.moves["jab"])
+    atk.move_frame = atk.stats.moves["jab"].startup + 1
+    b._resolve_melee()  # used to raise AttributeError
+    assert atk.move is None  # the attacker ate the counter ...
+    assert third.percent == 0.0  # ... and the cancelled move did not carry on and hit the third fighter
+
+
+def test_the_game_runs_with_only_the_declared_dependencies():
+    """Issue 2: numpy is needed at runtime and must be declared; scipy and the speech library must not be needed."""
+    import subprocess
+    import sys
+    import tomllib
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    deps = tomllib.loads((root / "pyproject.toml").read_text())["project"]
+    declared = {d.split(">")[0].split("=")[0].strip() for d in deps["dependencies"]}
+    assert {"pygame-ce", "numpy"} <= declared
+    assert "numpy" not in " ".join(deps["optional-dependencies"]["audio"])
+    code = (
+        "import sys, os\n"
+        "os.environ['SDL_VIDEODRIVER']='dummy'; os.environ['SDL_AUDIODRIVER']='dummy'\n"
+        "for m in ('scipy', 'espeakng_loader'):\n    sys.modules[m] = None\n"
+        "from k8ssmash.config import Config\nfrom k8ssmash.main import App\nfrom k8ssmash.roster import roster\n"
+        "from k8ssmash.scenes.battle import Battle\nfrom k8ssmash.stage import STAGES\n"
+        "app = App(Config())\n"
+        "for make in STAGES:\n    Battle(app, roster()[:2], stage=make(), human=[False, False]).draw(app.display.canvas)\n"
+        "print('ok')\n")
+    out = subprocess.run([sys.executable, "-c", code], cwd=root, capture_output=True, text=True, timeout=120)
+    assert out.returncode == 0 and "ok" in out.stdout, out.stderr[-800:]

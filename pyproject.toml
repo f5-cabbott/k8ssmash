@@ -3,11 +3,11 @@ name = "k8ssmash"
 version = "0.1.0"
 description = "Kubernetes-themed SNES-style platform fighter for conference booths"
 requires-python = ">=3.11"
-dependencies = ["pygame-ce>=2.5"]
+dependencies = ["pygame-ce>=2.5", "numpy"]  # numpy shades the backdrops and sprites at runtime, so the Pi needs it too
 
 [project.optional-dependencies]
 dev = ["pytest", "pyyaml"]
-audio = ["numpy", "scipy", "espeakng-loader"]  # only to regenerate the soundtrack and announcer (python -m k8ssmash.audio.build)
+audio = ["scipy", "espeakng-loader"]  # only to regenerate the soundtrack and announcer (python -m k8ssmash.audio.build; ffmpeg is also needed)
 
 [project.scripts]
 k8ssmash = "k8ssmash.main:main"

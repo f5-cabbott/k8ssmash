@@ -10,7 +10,7 @@ python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 .venv/bin/python -m pytest                      # tests
 ```
 
-For the Raspberry Pi booth (what it needs, install, smoke test, performance), see [`deploy/README.md`](deploy/README.md). In short: a 64-bit Pi OS Lite, `sudo deploy/setup-pi.sh`, and `pygame-ce` is the only Python package the game needs; `numpy`, `scipy` and `ffmpeg` are only for regenerating assets.
+For the Raspberry Pi booth (what it needs, install, smoke test, performance), see [`deploy/README.md`](deploy/README.md). In short: a 64-bit Pi OS Lite, `sudo deploy/setup-pi.sh`, and the game needs two Python packages, `pygame-ce` and `numpy` (both installed into its venv by the script); `scipy`, `ffmpeg` and the speech library are only for regenerating assets on a development machine.
 
 ## Playing
 

@@ -458,10 +458,12 @@ class Battle(Scene):
     def _resolve_melee(self) -> None:
         for atk in self.fighters:
             box = atk.active_hitbox()
-            if box is None or atk.move is None:
+            m = atk.move
+            if box is None or m is None:
                 continue
             for vic in self.fighters:
-                m = atk.move
+                if atk.move is not m:  # cancelled mid-loop, e.g. the attacker ran into a counter and was bounced back
+                    break
                 again = m.rehit and atk.move_frame >= atk.rehit_at.get(vic.slot, 0)  # a multi-hit move may strike again
                 if vic is atk or (vic.slot in atk.hit_targets and not again) or not vic.alive:
                     continue
