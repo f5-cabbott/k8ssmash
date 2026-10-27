@@ -633,3 +633,12 @@ def test_the_game_runs_with_only_the_declared_dependencies():
         "print('ok')\n")
     out = subprocess.run([sys.executable, "-c", code], cwd=root, capture_output=True, text=True, timeout=120)
     assert out.returncode == 0 and "ok" in out.stdout, out.stderr[-800:]
+
+
+def test_a_raspberry_pi_defaults_to_the_light_picture_and_the_env_var_always_wins():
+    from k8ssmash.config import default_render_scale as rs
+    assert rs(None, "Raspberry Pi 5 Model B Rev 1.0\x00") == 1
+    assert rs(None, "") == 2 and rs(None, "Some Desktop Board") == 2
+    assert rs("2", "Raspberry Pi 5") == 2  # asking for hi-res on a Pi is honoured
+    assert rs("1", "") == 1 and rs("7", "") == 3 and rs("0", "") == 1
+    assert rs("nonsense", "Raspberry Pi 4") == 1

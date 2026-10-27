@@ -17,7 +17,24 @@ FPS = 60
 
 # Game logic stays in 960x540 "world units"; everything is drawn RS times bigger, so the picture is 1920x1080 at the
 # default RS=2 and sprites, scenery and text carry twice the detail. K8SSMASH_RS=1 draws at the old size (weak hardware).
-RS = max(1, min(3, int(os.environ.get("K8SSMASH_RS", "2") or 2)))
+def default_render_scale(env: str | None, model: str) -> int:
+    """K8SSMASH_RS wins when set; otherwise a Raspberry Pi draws the light 960x540 picture and everything else draws 1080p."""
+    if env:
+        try:
+            return max(1, min(3, int(env)))
+        except ValueError:
+            pass
+    return 1 if "Raspberry Pi" in model else 2
+
+
+def _device_model() -> str:
+    try:
+        return Path("/proc/device-tree/model").read_text(errors="ignore")
+    except OSError:
+        return ""
+
+
+RS = default_render_scale(os.environ.get("K8SSMASH_RS"), _device_model())
 PIX_W = WORLD_W * RS
 PIX_H = WORLD_H * RS
 

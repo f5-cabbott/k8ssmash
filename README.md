@@ -70,8 +70,8 @@ Dev hotkeys (off in booth mode): `F3` hitboxes, `F6` colorblind colors, `F8` FPS
 
 The game logic runs on a 960x540 grid but everything is drawn at twice that, 1920x1080 by default, then scaled to the window
 (720p, 900p, 1080p and 1440p are in Settings > Display). Set `K8SSMASH_RS=1` (or `--lowres` / `--render-scale 1`) to draw at
-the classic size, which is much lighter on weak hardware. The Raspberry Pi service defaults to 1 until its frame time at 1080p
-has been measured with `python tools/benchmark.py`; set `K8SSMASH_RS=2` in `/etc/default/k8ssmash` to try the hi-res picture.
+the classic size, which is much lighter on weak hardware. The game detects a Raspberry Pi and defaults to 1 there however it is
+launched (service or desktop); set `K8SSMASH_RS=2` (or `--render-scale 2`) to try the hi-res picture, and check it with `python tools/benchmark.py`.
 
 ## Flags and config
 

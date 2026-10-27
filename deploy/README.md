@@ -114,7 +114,7 @@ the change, then enable it again.
 
 ## 7. Display modes and the render scale
 
-The game logic runs on a 960x540 grid and is drawn at **render scale** times that. The booth service sets `K8SSMASH_RS=1`, so it draws
+The game logic runs on a 960x540 grid and is drawn at **render scale** times that. The game detects a Raspberry Pi and defaults to `K8SSMASH_RS=1` however it is launched (the booth service also sets it), so it draws
 960x540 and SDL scales that to the screen on the GPU (2x at 1080p, about 2.67x at 1440p, for free). The default on a desktop is
 `K8SSMASH_RS=2`: a 1920x1080 picture with twice the detail (sharper sprites, finer scenery and text), which costs about three times
 the drawing work. **Measure before switching the Pi to it**:
@@ -177,8 +177,12 @@ If you would rather keep the Wayland desktop, skip the systemd unit and start th
 autostart (`~/.config/labwc/autostart`):
 
 ```
-/opt/k8ssmash/.venv/bin/python -m k8ssmash --booth &
+/opt/k8ssmash/.venv/bin/python -m k8ssmash --booth --fps &
 ```
+
+The game picks the light 960x540 picture on a Pi by itself. If a Wayland desktop still feels choppy, run with `--fps` (F8 toggles the
+overlay) and compare: `SDL_VIDEODRIVER=wayland` against `SDL_VIDEODRIVER=x11` (XWayland) can behave differently, and a compositor
+adds its own frame pacing, which the kiosk route avoids.
 
 You lose the crash/hang watchdog and the clean-boot guarantees, so the Lite + service route above is the
 recommended one for the booth.

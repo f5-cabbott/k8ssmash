@@ -99,9 +99,9 @@ def cronjob() -> FighterStats:
             "special_up": Move("snooze", 5, 8, 12, (-10, -62, 22, 40), 6, 3.0, 0.05, 82, rise=10.1,
                                once_per_air=True, anim="rise", announce="Snooze"),
             "special_down": Move("gravity well", 14, 1, 22, anim="cast", announce="Gravity Well", projectile=ProjectileDef(
-                speed=0, width=30, height=30, damage=1.5, base_kb=1.0, kb_growth=0.0, angle=80, life=170, gravity=0.0,
-                spawn_dx=46, spawn_dy=-38, color=(190, 150, 255), shape="well", pierce=True, hit_interval=34,
-                explode_radius=64, explode_damage=9, pull=0.34, pull_radius=88, replace_existing=True)),
+                speed=0, width=30, height=30, damage=2.0, base_kb=1.2, kb_growth=0.0, angle=80, life=180, gravity=0.0,
+                spawn_dx=46, spawn_dy=-38, color=(190, 150, 255), shape="well", pierce=True, hit_interval=30,
+                explode_radius=72, explode_damage=11, pull=0.52, pull_radius=108, replace_existing=True)),
         }))
 
 
