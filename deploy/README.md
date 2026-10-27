@@ -4,9 +4,8 @@ Target: Raspberry Pi 5, **Raspberry Pi OS Lite (64-bit)**, two SNES-clone USB pa
 (1440p). The game runs as a systemd service that owns the screen directly through SDL's KMS/DRM backend:
 no desktop, no compositor, and it comes back by itself after a crash, a hang or a power cut.
 
-> **Status:** everything here was written and checked on a desktop (unit file validated with
-> `systemd-analyze`, setup script syntax-checked, game benchmarked). It has **not yet been run on a Pi**.
-> Work through the smoke test below first, and expect to tweak the audio device or display mode.
+> **Status:** run and confirmed working on a Raspberry Pi 5 in no-desktop kiosk mode (at the default render scale of 1).
+> Work through the smoke test below on a new unit anyway, and expect to tweak the audio device or display mode.
 
 ## 1. Hardware checklist
 
