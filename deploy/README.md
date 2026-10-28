@@ -77,8 +77,9 @@ journalctl -fu k8ssmash          # expect: "running: driver=KMSDRM gpu_scaled=Tr
 | Hang recovery | `sudo pkill -STOP -f k8ssmash` → systemd restarts it within 20 s (watchdog) |
 | Power cut | Pull the plug mid-match, power on: game starts by itself, nothing to repair |
 
-Staff quit combo: hold **SELECT + START + L/R + B** on one pad for 3 s. The service stays stopped until
-`sudo systemctl start k8ssmash`.
+Staff quit combo: hold **SELECT + START + L/R + B** on one pad for 3 s. The game exits and a login prompt
+appears on tty1 (plug in a USB keyboard). The service stays stopped until `sudo systemctl start k8ssmash`,
+which takes tty1 back from the login prompt. Crashes don't bring the prompt up; the game just restarts.
 
 ## 5. Making the SD card power-cut proof (read-only root)
 

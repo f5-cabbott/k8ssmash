@@ -33,6 +33,11 @@ RestartSec=2
 WatchdogSec=20
 TimeoutStartSec=60
 
+# After a clean quit (staff combo or `systemctl stop`) hand tty1 back to a login prompt instead of a blank console.
+# Crashes and watchdog kills skip this, since systemd restarts the game and Conflicts= would just stop the prompt again.
+# The "+" runs it as root; the service itself runs as an unprivileged user.
+ExecStopPost=+/bin/sh -c '[ "$SERVICE_RESULT" = success ] && systemctl start --no-block getty@tty1.service || true'
+
 # Own tty1 so SDL's KMS/DRM backend can take the display.
 TTYPath=/dev/tty1
 StandardInput=tty
