@@ -122,10 +122,24 @@ the drawing work. **Measure before switching the Pi to it**:
 
 ```bash
 sudo systemctl stop k8ssmash
-sudo -u kiosk K8SSMASH_RS=2 SDL_VIDEODRIVER=kmsdrm /opt/k8ssmash/.venv/bin/python /opt/k8ssmash/tools/benchmark.py 20
+sudo -u kiosk K8SSMASH_CONFIG=/var/lib/k8ssmash/config.json SDL_VIDEODRIVER=kmsdrm \
+  /opt/k8ssmash/.venv/bin/python /opt/k8ssmash/tools/benchmark.py 8 --render-scale 2 --booth
 ```
 
-If it prints `PASS: holds 60 fps`, put `K8SSMASH_RS=2` in `/etc/default/k8ssmash` and restart the service. If not, leave it at 1.
+The benchmark drives the real game loop through the title, both menus and a CPU-vs-CPU battle on every arena (about 90 s).
+Passing your own flags replaces its default `--booth`, so repeat it. The header should say `render_scale=2`.
+
+If it prints `PASS: holds 60 fps`, set it for this machine and restart the service:
+
+```bash
+echo 'K8SSMASH_RS=2' | sudo tee -a /etc/default/k8ssmash   # or uncomment the line that is already there
+sudo systemctl restart k8ssmash
+```
+
+If not, leave it at 1. `/etc/default/k8ssmash` is not part of the repo and `setup-pi.sh` never overwrites it, but a new SD card
+starts without it, so redo this step after a rebuild. To go back, delete the line and restart.
+A Pi 5 with the official 5V/5A supply and a heat tower with fan passes at both scales. After a long run, `vcgencmd get_throttled`
+should still read `0x0`.
 Settings > Display also offers 720p, 900p, 1080p and 1440p window sizes on a desktop. If
 the Pi picks the wrong mode for your TV, force one on the kernel command line
 (`/boot/firmware/cmdline.txt`, keep it a single line, append):
